@@ -48,6 +48,23 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   --color-primary-soft-2: var(--primary-soft-2);
+
+  /* ---- LUMA shell tokens ----
+   * The LUMA design language frames the whole app as a single floating
+   * card: an outer "desk" surface (--shell) with the app resting on it,
+   * a dark navigation rail (--rail) running down the left edge, and a
+   * translucent header above the workspace (--workspace).
+   * Exposed as utilities: bg-shell, bg-rail, text-rail-foreground, … */
+  --color-shell: var(--shell);
+  --color-workspace: var(--workspace);
+  --color-rail: var(--rail);
+  --color-rail-2: var(--rail-2);
+  --color-rail-foreground: var(--rail-foreground);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-border: var(--rail-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -55,82 +72,63 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Premium elevation scale (LUMA): wide, low-opacity shadows instead
+   * of the tight default drop shadows. shadow-soft / shadow-hard /
+   * shadow-shell / shadow-rail. */
+  --shadow-soft: 0 4px 20px var(--elevation-soft);
+  --shadow-hard: 0 8px 30px var(--elevation-hard);
+  --shadow-shell: 0 20px 60px -15px var(--elevation-shell);
+  --shadow-pop: 0 8px 32px var(--elevation-soft), 0 1px 4px var(--elevation-hair);
 }
 
 /* ============================================================
  * THEMING — two orthogonal dimensions
  *
  *   1. MODE   (light / dark)  → neutral surfaces. Selected with
- *      `document.documentElement.dataset.mode`. Defaults to dark.
- *   2. ACCENT (violet / …)    → the primary color only. Selected
- *      with `document.documentElement.dataset.theme`.
+ *      `document.documentElement.dataset.mode`. Defaults to light,
+ *      matching the LUMA design standard.
+ *   2. ACCENT (luma / violet / …) → the primary color and the
+ *      navigation rail tone. Selected with
+ *      `document.documentElement.dataset.theme`.
  *
  * The two compose: any accent works in either mode. Neutral
  * tokens (background / card / border / muted / sidebar surfaces /
- * neutral charts / radius) live in the MODE blocks below; accent
- * tokens (--primary*, --ring, --chart-1, --sidebar-primary*,
- * --sidebar-ring) live in the ACCENT blocks. They set disjoint
- * variables, so cascade order between them doesn't matter.
+ * neutral charts / radius / shell framing) live in the MODE blocks
+ * below; accent tokens (--primary*, --ring, --chart-1, --rail*,
+ * --sidebar-primary*, --sidebar-ring) live in the ACCENT blocks.
+ * They set disjoint variables, so cascade order between them
+ * doesn't matter.
  *
- * `:root` carries the dark-mode + violet defaults so a visitor
+ * `:root` carries the light-mode + LUMA defaults so a visitor
  * renders correctly before JS runs; the boot script in
  * layout.tsx replays the saved mode + accent before first paint.
  *
  * The three `--primary-*` extras (hover / soft / soft-2) feed
- * hovered primary buttons and tinted-primary surfaces (sidebar
+ * hovered primary buttons and tinted-primary surfaces (rail
  * active pill, validation badges).
- *
- * Token shapes come straight from the design handoff at
- * project/Color Themes.html — change one, change the other.
  * ============================================================ */
 
 /* ---- MODE: neutral surfaces ---- */
 
 :root,
-html[data-mode="dark"] {
-  --background: oklch(0.13 0.01 260);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.18 0.01 260);
-  --card-2: oklch(0.205 0.01 260);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.18 0.01 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.22 0.01 260);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.22 0.01 260);
-  --muted-foreground: oklch(0.65 0.01 260);
-  --accent: oklch(0.22 0.01 260);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.28 0.01 260);
-  --input: oklch(0.28 0.01 260);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.16 0.01 260);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.22 0.01 260);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.28 0.01 260);
-}
-
 html[data-mode="light"] {
-  --background: oklch(0.99 0.002 260);
-  --foreground: oklch(0.21 0.01 260);
+  --background: oklch(0.9725 0.0045 258);
+  --foreground: oklch(0.24 0.015 285);
   --card: oklch(1 0 0);
-  --card-2: oklch(0.985 0.002 260);
-  --card-foreground: oklch(0.21 0.01 260);
+  --card-2: oklch(0.985 0.003 260);
+  --card-foreground: oklch(0.24 0.015 285);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.01 260);
+  --popover-foreground: oklch(0.24 0.015 285);
   --secondary: oklch(0.967 0.003 260);
   --secondary-foreground: oklch(0.25 0.01 260);
   --muted: oklch(0.967 0.003 260);
-  --muted-foreground: oklch(0.52 0.015 260);
+  --muted-foreground: oklch(0.524 0.012 270);
   --accent: oklch(0.96 0.004 260);
   --accent-foreground: oklch(0.25 0.01 260);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.568 0.2 26);
+  --success: oklch(0.6959 0.1491 162);
+  --warning: oklch(0.78 0.15 75);
   --border: oklch(0.922 0.004 260);
   --input: oklch(0.922 0.004 260);
   --chart-2: oklch(0.6 0.1 260);
@@ -138,16 +136,89 @@ html[data-mode="light"] {
   --chart-4: oklch(0.8 0.04 260);
   --chart-5: oklch(0.87 0.03 260);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.002 260);
-  --sidebar-foreground: oklch(0.21 0.01 260);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.24 0.015 285);
   --sidebar-accent: oklch(0.96 0.004 260);
   --sidebar-accent-foreground: oklch(0.25 0.01 260);
   --sidebar-border: oklch(0.922 0.004 260);
+
+  /* LUMA shell framing — the "desk" the app card floats on. */
+  --shell: oklch(0.9288 0.0126 255);
+  --workspace: oklch(0.9573 0.0074 260);
+  --shell-hairline: oklch(1 0 0 / 0.6);
+  --elevation-soft: oklch(0 0 0 / 0.05);
+  --elevation-hard: oklch(0 0 0 / 0.09);
+  --elevation-shell: oklch(0 0 0 / 0.28);
+  --elevation-hair: oklch(0 0 0 / 0.02);
+  --scrollbar-thumb: oklch(0.82 0.01 265);
 }
 
-/* ---- ACCENT: primary color ---- */
+html[data-mode="dark"] {
+  --background: oklch(0.13 0.012 285);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.18 0.014 285);
+  --card-2: oklch(0.205 0.015 285);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.18 0.014 285);
+  --popover-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.22 0.014 285);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0.014 285);
+  --muted-foreground: oklch(0.66 0.012 285);
+  --accent: oklch(0.22 0.014 285);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.6959 0.1491 162);
+  --warning: oklch(0.8 0.15 78);
+  --border: oklch(0.28 0.014 285);
+  --input: oklch(0.28 0.014 285);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.16 0.014 285);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.22 0.014 285);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.28 0.014 285);
+
+  --shell: oklch(0.09 0.01 285);
+  --workspace: oklch(0.15 0.012 285);
+  --shell-hairline: oklch(1 0 0 / 0.08);
+  --elevation-soft: oklch(0 0 0 / 0.4);
+  --elevation-hard: oklch(0 0 0 / 0.5);
+  --elevation-shell: oklch(0 0 0 / 0.75);
+  --elevation-hair: oklch(0 0 0 / 0.3);
+  --scrollbar-thumb: oklch(0.33 0.014 285);
+}
+
+/* ---- ACCENT: primary color + navigation rail ----
+ *
+ * Every accent ships a matching dark rail (--rail / --rail-2), which is
+ * what gives the LUMA shell its signature look: a deep, saturated
+ * navigation column against a light workspace. --rail stays dark in
+ * both modes by design — it is the app's spine, not a surface. */
 
 :root,
+html[data-theme="luma"] {
+  --primary: oklch(0.5659 0.1814 355);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-hover: oklch(0.62 0.18 355);
+  --primary-soft: oklch(0.5659 0.1814 355 / 0.12);
+  --primary-soft-2: oklch(0.5659 0.1814 355 / 0.22);
+  --ring: oklch(0.5659 0.1814 355);
+  --chart-1: oklch(0.5659 0.1814 355);
+  --sidebar-primary: oklch(0.5659 0.1814 355);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-ring: oklch(0.5659 0.1814 355);
+  --rail: oklch(0.222 0.0656 289);
+  --rail-2: oklch(0.182 0.0496 290);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.6);
+  --rail-border: oklch(1 0 0 / 0.1);
+}
+
 html[data-theme="violet"] {
   --primary: oklch(0.526 0.247 293);
   --primary-foreground: oklch(0.985 0 0);
@@ -159,6 +230,11 @@ html[data-theme="violet"] {
   --sidebar-primary: oklch(0.526 0.247 293);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-ring: oklch(0.526 0.247 293);
+  --rail: oklch(0.215 0.07 293);
+  --rail-2: oklch(0.175 0.055 293);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.6);
+  --rail-border: oklch(1 0 0 / 0.1);
 }
 
 html[data-theme="emerald"] {
@@ -173,6 +249,11 @@ html[data-theme="emerald"] {
   --sidebar-primary: oklch(0.62 0.16 162);
   --sidebar-primary-foreground: oklch(0.16 0.02 162);
   --sidebar-ring: oklch(0.62 0.16 162);
+  --rail: oklch(0.215 0.045 175);
+  --rail-2: oklch(0.175 0.035 175);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.6);
+  --rail-border: oklch(1 0 0 / 0.1);
 }
 
 html[data-theme="cobalt"] {
@@ -187,6 +268,11 @@ html[data-theme="cobalt"] {
   --sidebar-primary: oklch(0.585 0.2 254);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-ring: oklch(0.585 0.2 254);
+  --rail: oklch(0.21 0.065 262);
+  --rail-2: oklch(0.17 0.05 262);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.6);
+  --rail-border: oklch(1 0 0 / 0.1);
 }
 
 html[data-theme="amber"] {
@@ -201,6 +287,11 @@ html[data-theme="amber"] {
   --sidebar-primary: oklch(0.745 0.16 65);
   --sidebar-primary-foreground: oklch(0.18 0.03 65);
   --sidebar-ring: oklch(0.745 0.16 65);
+  --rail: oklch(0.215 0.04 55);
+  --rail-2: oklch(0.175 0.032 55);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.62);
+  --rail-border: oklch(1 0 0 / 0.1);
 }
 
 html[data-theme="rose"] {
@@ -215,6 +306,11 @@ html[data-theme="rose"] {
   --sidebar-primary: oklch(0.645 0.22 16);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-ring: oklch(0.645 0.22 16);
+  --rail: oklch(0.215 0.06 8);
+  --rail-2: oklch(0.175 0.048 8);
+  --rail-foreground: oklch(1 0 0);
+  --rail-muted: oklch(1 0 0 / 0.6);
+  --rail-border: oklch(1 0 0 / 0.1);
 }
 
 @layer base {
@@ -226,5 +322,269 @@ html[data-theme="rose"] {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ============================================================
+ * LUMA — shell, rail and premium surface utilities
+ * ============================================================ */
+
+@layer components {
+  /* The floating app card: the whole product rests inside this. */
+  .luma-shell {
+    background-color: var(--shell);
+  }
+
+  .luma-shell-card {
+    border-radius: 14px;
+    border: 1px solid var(--shell-hairline);
+    /* Deliberately tighter than the LUMA reference's 60px blur: this
+     * element is the size of the viewport, and box-shadow blur cost
+     * scales with the perimeter it's painted around. 24px reads the
+     * same at this scale for a fraction of the paint. */
+    box-shadow: 0 8px 24px -8px var(--elevation-shell);
+    overflow: hidden;
+  }
+
+  /* Navigation rail ------------------------------------------------ */
+
+  .luma-rail {
+    background: linear-gradient(180deg, var(--rail) 0%, var(--rail-2) 100%);
+  }
+
+  .luma-rail-item {
+    /* Positioned so the collapsed rail can pin unread dots and notification
+     * counts to the icon's corner. */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    width: 38px;
+    padding: 0;
+    border-radius: 10px;
+    color: var(--rail-muted);
+    text-decoration: none;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease,
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+
+  .luma-rail-item:hover {
+    background-color: color-mix(in oklab, var(--rail-foreground) 10%, transparent);
+    color: var(--rail-foreground);
+  }
+
+  .luma-rail-item[data-active="true"] {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: 0 8px 18px -6px color-mix(in oklab, var(--primary) 55%, transparent);
+  }
+
+  .luma-rail-item[data-active="true"]:hover {
+    background-color: var(--primary);
+    transform: scale(1.02);
+  }
+
+  /* Expanded rail: rows stretch and reveal their labels. */
+  .luma-rail-expanded .luma-rail-item {
+    justify-content: flex-start;
+    width: calc(100% - 20px);
+    padding: 0 12px;
+    margin: 0 10px;
+  }
+
+  .luma-rail-label {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 0;
+    transition:
+      opacity 0.2s ease,
+      width 0.3s ease,
+      margin 0.3s ease;
+  }
+
+  .luma-rail-expanded .luma-rail-label {
+    opacity: 1;
+    width: auto;
+    flex-grow: 1;
+    margin-left: 12px;
+  }
+
+  .luma-rail-divider {
+    height: 1px;
+    width: 24px;
+    align-self: center;
+    border-radius: 999px;
+    background-color: var(--rail-border);
+    flex-shrink: 0;
+    transition: width 0.3s ease;
+  }
+
+  .luma-rail-expanded .luma-rail-divider {
+    width: calc(100% - 40px);
+  }
+
+  /* Top bar sitting above the workspace.
+   *
+   * This used to be a frosted `backdrop-filter: blur()` panel. That
+   * promotes the header to its own compositing layer and forces the
+   * browser to re-blur the region behind it on every paint — expensive
+   * on integrated GPUs, and it buys almost nothing here because the
+   * header sits *above* the scroll container rather than over it. A
+   * solid card fill reads identically and costs one paint. */
+  .luma-header {
+    background-color: var(--card);
+  }
+
+  /* Premium card surface — replaces the flat ring-only look with a
+   * soft elevation and a hairline that reads on both modes. */
+  .luma-surface {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 4px 20px var(--elevation-soft);
+  }
+
+  .luma-surface-hover {
+    transition:
+      box-shadow 0.25s ease,
+      transform 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  .luma-surface-hover:hover {
+    box-shadow: 0 8px 30px var(--elevation-hard);
+    border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+    transform: translateY(-1px);
+  }
+
+  /* Accent-tinted headline used for section eyebrows. */
+  .luma-eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--primary) 70%, var(--foreground)),
+      var(--primary)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .luma-gradient-text {
+    background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  /* Section label in the header.
+   *
+   * The LUMA reference animates a gradient sweep across this text. An
+   * infinitely animating `background-position` on a `background-clip:
+   * text` element repaints every frame for the life of the page — the
+   * single most expensive thing in the old shell, and it never stops.
+   * A static gradient keeps the look at zero ongoing cost. */
+  .luma-shimmer {
+    background: linear-gradient(
+      100deg,
+      var(--muted-foreground) 0%,
+      var(--foreground) 55%,
+      var(--muted-foreground) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  @keyframes luma-pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 50%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 14px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .luma-pulse-ring {
+    animation: luma-pulse-ring 2s ease-out infinite;
+  }
+
+  @keyframes luma-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .luma-rise {
+    animation: luma-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Slim, unobtrusive scrollbars — the default chrome ones break the
+ * "single floating card" illusion the shell is going for. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--primary) 45%, var(--scrollbar-thumb));
+  background-clip: content-box;
+}
+
+/* Accent wash used behind auth cards and in the corner of KPI tiles.
+ * A radial-gradient background, not `filter: blur()` on a solid circle —
+ * gradients are painted once into the element's own layer, whereas a
+ * blurred child forces a separate filter pass on every composite. */
+.luma-wash {
+  background-image: radial-gradient(
+    circle at center,
+    var(--primary-soft-2) 0%,
+    var(--primary-soft) 35%,
+    transparent 70%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luma-pulse-ring,
+  .luma-rise {
+    animation: none;
   }
 }

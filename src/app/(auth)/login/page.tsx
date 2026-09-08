@@ -2,9 +2,11 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { AuthAurora } from "@/components/auth/auth-aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,14 +77,23 @@ function LoginPageInner() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+    <div className="luma-shell relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <AuthAurora />
+      <Card className="luma-rise relative w-full max-w-md border-border bg-card shadow-hard">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+          <Image
+            src="/brand/luma-mark.png"
+            alt="LUMA"
+            width={192}
+            height={152}
+            priority
+            className="mb-1 h-14 w-14 object-contain"
+          />
+          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">
             {inviteToken ? (
-              <UsersRound className="h-6 w-6 text-primary" />
+              <UsersRound className="h-[18px] w-[18px] text-primary" />
             ) : (
-              <MessageSquare className="h-6 w-6 text-primary" />
+              <MessageSquare className="h-[18px] w-[18px] text-primary" />
             )}
           </div>
           <CardTitle className="text-xl text-foreground">
@@ -97,7 +108,7 @@ function LoginPageInner() {
         <CardContent>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -143,7 +154,7 @@ function LoginPageInner() {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="mt-2 h-10 w-full disabled:opacity-50"
             >
               {loading ? t('signingIn') : t('signIn')}
             </Button>

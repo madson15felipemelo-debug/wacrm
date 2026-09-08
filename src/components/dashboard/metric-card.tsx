@@ -23,18 +23,28 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, icon: Icon, delta, subtitle }: MetricCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between">
+    // LUMA KPI tile: hairline surface, accent-tinted glyph badge and a
+    // subtle lift on hover so a grid of these feels tactile.
+    <div className="luma-surface luma-surface-hover group relative overflow-hidden p-5">
+      {/* Accent wash bleeding in from the top-right corner — the LUMA
+          dashboards' signature depth cue. Purely decorative. Painted as
+          a radial gradient rather than a blurred circle so a grid of
+          these doesn't cost one filter pass per card. */}
+      <div
+        aria-hidden
+        className="luma-wash pointer-events-none absolute -top-14 -right-14 h-28 w-28"
+      />
+      <div className="relative flex items-start justify-between">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Icon className="h-4 w-4" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary transition-transform duration-300 group-hover:scale-105">
+          <Icon className="h-[18px] w-[18px]" />
         </div>
       </div>
-      <p className="mt-3 text-[28px] leading-none font-bold tabular-nums text-foreground">
+      <p className="relative mt-3 text-[28px] leading-none font-bold tabular-nums text-foreground">
         {value}
       </p>
       {delta ? <DeltaRow sign={delta.sign} label={delta.label} /> : subtitle ? (
-        <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+        <p className="relative mt-2 text-sm text-muted-foreground">{subtitle}</p>
       ) : null}
     </div>
   )
@@ -43,13 +53,13 @@ export function MetricCard({ title, value, icon: Icon, delta, subtitle }: Metric
 function DeltaRow({ sign, label }: { sign: number; label: string }) {
   const tone =
     sign > 0
-      ? 'text-primary'
+      ? 'text-success'
       : sign < 0
-      ? 'text-red-400'
+      ? 'text-destructive'
       : 'text-muted-foreground'
   const Arrow = sign > 0 ? ArrowUp : sign < 0 ? ArrowDown : Minus
   return (
-    <div className={cn('mt-2 flex items-center gap-1 text-sm', tone)}>
+    <div className={cn('relative mt-2 flex items-center gap-1 text-sm', tone)}>
       <Arrow className="h-4 w-4" aria-hidden />
       <span className="tabular-nums">{label}</span>
     </div>

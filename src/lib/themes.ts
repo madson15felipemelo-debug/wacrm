@@ -14,6 +14,7 @@
  */
 
 export const THEME_IDS = [
+  "luma",
   "violet",
   "emerald",
   "cobalt",
@@ -23,7 +24,7 @@ export const THEME_IDS = [
 
 export type ThemeId = (typeof THEME_IDS)[number];
 
-export const DEFAULT_THEME: ThemeId = "violet";
+export const DEFAULT_THEME: ThemeId = "luma";
 
 export const STORAGE_KEY = "wacrm.theme";
 
@@ -37,13 +38,17 @@ export const STORAGE_KEY = "wacrm.theme";
  * opt-in eye-strain-friendly alternative.
  *
  * Persisted under its own localStorage key so it composes freely
- * with the accent choice (you can run Violet-light or Violet-dark).
+ * with the accent choice (you can run Luma-light or Luma-dark).
+ *
+ * Light is the default because it is the LUMA design standard — the
+ * shell is built around a light workspace with a dark navigation
+ * rail. Dark stays fully supported and equally polished.
  */
 export const MODES = ["light", "dark"] as const;
 
 export type Mode = (typeof MODES)[number];
 
-export const DEFAULT_MODE: Mode = "dark";
+export const DEFAULT_MODE: Mode = "light";
 
 export const MODE_STORAGE_KEY = "wacrm.mode";
 
@@ -68,33 +73,39 @@ export interface ThemeMeta {
 
 export const THEMES: ReadonlyArray<ThemeMeta> = [
   {
+    id: "luma",
+    name: "LUMA",
+    tagline: "O padrão da casa — magenta sobre índigo profundo.",
+    swatch: "oklch(0.5659 0.1814 355)",
+  },
+  {
     id: "violet",
-    name: "Violet",
-    tagline: "The default — confident, slightly playful.",
+    name: "Violeta",
+    tagline: "Confiante e levemente lúdico.",
     swatch: "oklch(0.526 0.247 293)",
   },
   {
     id: "emerald",
-    name: "Emerald",
-    tagline: "Growth-coded, nods at messaging without copying WhatsApp green.",
+    name: "Esmeralda",
+    tagline: "Ar de crescimento, sem copiar o verde do WhatsApp.",
     swatch: "oklch(0.62 0.16 162)",
   },
   {
     id: "cobalt",
-    name: "Cobalt",
-    tagline: "Clean B2B-SaaS blue — calm and product-y.",
+    name: "Cobalto",
+    tagline: "Azul limpo de SaaS B2B — calmo e profissional.",
     swatch: "oklch(0.585 0.2 254)",
   },
   {
     id: "amber",
-    name: "Amber",
-    tagline: "Warm and friendly — feels good for SMB teams.",
+    name: "Âmbar",
+    tagline: "Quente e acolhedor — cai bem para times pequenos.",
     swatch: "oklch(0.745 0.16 65)",
   },
   {
     id: "rose",
-    name: "Rose",
-    tagline: "Bold and modern — D2C, creator-economy, lifestyle.",
+    name: "Rosé",
+    tagline: "Ousado e moderno — D2C, creators e lifestyle.",
     swatch: "oklch(0.645 0.22 16)",
   },
 ];

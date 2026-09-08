@@ -22,10 +22,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "wacrm",
-    template: "%s — wacrm",
+    default: "LM Core — CRM WhatsApp",
+    template: "%s — LM Core",
   },
-  description: "Self-hostable CRM template for WhatsApp.",
+  description:
+    "CRM para WhatsApp da LUMA: caixa de entrada compartilhada, contatos, funis de venda, disparos e automações.",
   robots: {
     index: false,
     follow: false,
@@ -41,8 +42,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
-  colorScheme: "dark light",
+  // LUMA deep indigo — matches the navigation rail, so the mobile
+  // browser chrome blends into the shell instead of fighting it.
+  themeColor: "#1b1437",
+  colorScheme: "light dark",
 };
 
 // Inline boot script — runs before React hydrates so the user's

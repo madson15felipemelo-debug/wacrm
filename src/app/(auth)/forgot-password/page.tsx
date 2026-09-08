@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { AuthAurora } from "@/components/auth/auth-aurora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,19 +45,28 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border-border bg-card">
+      <div className="luma-shell relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+        <AuthAurora />
+        <Card className="luma-rise relative w-full max-w-md border-border bg-card shadow-hard">
           <CardHeader className="items-center text-center">
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <CheckCircle className="h-6 w-6 text-primary" />
+            <Image
+            src="/brand/luma-mark.png"
+            alt="LUMA"
+            width={192}
+            height={152}
+            priority
+            className="mb-1 h-14 w-14 object-contain"
+          />
+          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">
+              <CheckCircle className="h-[18px] w-[18px] text-primary" />
             </div>
             <CardTitle className="text-xl text-foreground">
-              Check your email
+              Confira seu e-mail
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              We&apos;ve sent a password reset link to{" "}
-              <span className="text-foreground">{email}</span>. Please check your
-              inbox.
+              Enviamos um link de redefinição de senha para{" "}
+              <span className="text-foreground">{email}</span>. Confira sua caixa
+              de entrada.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -64,7 +75,7 @@ export default function ForgotPasswordPage() {
                 variant="outline"
                 className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Back to sign in
+                Voltar para o login
               </Button>
             </Link>
           </CardContent>
@@ -74,33 +85,42 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+    <div className="luma-shell relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+        <AuthAurora />
+      <Card className="luma-rise relative w-full max-w-md border-border bg-card shadow-hard">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <MessageSquare className="h-6 w-6 text-primary" />
+          <Image
+            src="/brand/luma-mark.png"
+            alt="LUMA"
+            width={192}
+            height={152}
+            priority
+            className="mb-1 h-14 w-14 object-contain"
+          />
+          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">
+            <MessageSquare className="h-[18px] w-[18px] text-primary" />
           </div>
-          <CardTitle className="text-xl text-foreground">Reset password</CardTitle>
+          <CardTitle className="text-xl text-foreground">Redefinir senha</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Enter your email and we&apos;ll send you a reset link
+            Informe seu e-mail que enviamos um link de redefinição
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleReset} className="flex flex-col gap-4">
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="email" className="text-muted-foreground">
-                Email
+                E-mail
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="voce@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -111,9 +131,9 @@ export default function ForgotPasswordPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="mt-2 h-10 w-full disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send reset link"}
+              {loading ? "Enviando..." : "Enviar link de redefinição"}
             </Button>
           </form>
 
@@ -122,7 +142,7 @@ export default function ForgotPasswordPage() {
             className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to sign in
+            Voltar para o login
           </Link>
         </CardContent>
       </Card>

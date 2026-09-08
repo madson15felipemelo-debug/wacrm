@@ -8,7 +8,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        // LUMA: primary buttons carry a soft accent-tinted lift so they
+        // read as the one obvious action on a light workspace, and press
+        // down (shadow collapses) on click.
+        default:
+          "bg-primary text-primary-foreground shadow-[0_4px_14px_-4px_var(--primary-soft-2)] hover:bg-primary-hover active:shadow-none [a]:hover:bg-primary-hover",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
