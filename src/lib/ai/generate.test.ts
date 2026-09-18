@@ -192,3 +192,74 @@ describe('generateReply — Anthropic', () => {
     expect(body.messages).toHaveLength(1)
   })
 })
+
+describe('generateReply — Gemini', () => {
+  it('calls the generateContent endpoint and returns the reply', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okResponse({
+        candidates: [{ content: { parts: [{ text: 'Sure — happy to help!' }] } }],
+        usageMetadata: {
+          promptTokenCount: 42,
+          candidatesTokenCount: 8,
+          totalTokenCount: 50,
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'gemini', model: 'gemini-2.5-flash', apiKey: 'AIza-x' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+
+    expect(res).toEqual({
+      text: 'Sure — happy to help!',
+      handoff: false,
+      usage: { promptTokens: 42, completionTokens: 8, totalTokens: 50 },
+    })
+    const [url, opts] = fetchMock.mock.calls[0]
+    expect(url).toContain('generativelanguage.googleapis.com')
+    expect(url).toContain('gemini-2.5-flash')
+    expect(opts.headers['x-goog-api-key']).toBe('AIza-x')
+  })
+
+  it('relabels assistant turns to "model" for Gemini\'s role schema', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      okResponse({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'gemini' }),
+      systemPrompt: 'sys',
+      messages: [
+        { role: 'user', content: 'Hi' },
+        { role: 'assistant', content: 'Hello!' },
+      ],
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.contents.map((c: { role: string }) => c.role)).toEqual([
+      'user',
+      'model',
+    ])
+  })
+
+  it('maps a 401 to an invalid_key AiError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        errResponse(401, { error: { message: 'API key not valid' } }),
+      ),
+    )
+
+    await expect(
+      generateReply({
+        config: config({ provider: 'gemini' }),
+        systemPrompt: 'sys',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_key', status: 401 })
+  })
+})
