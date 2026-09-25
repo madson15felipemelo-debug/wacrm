@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/conversations/cron",
+      "path": "/api/cron/daily",
       "schedule": "0 9 * * *"
     }
   ]
