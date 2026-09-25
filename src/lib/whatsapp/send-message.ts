@@ -489,6 +489,21 @@ export async function sendMessageToConversation(
     })
     .eq('id', conversationId);
 
+  // An agent (or an automation acting on their behalf) sending a message
+  // is the clearest "this one's been attended to" signal we have — move
+  // it out of "open" so it stops demanding attention in the inbox list.
+  // Scoped to `status = open` so it never resurrects a conversation the
+  // team already marked closed, or fights a status they just set to
+  // pending themselves.
+  const { error: statusErr } = await db
+    .from('conversations')
+    .update({ status: 'pending' })
+    .eq('id', conversationId)
+    .eq('status', 'open');
+  if (statusErr) {
+    console.error('[send-message] auto status transition failed:', statusErr.message);
+  }
+
   // Pause any active Flow run for this contact — the agent stepping in
   // is the strongest "yield, human is here" signal. Best-effort.
   try {

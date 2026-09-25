@@ -493,8 +493,12 @@ function ConversationItem({
             )}
             <span
               className={cn(
-                "h-2 w-2 rounded-full",
-                STATUS_COLORS[conversation.status]
+                "h-2 w-2 rounded-full transition-colors duration-500 ease-out",
+                STATUS_COLORS[conversation.status],
+                // Only the "open" (unattended) state pulses — once a reply
+                // moves it to pending/closed, the ring stops and it settles
+                // into a solid dot, reading as "this one's been handled."
+                conversation.status === "open" && "luma-pulse-ring"
               )}
               title={conversation.status}
             />
