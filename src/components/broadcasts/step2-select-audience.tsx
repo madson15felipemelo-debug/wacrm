@@ -31,6 +31,7 @@ interface AudienceConfig {
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
+  csvFile?: File;
   excludeTagIds?: string[];
 }
 
@@ -221,6 +222,7 @@ export function Step2SelectAudience({
     const { rows } = parseContactCsv(await file.text());
     onUpdate({
       ...audience,
+      csvFile: file,
       csvContacts: rows.map((row) => ({
         phone: row.phone,
         name: row.name || undefined,

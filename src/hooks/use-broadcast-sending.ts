@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Contact, MessageTemplate } from '@/types';
 import { isUniqueViolation, normalizeKey } from '@/lib/contacts/dedupe';
+import { uploadAccountMedia } from '@/lib/storage/upload-media';
 
 export type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
@@ -19,6 +20,8 @@ export interface AudienceConfig {
   tagIds?: string[];
   customField?: CustomFieldFilter;
   csvContacts?: { phone: string; name?: string }[];
+  /** The picked CSV, uploaded to the private queue on send. */
+  csvFile?: File;
   /** Contacts carrying any of these tags are subtracted from the result. */
   excludeTagIds?: string[];
 }
@@ -375,6 +378,34 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       }
       if (!accountId) {
         throw new Error('Your profile is not linked to an account.');
+      }
+
+      // CSV audiences go to the server queue: the file is stored privately
+      // and the cron-driven worker sends it, so the tab can be closed.
+      if (payload.audience.type === 'csv') {
+        const csvFile = payload.audience.csvFile;
+        if (!csvFile) {
+          throw new Error('Selecione o arquivo CSV.');
+        }
+        setProgress(20);
+        const uploaded = await uploadAccountMedia('audience-imports', csvFile);
+        setProgress(60);
+        const res = await fetch('/api/broadcasts/csv', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: payload.name,
+            templateName: payload.template.name,
+            templateLanguage: payload.template.language ?? 'en_US',
+            storagePath: uploaded.path,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error ?? 'Não foi possível criar o disparo.');
+        }
+        setProgress(100);
+        return data.broadcastId as string;
       }
 
       // ── Step 1: Resolve audience contacts ─────────────────────────

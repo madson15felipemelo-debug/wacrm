@@ -38,6 +38,7 @@ export default function NewBroadcastPage() {
       value: string;
     };
     csvContacts?: { phone: string; name?: string }[];
+    csvFile?: File;
     excludeTagIds?: string[];
   }>({ type: 'all' });
   const [variables, setVariables] = useState<
@@ -58,6 +59,7 @@ export default function NewBroadcastPage() {
           tagIds: audience.tagIds,
           customField: audience.customField,
           csvContacts: audience.csvContacts,
+          csvFile: audience.csvFile,
           excludeTagIds: audience.excludeTagIds,
         },
         variables,
