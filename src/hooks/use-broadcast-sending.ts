@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { Contact, MessageTemplate } from '@/types';
+import { isUniqueViolation, normalizeKey } from '@/lib/contacts/dedupe';
 
 export type CustomFieldOperator = 'is' | 'is_not' | 'contains';
 
@@ -233,57 +234,90 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       throw new Error('Your profile is not linked to an account.');
     }
 
-    // De-duplicate by phone within the CSV (users can paste duplicates).
-    const uniqueByPhone = new Map<string, { phone: string; name?: string }>();
+    // Key on the normalized digits — the same key the DB unique index
+    // (account_id, phone_normalized) and the contacts import use — so
+    // "+55 47 9999-9999" and "5547999999999" are one contact, not two.
+    const byKey = new Map<string, { phone: string; name?: string }>();
     for (const row of csvRows) {
-      if (row.phone) uniqueByPhone.set(row.phone, row);
+      const key = normalizeKey(row.phone);
+      if (key && !byKey.has(key)) byKey.set(key, row);
     }
-    const phones = [...uniqueByPhone.keys()];
+    const keys = [...byKey.keys()];
 
-    // Single round-trip lookup of existing contacts by phone.
-    const { data: existing, error: lookupErr } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('phone', phones);
-    if (lookupErr) {
-      throw new Error(`Failed to look up CSV contacts: ${lookupErr.message}`);
-    }
+    const resolved = new Map<string, Contact>();
 
-    const byPhone = new Map<string, Contact>();
-    for (const c of (existing ?? []) as Contact[]) {
-      if (c.phone) byPhone.set(c.phone, c);
-    }
+    // Look up by account, not by user: contacts are shared across the
+    // account's members, so a teammate's existing contact must match.
+    const lookup = async (wanted: string[]) => {
+      if (wanted.length === 0) return;
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('account_id', accountId)
+        .in('phone_normalized', wanted);
+      if (error) {
+        throw new Error(`Failed to look up CSV contacts: ${error.message}`);
+      }
+      for (const c of (data ?? []) as Contact[]) {
+        const key = normalizeKey(c.phone);
+        if (key) resolved.set(key, c);
+      }
+    };
 
-    // Insert only missing contacts, in one batch per 200 rows (PostgREST
-    // has a default payload cap — 200 keeps individual requests small).
-    const missing = phones
-      .filter((p) => !byPhone.has(p))
-      .map((phone) => ({
-        user_id: user.id,
-        account_id: accountId,
-        phone,
-        name: uniqueByPhone.get(phone)?.name ?? null,
-      }));
+    await lookup(keys);
 
-    const INSERT_CHUNK = 200;
+    const missing = keys
+      .filter((k) => !resolved.has(k))
+      .map((k) => {
+        const row = byKey.get(k)!;
+        return {
+          user_id: user.id,
+          account_id: accountId,
+          phone: row.phone,
+          name: row.name || null,
+        };
+      });
+
+    // Chunked insert, with a per-row retry so one bad or already-existing
+    // number doesn't sink the whole batch (same approach as the import).
+    const INSERT_CHUNK = 50;
     for (let i = 0; i < missing.length; i += INSERT_CHUNK) {
       const chunk = missing.slice(i, i + INSERT_CHUNK);
       const { data: inserted, error: insertErr } = await supabase
         .from('contacts')
         .insert(chunk)
         .select();
-      if (insertErr) {
-        throw new Error(`Failed to create CSV contacts: ${insertErr.message}`);
+      if (!insertErr) {
+        for (const c of (inserted ?? []) as Contact[]) {
+          const key = normalizeKey(c.phone);
+          if (key) resolved.set(key, c);
+        }
+        continue;
       }
-      for (const c of (inserted ?? []) as Contact[]) {
-        if (c.phone) byPhone.set(c.phone, c);
+      for (const row of chunk) {
+        const { data: one, error: oneErr } = await supabase
+          .from('contacts')
+          .insert(row)
+          .select()
+          .single();
+        if (one) {
+          const key = normalizeKey((one as Contact).phone);
+          if (key) resolved.set(key, one as Contact);
+        } else if (!isUniqueViolation(oneErr)) {
+          throw new Error(
+            `Failed to create CSV contact ${row.phone}: ${oneErr?.message ?? 'unknown error'}`,
+          );
+        }
       }
     }
 
+    // Anything that raced into existence between lookup and insert is
+    // resolved here, so every CSV number maps to a real contact row.
+    await lookup(keys.filter((k) => !resolved.has(k)));
+
     // Preserve input order so analytics roughly matches the CSV order.
-    return phones
-      .map((p) => byPhone.get(p))
+    return keys
+      .map((k) => resolved.get(k))
       .filter((c): c is Contact => Boolean(c));
   }
 

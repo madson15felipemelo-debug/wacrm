@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { parseContactCsv } from '@/lib/contacts/parse-contact-csv';
 import { CustomField, Tag } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -213,6 +214,20 @@ export function Step2SelectAudience({
     fetchEstimatedCount();
   }, [fetchEstimatedCount]);
 
+  async function handleCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const { rows } = parseContactCsv(await file.text());
+    onUpdate({
+      ...audience,
+      csvContacts: rows.map((row) => ({
+        phone: row.phone,
+        name: row.name || undefined,
+      })),
+    });
+  }
+
   function toggleTag(tagId: string) {
     const current = audience.tagIds ?? [];
     const updated = current.includes(tagId)
@@ -304,6 +319,30 @@ export function Step2SelectAudience({
           );
         })}
       </div>
+
+      {audience.type === 'csv' && (
+        <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
+          <p className="text-sm font-medium text-foreground">
+            {t('selectAudience.uploadCsv')}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t('selectAudience.csvFormatDesc')}
+          </p>
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleCsvFile}
+            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-primary hover:file:bg-primary/20"
+          />
+          {audience.csvContacts && (
+            <p className="text-xs font-medium text-primary">
+              {t('selectAudience.csvContactsFound', {
+                count: audience.csvContacts.length,
+              })}
+            </p>
+          )}
+        </div>
+      )}
 
       {audience.type === 'tags' && (
         <div className="rounded-xl border border-border bg-card/50 p-4">
