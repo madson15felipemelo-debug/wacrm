@@ -126,6 +126,25 @@
     }
   },
   "Inbox": {
+    "reminders": {
+      "button": "리마인더 만들기",
+      "title": "리마인더 만들기",
+      "explainer": "지정한 시간에 이 대화로 연결되는 알림을 받습니다.",
+      "date": "날짜",
+      "time": "시간",
+      "comment": "메모 (선택)",
+      "commentPlaceholder": "예: 15일에 결제 약속 — 후속 연락",
+      "cancel": "취소",
+      "create": "리마인더 만들기",
+      "created": "{when}에 리마인더가 설정되었습니다",
+      "createFailed": "리마인더를 만들 수 없습니다.",
+      "invalidDate": "잘못된 날짜 또는 시간입니다.",
+      "pastDate": "미래의 날짜와 시간을 선택하세요.",
+      "overdue": "지연됨",
+      "markDone": "완료로 표시",
+      "delete": "리마인더 삭제",
+      "updateFailed": "리마인더를 업데이트할 수 없습니다."
+    },
     "notes": {
       "label": "내부 메모",
       "tabMessage": "메시지",

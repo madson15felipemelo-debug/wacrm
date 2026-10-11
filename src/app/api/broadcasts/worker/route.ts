@@ -50,6 +50,16 @@ export async function GET(request: Request) {
 
   const startedAt = Date.now()
   const admin = supabaseAdmin()
+
+  // Piggyback on this every-minute ping: turn due conversation reminders
+  // (migration 043) into bell notifications. Never blocks the queue.
+  const { data: remindersFired, error: remindersError } = await admin.rpc(
+    'fire_due_reminders',
+  )
+  if (remindersError) {
+    console.error('[broadcast-worker] fire_due_reminders failed:', remindersError.message)
+  }
+  const reminders = typeof remindersFired === 'number' ? remindersFired : 0
   const nowIso = new Date().toISOString()
   const staleIso = new Date(Date.now() - CLAIM_TTL_MS).toISOString()
 
@@ -69,7 +79,7 @@ export async function GET(request: Request) {
   }
   if (!candidates || candidates.length === 0) {
     await closeFinishedBroadcasts(admin)
-    return NextResponse.json({ claimed: 0, sent: 0, failed: 0 })
+    return NextResponse.json({ claimed: 0, sent: 0, failed: 0, reminders })
   }
 
   const candidateIds = candidates.map((c) => c.id)
@@ -133,6 +143,7 @@ export async function GET(request: Request) {
     sent,
     failed,
     released: unprocessed.length,
+    reminders,
   })
 }
 

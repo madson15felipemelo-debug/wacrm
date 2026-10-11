@@ -202,7 +202,21 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned';
+export type NotificationType = 'conversation_assigned' | 'reminder_due';
+
+/** Follow-up reminder on a conversation (migration 043). */
+export interface ConversationReminder {
+  id: string;
+  account_id: string;
+  conversation_id: string;
+  contact_id: string | null;
+  user_id: string;
+  remind_at: string;
+  comment: string | null;
+  notified_at: string | null;
+  done_at: string | null;
+  created_at: string;
+}
 
 export interface Notification {
   id: string;

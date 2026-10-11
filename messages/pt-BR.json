@@ -135,6 +135,25 @@
     }
   },
   "Inbox": {
+    "reminders": {
+      "button": "Criar lembrete",
+      "title": "Criar lembrete",
+      "explainer": "Na hora marcada você recebe um aviso no sino de notificações, com o link para esta conversa.",
+      "date": "Data",
+      "time": "Hora",
+      "comment": "Comentário (opcional)",
+      "commentPlaceholder": "Ex.: cliente prometeu pagar dia 15 — cobrar o boleto",
+      "cancel": "Cancelar",
+      "create": "Criar lembrete",
+      "created": "Lembrete criado para {when}",
+      "createFailed": "Não foi possível criar o lembrete.",
+      "invalidDate": "Data ou hora inválida.",
+      "pastDate": "Escolha uma data e hora no futuro.",
+      "overdue": "atrasado",
+      "markDone": "Marcar como feito",
+      "delete": "Apagar lembrete",
+      "updateFailed": "Não foi possível atualizar o lembrete."
+    },
     "notes": {
       "label": "Nota interna",
       "tabMessage": "Mensagem",

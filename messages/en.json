@@ -135,6 +135,25 @@
     }
   },
   "Inbox": {
+    "reminders": {
+      "button": "Create reminder",
+      "title": "Create reminder",
+      "explainer": "At the chosen time you get a bell notification linking back to this conversation.",
+      "date": "Date",
+      "time": "Time",
+      "comment": "Comment (optional)",
+      "commentPlaceholder": "e.g. customer promised to pay on the 15th — follow up",
+      "cancel": "Cancel",
+      "create": "Create reminder",
+      "created": "Reminder set for {when}",
+      "createFailed": "Couldn't create the reminder.",
+      "invalidDate": "Invalid date or time.",
+      "pastDate": "Pick a date and time in the future.",
+      "overdue": "overdue",
+      "markDone": "Mark as done",
+      "delete": "Delete reminder",
+      "updateFailed": "Couldn't update the reminder."
+    },
     "notes": {
       "label": "Internal note",
       "tabMessage": "Message",

@@ -28,6 +28,7 @@ import {
   RefreshCw,
   PanelRightOpen,
   PanelRightClose,
+  AlarmClock,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { dateLocale } from "@/lib/date-locale";
@@ -53,6 +54,8 @@ import { TemplatePicker } from "./template-picker";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { NoteBubble } from "./note-bubble";
 import { useConversationNotes } from "@/hooks/use-conversation-notes";
+import { useConversationReminders } from "@/hooks/use-conversation-reminders";
+import { ReminderDialog, RemindersBar } from "./conversation-reminders";
 import { buildReplyPreview } from "./reply-quote";
 import { toast } from "sonner";
 
@@ -194,6 +197,7 @@ export function MessageThread({
 
   const { user, canManageMembers } = useAuth();
   const tNotes = useTranslations("Inbox.notes");
+  const tReminders = useTranslations("Inbox.reminders");
   const { getPresence, getRow, now } = usePresence();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -291,6 +295,13 @@ export function MessageThread({
     conversationId ?? null,
     resyncToken,
   );
+  const { reminders, createReminder, completeReminder, deleteReminder } =
+    useConversationReminders(
+      conversationId ?? null,
+      conversation?.contact_id ?? null,
+      resyncToken,
+    );
+  const [reminderOpen, setReminderOpen] = useState(false);
   const hasUnread = (conversation?.unread_count ?? 0) > 0;
 
   // Fetch messages whenever the selected conversation changes. Kept
@@ -990,6 +1001,25 @@ export function MessageThread({
             </button>
           )}
 
+          {/* Follow-up reminder */}
+          <button
+            type="button"
+            onClick={() => setReminderOpen(true)}
+            title={tReminders("button")}
+            aria-label={tReminders("button")}
+            className={cn(
+              "relative inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted",
+              reminders.length > 0 ? "text-amber-500" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <AlarmClock className="h-3.5 w-3.5" />
+            {reminders.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-0.5 text-[9px] font-bold text-white">
+                {reminders.length}
+              </span>
+            )}
+          </button>
+
           {/* Status dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(
@@ -1081,6 +1111,12 @@ export function MessageThread({
           </DropdownMenu>
         </div>
       </div>
+
+      <RemindersBar
+        reminders={reminders}
+        onComplete={completeReminder}
+        onDelete={deleteReminder}
+      />
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
@@ -1204,6 +1240,12 @@ export function MessageThread({
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
         onAddNote={addNote}
+      />
+
+      <ReminderDialog
+        open={reminderOpen}
+        onOpenChange={setReminderOpen}
+        onCreate={createReminder}
       />
 
       <TemplatePicker
