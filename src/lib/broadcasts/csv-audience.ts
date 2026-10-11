@@ -5,7 +5,12 @@ export interface AudienceRow {
   phone: string;
   /** Values of the non-phone columns, in header order → {{1}}, {{2}}… */
   params: string[];
+  /** Value of the `nome`/`name` column, if the CSV has one — saved on the contact. */
+  name: string | null;
 }
+
+/** Headers recognised as the contact's name (still also a template variable). */
+const NAME_HEADERS = ['nome', 'name'];
 
 export interface ParsedAudienceCsv {
   rows: AudienceRow[];
@@ -68,6 +73,7 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
   const paramIdxs = headers
     .map((_, idx) => idx)
     .filter((idx) => idx !== phoneIdx);
+  const nameIdx = headers.findIndex((h) => NAME_HEADERS.includes(h));
 
   const rows: AudienceRow[] = [];
   const seen = new Set<string>();
@@ -89,6 +95,7 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
     rows.push({
       phone,
       params: paramIdxs.map((idx) => cells[idx] ?? ''),
+      name: nameIdx === -1 ? null : cells[nameIdx] || null,
     });
   }
 

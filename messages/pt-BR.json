@@ -653,7 +653,9 @@
         "sent": "Enviada",
         "delivered": "Entregue",
         "read": "Lida",
-        "error": "Erro"
+        "error": "Erro",
+        "noName": "Sem nome",
+        "deletedContact": "Contato excluído"
       },
       "stats": {
         "totalRecipients": "Total de destinatários",

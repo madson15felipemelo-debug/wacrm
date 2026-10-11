@@ -11,6 +11,7 @@ export const maxDuration = 60
 const MAX_CSV_RECIPIENTS = 5000
 const LOOKUP_CHUNK = 500
 const INSERT_CHUNK = 200
+const NAME_UPDATE_CONCURRENCY = 20
 
 /**
  * POST /api/broadcasts/csv
@@ -141,19 +142,38 @@ export async function POST(request: Request) {
     // Find or create one contact per phone, scoped to the account — the
     // same key the contacts index enforces, so no duplicate rows.
     const contactIdByPhone = new Map<string, string>()
+    const nameByPhone = new Map(parsed.rows.map((r) => [r.phone, r.name]))
     const phones = parsed.rows.map((r) => r.phone)
+    // Existing contacts with no name yet get the CSV's — a name someone
+    // already typed in the CRM is never overwritten.
+    const namesToFill: Array<{ id: string; name: string }> = []
 
     for (let i = 0; i < phones.length; i += LOOKUP_CHUNK) {
       const chunk = phones.slice(i, i + LOOKUP_CHUNK)
       const { data: existing, error } = await admin
         .from('contacts')
-        .select('id, phone')
+        .select('id, phone, name')
         .eq('account_id', accountId)
         .in('phone_normalized', chunk)
       if (error) throw error
       for (const c of existing ?? []) {
-        contactIdByPhone.set(c.phone.replace(/\D/g, ''), c.id)
+        const phone = c.phone.replace(/\D/g, '')
+        contactIdByPhone.set(phone, c.id)
+        const csvName = nameByPhone.get(phone)
+        if (!c.name?.trim() && csvName) namesToFill.push({ id: c.id, name: csvName })
       }
+    }
+
+    for (let i = 0; i < namesToFill.length; i += NAME_UPDATE_CONCURRENCY) {
+      const results = await Promise.all(
+        namesToFill
+          .slice(i, i + NAME_UPDATE_CONCURRENCY)
+          .map(({ id, name }) =>
+            admin.from('contacts').update({ name }).eq('id', id),
+          ),
+      )
+      const failed = results.find((r) => r.error)
+      if (failed?.error) throw failed.error
     }
 
     const missing = phones.filter((p) => !contactIdByPhone.has(p))
@@ -162,6 +182,7 @@ export async function POST(request: Request) {
         account_id: accountId,
         user_id: user.id,
         phone,
+        name: nameByPhone.get(phone) ?? null,
       }))
       const { data: inserted, error } = await admin
         .from('contacts')

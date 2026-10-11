@@ -643,7 +643,9 @@
         "sent": "전송됨",
         "delivered": "전달됨",
         "read": "읽음",
-        "error": "오류"
+        "error": "오류",
+        "noName": "이름 없음",
+        "deletedContact": "삭제된 연락처"
       },
       "stats": {
         "totalRecipients": "전체 수신자",

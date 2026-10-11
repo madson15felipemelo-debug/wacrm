@@ -653,7 +653,9 @@
         "sent": "Sent",
         "delivered": "Delivered",
         "read": "Read",
-        "error": "Error"
+        "error": "Error",
+        "noName": "No name",
+        "deletedContact": "Deleted contact"
       },
       "stats": {
         "totalRecipients": "Total Recipients",

@@ -24,14 +24,24 @@ describe('parseAudienceCsv', () => {
     const parsed = parseAudienceCsv(csv)
     expect(parsed.paramColumnCount).toBe(3)
     expect(parsed.rows).toEqual([
-      { phone: '5547999999999', params: ['João', 'R$ 120', '10/10'] },
+      { phone: '5547999999999', params: ['João', 'R$ 120', '10/10'], name: 'João' },
     ])
+  })
+
+  it('reads the contact name from a "name" or "nome" column, in any case', () => {
+    expect(parseAudienceCsv('Name,phone\nAna,5547999999999').rows[0].name).toBe('Ana')
+    expect(parseAudienceCsv('phone,NOME\n5547999999999,Bia').rows[0].name).toBe('Bia')
+  })
+
+  it('leaves the name empty when there is no name column or the cell is blank', () => {
+    expect(parseAudienceCsv('phone,valor\n5547999999999,10').rows[0].name).toBeNull()
+    expect(parseAudienceCsv('phone,nome\n5547999999999,').rows[0].name).toBeNull()
   })
 
   it('accepts a phone column in any position and CRLF line endings', () => {
     const csv = 'nome,phone\r\nMaria,5547988887777\r\n'
     const parsed = parseAudienceCsv(csv)
-    expect(parsed.rows).toEqual([{ phone: '5547988887777', params: ['Maria'] }])
+    expect(parsed.rows).toEqual([{ phone: '5547988887777', params: ['Maria'], name: 'Maria' }])
   })
 
   it('normalizes formatted phones to digits', () => {
@@ -48,7 +58,7 @@ describe('parseAudienceCsv', () => {
       ',Vazio',
     ].join('\n')
     const parsed = parseAudienceCsv(csv)
-    expect(parsed.rows).toEqual([{ phone: '5547999999999', params: ['Primeiro'] }])
+    expect(parsed.rows).toEqual([{ phone: '5547999999999', params: ['Primeiro'], name: 'Primeiro' }])
     expect(parsed.duplicateCount).toBe(1)
     expect(parsed.invalidCount).toBe(2)
   })
@@ -56,7 +66,7 @@ describe('parseAudienceCsv', () => {
   it('ignores blank lines and a UTF-8 BOM before the header', () => {
     const csv = '﻿phone,nome\n\n5547999999999,Ana\n\n'
     const parsed = parseAudienceCsv(csv)
-    expect(parsed.rows).toEqual([{ phone: '5547999999999', params: ['Ana'] }])
+    expect(parsed.rows).toEqual([{ phone: '5547999999999', params: ['Ana'], name: 'Ana' }])
   })
 
   it('rejects an empty file', () => {
