@@ -139,6 +139,11 @@
       "whatsappNotConnected": "O WhatsApp® não está conectado. Vá em Configurações para conectar sua conta."
     },
     "conversationList": {
+      "viewAll": "Todas",
+      "viewMine": "Minhas",
+      "viewUnassigned": "Não atribuídas",
+      "viewAwaiting": "Sem resposta",
+      "viewUnread": "Não lidas",
       "searchPlaceholder": "Buscar conversas...",
       "filterAll": "Todas",
       "filterUnread": "Não lidas",

@@ -130,6 +130,11 @@
       "whatsappNotConnected": "WhatsApp®이 연결되어 있지 않습니다. 설정으로 이동해 계정을 연결하세요."
     },
     "conversationList": {
+      "viewAll": "전체",
+      "viewMine": "내 대화",
+      "viewUnassigned": "미배정",
+      "viewAwaiting": "응답 대기",
+      "viewUnread": "읽지 않음",
       "searchPlaceholder": "대화 검색...",
       "filterAll": "전체",
       "filterUnread": "읽지 않음",

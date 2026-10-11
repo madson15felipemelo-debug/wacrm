@@ -7,6 +7,13 @@ import {
   matchesContactFilters,
   normalizeConversations,
 } from "@/lib/inbox/conversations";
+import {
+  INBOX_VIEWS,
+  countViews,
+  matchesView,
+  type InboxView,
+} from "@/lib/inbox/views";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
@@ -45,7 +52,15 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 
 
-type InboxFilter = ConversationStatus | "all" | "unread";
+type InboxFilter = ConversationStatus | "all";
+
+const VIEW_LABEL_KEYS: Record<InboxView, string> = {
+  all: "viewAll",
+  mine: "viewMine",
+  unassigned: "viewUnassigned",
+  awaiting: "viewAwaiting",
+  unread: "viewUnread",
+};
 
 export function ConversationList({
   activeConversationId,
@@ -58,7 +73,6 @@ export function ConversationList({
   
   const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
-    { label: t("filterUnread"), value: "unread" },
     { label: t("filterOpen"), value: "open" },
     { label: t("filterPending"), value: "pending" },
     { label: t("filterClosed"), value: "closed" },
@@ -66,6 +80,9 @@ export function ConversationList({
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
+  const [view, setView] = useState<InboxView>("all");
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [loading, setLoading] = useState(true);
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
@@ -159,12 +176,15 @@ export function ConversationList({
     return m;
   }, [tags]);
 
-  const filtered = useMemo(() => {
-    let result = conversations;
+  const viewCounts = useMemo(
+    () => countViews(conversations, currentUserId),
+    [conversations, currentUserId]
+  );
 
-    if (filter === "unread") {
-      result = result.filter((c) => c.unread_count > 0);
-    } else if (filter !== "all") {
+  const filtered = useMemo(() => {
+    let result = conversations.filter((c) => matchesView(c, view, currentUserId));
+
+    if (filter !== "all") {
       result = result.filter((c) => c.status === filter);
     }
 
@@ -189,7 +209,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany]);
+  }, [conversations, view, currentUserId, filter, search, selectedTagIds, selectedCompany]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -227,6 +247,32 @@ export function ConversationList({
     <div className="flex h-full w-full flex-col border-r border-border bg-card lg:w-80">
       {/* Search + Filter */}
       <div className="space-y-2 border-b border-border p-3">
+        {/* Queue views with live counters */}
+        <div className="-mx-1 flex flex-wrap gap-1">
+          {INBOX_VIEWS.map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors",
+                view === v
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t(VIEW_LABEL_KEYS[v])}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-[10px] font-semibold",
+                  view === v ? "bg-primary-foreground/20" : "bg-background/60"
+                )}
+              >
+                {viewCounts[v]}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

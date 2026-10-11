@@ -139,6 +139,11 @@
       "whatsappNotConnected": "WhatsApp® is not connected. Go to Settings to connect your account."
     },
     "conversationList": {
+      "viewAll": "All",
+      "viewMine": "Mine",
+      "viewUnassigned": "Unassigned",
+      "viewAwaiting": "Awaiting reply",
+      "viewUnread": "Unread",
       "searchPlaceholder": "Search conversations...",
       "filterAll": "All",
       "filterUnread": "Unread",

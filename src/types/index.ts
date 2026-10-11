@@ -167,6 +167,8 @@ export interface Conversation {
   assigned_agent_id?: string;
   last_message_text?: string;
   last_message_at?: string;
+  /** Who sent the latest message (migration 041, trigger-maintained). */
+  last_message_from?: "customer" | "agent" | "bot" | null;
   unread_count: number;
   created_at: string;
   updated_at: string;
