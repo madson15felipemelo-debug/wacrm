@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseAudienceCsv } from '@/lib/broadcasts/csv-audience'
+import { findOptedOutPhones } from '@/lib/contacts/opt-out'
 import { extractVariableIndices } from '@/lib/whatsapp/template-validators'
 
 export const maxDuration = 60
@@ -139,11 +140,25 @@ export async function POST(request: Request) {
       )
     }
 
+    // Contacts who asked to stop receiving broadcasts never enter the queue.
+    const optedOut = await findOptedOutPhones(
+      admin,
+      accountId,
+      parsed.rows.map((r) => r.phone),
+    )
+    const rows = parsed.rows.filter((r) => !optedOut.has(r.phone))
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Todos os contatos do CSV pediram para não receber disparos.' },
+        { status: 400 },
+      )
+    }
+
     // Find or create one contact per phone, scoped to the account — the
     // same key the contacts index enforces, so no duplicate rows.
     const contactIdByPhone = new Map<string, string>()
-    const nameByPhone = new Map(parsed.rows.map((r) => [r.phone, r.name]))
-    const phones = parsed.rows.map((r) => r.phone)
+    const nameByPhone = new Map(rows.map((r) => [r.phone, r.name]))
+    const phones = rows.map((r) => r.phone)
     // Existing contacts with no name yet get the CSV's — a name someone
     // already typed in the CRM is never overwritten.
     const namesToFill: Array<{ id: string; name: string }> = []
@@ -203,19 +218,20 @@ export async function POST(request: Request) {
         template_name: templateName,
         template_language: templateLanguage,
         status: 'sending',
-        total_recipients: parsed.rows.length,
+        total_recipients: rows.length,
         audience_filter: {
           type: 'csv',
           storagePath,
           invalidCount: parsed.invalidCount,
           duplicateCount: parsed.duplicateCount,
+          optedOutCount: optedOut.size,
         },
       })
       .select('id')
       .single()
     if (broadcastError || !broadcast) throw broadcastError ?? new Error('broadcast insert failed')
 
-    const recipients = parsed.rows.map((row) => ({
+    const recipients = rows.map((row) => ({
       broadcast_id: broadcast.id,
       contact_id: contactIdByPhone.get(row.phone)!,
       status: 'pending' as const,
@@ -230,9 +246,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       broadcastId: broadcast.id,
-      total: parsed.rows.length,
+      total: rows.length,
       invalidCount: parsed.invalidCount,
       duplicateCount: parsed.duplicateCount,
+      optedOutCount: optedOut.size,
     })
   } catch (error) {
     console.error('[broadcasts/csv] failed:', error)

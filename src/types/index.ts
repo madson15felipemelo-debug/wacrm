@@ -108,6 +108,8 @@ export interface Contact {
   email?: string;
   company?: string;
   avatar_url?: string;
+  /** Set when the contact opted out of broadcasts (migration 040). */
+  opted_out_at?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the

@@ -29,6 +29,7 @@ import {
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard';
 import type { MessageTemplate } from '@/types';
 import { findOrCreateContact } from '@/lib/api/v1/contacts';
+import { findOptedOutPhones } from '@/lib/contacts/opt-out';
 
 /** Thrown by createBroadcast on a caller-visible failure; route maps it. */
 export class BroadcastError extends Error {
@@ -70,7 +71,7 @@ export interface BroadcastPlan {
   accessToken: string;
   templateRow: MessageTemplate | null;
   planned: PlannedRecipient[];
-  /** Phones rejected up front (invalid E.164) — counted as failed. */
+  /** Phones rejected up front (invalid E.164 or opted out) — counted as failed. */
   rejected: number;
 }
 
@@ -171,16 +172,26 @@ export async function createBroadcast(
   // params aren't silently overwritten by a later duplicate — and so
   // the row↔params pairing below (keyed by contact_id) is unambiguous.
   const seenContact = new Set<string>();
-  const deduped = resolved.filter((r) => {
+  const unique = resolved.filter((r) => {
     if (seenContact.has(r.contactId)) return false;
     seenContact.add(r.contactId);
     return true;
   });
 
+  // Contacts who opted out of broadcasts are dropped and reported in
+  // `rejected`, like invalid phones — they never get a recipient row.
+  const optedOut = await findOptedOutPhones(
+    db,
+    accountId,
+    unique.map((r) => r.phone)
+  );
+  const deduped = unique.filter((r) => !optedOut.has(r.phone));
+  rejected += unique.length - deduped.length;
+
   if (deduped.length === 0) {
     throw new BroadcastError(
       'bad_request',
-      'No recipients had a valid E.164 phone number',
+      'No recipients had a valid E.164 phone number (or all opted out of broadcasts)',
       400
     );
   }

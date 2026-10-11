@@ -3,6 +3,7 @@ import { isAuthorizedCron } from '@/lib/cron/auth'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
+import { OPT_OUT_ERROR } from '@/lib/contacts/opt-out'
 import {
   phoneVariants,
   isRecipientNotAllowedError,
@@ -29,7 +30,7 @@ interface QueueRow {
     template_name: string
     template_language: string
   }
-  contacts: { phone: string }
+  contacts: { phone: string; opted_out_at: string | null }
 }
 
 /**
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
   const { data: candidates, error: selectError } = await admin
     .from('broadcast_recipients')
     .select(
-      'id, broadcast_id, template_params, broadcasts!inner(account_id, template_name, template_language, status), contacts!inner(phone)',
+      'id, broadcast_id, template_params, broadcasts!inner(account_id, template_name, template_language, status), contacts!inner(phone, opted_out_at)',
     )
     .eq('status', 'pending')
     .eq('broadcasts.status', 'sending')
@@ -142,6 +143,12 @@ async function sendOne(
   templateCache: Map<string, unknown>,
 ): Promise<boolean> {
   const accountId = row.broadcasts.account_id
+
+  // Opted out after the broadcast was queued — skip, never send.
+  if (row.contacts.opted_out_at) {
+    await markRecipient(admin, row.id, 'failed', null, OPT_OUT_ERROR)
+    return false
+  }
 
   if (!sendContext.has(accountId)) {
     const { data: config } = await admin

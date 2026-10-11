@@ -15,6 +15,7 @@ import {
   DollarSign,
   StickyNote,
   Plus,
+  BellOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,6 +38,10 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  // Read fresh from the DB — the webhook sets it when the customer taps
+  // "Cancelar envio", so the conversation's cached contact may be stale.
+  const [optedOutAt, setOptedOutAt] = useState<string | null>(null);
+  const [savingOptOut, setSavingOptOut] = useState(false);
 
   const fetchContactData = useCallback(async () => {
     if (!contact) return;
@@ -44,7 +49,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     const supabase = createClient();
 
     // Fetch deals, notes, and tags in parallel
-    const [dealsRes, notesRes, tagsRes] = await Promise.all([
+    const [dealsRes, notesRes, tagsRes, optOutRes] = await Promise.all([
       supabase
         .from("deals")
         .select("*, stage:pipeline_stages(*)")
@@ -59,7 +64,14 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
         .from("contact_tags")
         .select("id, tag_id, tags(*)")
         .eq("contact_id", contact.id),
+      supabase
+        .from("contacts")
+        .select("opted_out_at")
+        .eq("id", contact.id)
+        .maybeSingle(),
     ]);
+
+    setOptedOutAt(optOutRes.data?.opted_out_at ?? null);
 
     if (dealsRes.data) setDeals(dealsRes.data);
     if (notesRes.data) setNotes(notesRes.data);
@@ -120,6 +132,18 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     setAddingNote(false);
   }, [contact, newNote, accountId]);
 
+  const handleToggleOptOut = useCallback(async () => {
+    if (!contact) return;
+    setSavingOptOut(true);
+    const next = optedOutAt ? null : new Date().toISOString();
+    const { error } = await createClient()
+      .from("contacts")
+      .update({ opted_out_at: next })
+      .eq("id", contact.id);
+    if (!error) setOptedOutAt(next);
+    setSavingOptOut(false);
+  }, [contact, optedOutAt]);
+
   if (!contact) {
     return (
       <div className="flex h-full w-70 items-center justify-center border-l border-border bg-card">
@@ -177,6 +201,42 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                 <span className="truncate">{contact.email}</span>
               </div>
             )}
+          </div>
+
+          {/* Broadcast opt-out */}
+          <div
+            className={cn(
+              "mt-3 rounded-lg border px-3 py-2",
+              optedOutAt
+                ? "border-red-500/30 bg-red-500/10"
+                : "border-border bg-muted/40",
+            )}
+          >
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <BellOff
+                className={cn(
+                  "h-3.5 w-3.5",
+                  optedOutAt ? "text-red-500" : "text-muted-foreground",
+                )}
+              />
+              <span className={optedOutAt ? "text-red-500" : "text-muted-foreground"}>
+                {optedOutAt ? tSidebar("optedOut") : tSidebar("receivesBroadcasts")}
+              </span>
+            </div>
+            {optedOutAt && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {tSidebar("optedOutSince", {
+                  date: format(new Date(optedOutAt), "d MMM yyyy HH:mm", { locale: dateLocale }),
+                })}
+              </p>
+            )}
+            <button
+              onClick={handleToggleOptOut}
+              disabled={savingOptOut}
+              className="mt-1.5 text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
+            >
+              {optedOutAt ? tSidebar("reactivateBroadcasts") : tSidebar("blockBroadcasts")}
+            </button>
           </div>
 
           {/* Divider */}

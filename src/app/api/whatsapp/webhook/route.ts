@@ -4,6 +4,7 @@ import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
+import { isOptOutMessage } from '@/lib/contacts/opt-out'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
@@ -724,6 +725,19 @@ async function processMessage(
   // trigger installed in migration 003).
   await flagBroadcastReplyIfAny(accountId, contactRecord.id)
 
+  // Broadcast opt-out: "Cancelar envio" button / SAIR / PARAR marks the
+  // contact so every broadcast path skips it. The inbox conversation
+  // stays open — only mass sends stop.
+  const isOptOut = isOptOutMessage(contentText ?? message.text?.body)
+  if (isOptOut) {
+    const { error: optOutErr } = await supabaseAdmin()
+      .from('contacts')
+      .update({ opted_out_at: new Date().toISOString() })
+      .eq('id', contactRecord.id)
+      .is('opted_out_at', null)
+    if (optOutErr) console.error('[webhook] opt-out update failed:', optOutErr.message)
+  }
+
   // ============================================================
   // Flow runner dispatch.
   //
@@ -818,7 +832,8 @@ async function processMessage(
   // the account has enabled it. Awaited inside `after()` (same reason as
   // the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  // An opt-out is answered by the team, not the LLM.
+  if (!flowConsumed && !interactiveReplyId && !isOptOut && inboundText.trim()) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,

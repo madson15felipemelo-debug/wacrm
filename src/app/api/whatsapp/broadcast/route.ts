@@ -4,6 +4,7 @@ import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { SendTimeParams } from '@/lib/whatsapp/template-send-builder'
 import { isMessageTemplate } from '@/lib/whatsapp/template-row-guard'
+import { findOptedOutPhones, OPT_OUT_ERROR } from '@/lib/contacts/opt-out'
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -179,6 +180,14 @@ export async function POST(request: Request) {
     let sentCount = 0
     let failedCount = 0
 
+    // Server-side guard: never send to a contact who opted out, even if
+    // the caller's audience still listed them.
+    const optedOut = await findOptedOutPhones(
+      supabase,
+      accountId,
+      recipients.map((r) => sanitizePhoneForMeta(r.phone)),
+    )
+
     for (const recipient of recipients) {
       const sanitized = sanitizePhoneForMeta(recipient.phone)
 
@@ -188,6 +197,12 @@ export async function POST(request: Request) {
           status: 'failed',
           error: 'Invalid phone number format',
         })
+        failedCount++
+        continue
+      }
+
+      if (optedOut.has(sanitized)) {
+        results.push({ phone: recipient.phone, status: 'failed', error: OPT_OUT_ERROR })
         failedCount++
         continue
       }

@@ -270,7 +270,12 @@
       "deals": "Negócios",
       "noTags": "Sem etiquetas",
       "noDeals": "Sem negócios",
-      "addNotePlaceholder": "Adicionar uma nota..."
+      "addNotePlaceholder": "Adicionar uma nota...",
+      "optedOut": "Não recebe disparos",
+      "receivesBroadcasts": "Recebe disparos",
+      "optedOutSince": "Pediu para sair em {date}",
+      "reactivateBroadcasts": "Reativar disparos",
+      "blockBroadcasts": "Bloquear disparos"
     },
     "aiBanner": {
       "pausedTitle": "O assistente de IA está pausado aqui",

@@ -206,7 +206,9 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
 
-    return contacts;
+    // Contacts who opted out of broadcasts never become recipients
+    // (the send route also refuses them server-side).
+    return contacts.filter((c) => !c.opted_out_at);
   }
 
   /**

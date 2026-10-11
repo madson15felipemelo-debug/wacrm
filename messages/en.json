@@ -270,7 +270,12 @@
       "deals": "Deals",
       "noTags": "No tags",
       "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+      "addNotePlaceholder": "Add a note...",
+      "optedOut": "Does not receive broadcasts",
+      "receivesBroadcasts": "Receives broadcasts",
+      "optedOutSince": "Opted out on {date}",
+      "reactivateBroadcasts": "Reactivate broadcasts",
+      "blockBroadcasts": "Block broadcasts"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
