@@ -135,6 +135,17 @@
     }
   },
   "Inbox": {
+    "notes": {
+      "label": "Nota interna",
+      "tabMessage": "Mensagem",
+      "tabNote": "Nota interna",
+      "placeholder": "Escreva uma nota para a equipe — o cliente não vê",
+      "hint": "Só a equipe vê esta nota. Nada é enviado ao WhatsApp.",
+      "save": "Salvar nota",
+      "saveFailed": "Não foi possível salvar a nota.",
+      "delete": "Apagar nota",
+      "deleteFailed": "Não foi possível apagar a nota."
+    },
     "page": {
       "whatsappNotConnected": "O WhatsApp® não está conectado. Vá em Configurações para conectar sua conta."
     },

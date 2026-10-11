@@ -135,6 +135,17 @@
     }
   },
   "Inbox": {
+    "notes": {
+      "label": "Internal note",
+      "tabMessage": "Message",
+      "tabNote": "Internal note",
+      "placeholder": "Write a note for the team — the customer never sees it",
+      "hint": "Only your team sees this note. Nothing is sent to WhatsApp.",
+      "save": "Save note",
+      "saveFailed": "Couldn't save the note.",
+      "delete": "Delete note",
+      "deleteFailed": "Couldn't delete the note."
+    },
     "page": {
       "whatsappNotConnected": "WhatsApp® is not connected. Go to Settings to connect your account."
     },

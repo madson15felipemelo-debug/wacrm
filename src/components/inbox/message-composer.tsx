@@ -18,6 +18,7 @@ import {
   Square,
   X,
   Loader2,
+  StickyNote,
   Sparkles,
   Plus,
   MessageSquareDashed,
@@ -118,6 +119,8 @@ interface MessageComposerProps {
   onOpenTemplates: () => void;
   replyTo?: ReplyDraft | null;
   onClearReply?: () => void;
+  /** Saves a team-only internal note. Enables the "Nota interna" tab. */
+  onAddNote?: (body: string) => Promise<boolean>;
 }
 
 function formatDuration(seconds: number): string {
@@ -140,10 +143,16 @@ export function MessageComposer({
   onOpenTemplates,
   replyTo,
   onClearReply,
+  onAddNote,
 }: MessageComposerProps) {
   const t = useTranslations("Inbox.composer");
 
   const [text, setText] = useState("");
+  // "Mensagem" goes to the customer; "Nota interna" stays in the team.
+  const [mode, setMode] = useState<"message" | "note">("message");
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const tNotes = useTranslations("Inbox.notes");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -535,8 +544,75 @@ export function MessageComposer({
 
   // ---- Render --------------------------------------------------------
 
+  const handleSaveNote = async () => {
+    if (!onAddNote || !noteText.trim() || savingNote) return;
+    setSavingNote(true);
+    const ok = await onAddNote(noteText);
+    setSavingNote(false);
+    if (ok) setNoteText("");
+    else toast.error(tNotes("saveFailed"));
+  };
+
+  const modeTabs = onAddNote ? (
+    <div className="mb-2 flex gap-4 text-xs font-medium">
+      {(["message", "note"] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => setMode(m)}
+          className={cn(
+            "border-b-2 pb-1 transition-colors",
+            mode === m
+              ? m === "note"
+                ? "border-amber-500 text-amber-600 dark:text-amber-400"
+                : "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {m === "message" ? tNotes("tabMessage") : tNotes("tabNote")}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  if (mode === "note" && onAddNote) {
+    return (
+      <div className="border-t border-border bg-card p-3">
+        {modeTabs}
+        <div className="flex items-end gap-2">
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void handleSaveNote();
+              }
+            }}
+            placeholder={tNotes("placeholder")}
+            disabled={readOnly}
+            rows={2}
+            maxLength={4000}
+            className="flex-1 resize-none rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <Button
+            size="sm"
+            onClick={() => void handleSaveNote()}
+            disabled={!noteText.trim() || savingNote || readOnly}
+            title={tNotes("save")}
+            className="h-9 w-9 shrink-0 bg-amber-500 p-0 text-white hover:bg-amber-600 disabled:opacity-40"
+          >
+            {savingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <StickyNote className="h-4 w-4" />}
+          </Button>
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">{tNotes("hint")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="border-t border-border bg-card p-3">
+      {modeTabs}
       {replyTo && (
         <div className="mb-2">
           <ReplyQuote

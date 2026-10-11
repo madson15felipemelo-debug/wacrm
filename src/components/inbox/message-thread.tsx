@@ -16,6 +16,7 @@ import type {
   MessageTemplate,
   Profile,
   InteractiveMessagePayload,
+  ConversationNote,
 } from "@/types";
 import {
   MessageSquare,
@@ -50,6 +51,8 @@ import {
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { AiThreadBanner } from "./ai-thread-banner";
+import { NoteBubble } from "./note-bubble";
+import { useConversationNotes } from "@/hooks/use-conversation-notes";
 import { buildReplyPreview } from "./reply-quote";
 import { toast } from "sonner";
 
@@ -119,8 +122,24 @@ function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslatio
   return format(date, "d 'de' MMMM 'de' yyyy", { locale: dateLocale });
 }
 
-function groupMessagesByDate(messages: Message[]) {
-  const groups: { date: string; messages: Message[] }[] = [];
+/** A thread row: a WhatsApp message or a team-only internal note. */
+type TimelineItem =
+  | { kind: "message"; id: string; created_at: string; message: Message }
+  | { kind: "note"; id: string; created_at: string; note: ConversationNote };
+
+function buildTimeline(messages: Message[], notes: ConversationNote[]): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...messages.map((m) => ({ kind: "message" as const, id: m.id, created_at: m.created_at, message: m })),
+    ...notes.map((n) => ({ kind: "note" as const, id: `note-${n.id}`, created_at: n.created_at, note: n })),
+  ];
+  // Stable sort keeps messages in their fetched order on equal timestamps.
+  return items.sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+}
+
+function groupMessagesByDate<T extends { created_at: string }>(messages: T[]) {
+  const groups: { date: string; messages: T[] }[] = [];
   let currentDate = "";
 
   for (const msg of messages) {
@@ -173,7 +192,8 @@ export function MessageThread({
   const tTimer = useTranslations("Inbox.sessionTimer");
   const tQuote = useTranslations("Inbox.replyQuote");
 
-  const { user } = useAuth();
+  const { user, canManageMembers } = useAuth();
+  const tNotes = useTranslations("Inbox.notes");
   const { getPresence, getRow, now } = usePresence();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -267,6 +287,10 @@ export function MessageThread({
   });
 
   const conversationId = conversation?.id;
+  const { notes, addNote, deleteNote } = useConversationNotes(
+    conversationId ?? null,
+    resyncToken,
+  );
   const hasUnread = (conversation?.unread_count ?? 0) > 0;
 
   // Fetch messages whenever the selected conversation changes. Kept
@@ -444,7 +468,7 @@ export function MessageThread({
       const el = scrollRef.current;
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, notes]);
 
   const handleSend = useCallback(
     async (text: string, replyToId?: string) => {
@@ -859,7 +883,7 @@ export function MessageThread({
   }
 
   const displayName = contact.name || contact.phone;
-  const messageGroups = groupMessagesByDate(messages);
+  const messageGroups = groupMessagesByDate(buildTimeline(messages, notes));
   const currentStatus = STATUS_OPTIONS.find(
     (s) => s.value === conversation.status
   );
@@ -1064,7 +1088,7 @@ export function MessageThread({
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-sm text-muted-foreground">{t("noMessagesYet")}</p>
             <p className="text-xs text-muted-foreground">
@@ -1083,7 +1107,26 @@ export function MessageThread({
                 </div>
                 {/* Messages */}
                 <div className="space-y-2">
-                  {group.messages.map((msg) => {
+                  {group.messages.map((item) => {
+                    if (item.kind === "note") {
+                      const canDelete =
+                        item.note.user_id === user?.id || canManageMembers;
+                      return (
+                        <NoteBubble
+                          key={item.id}
+                          note={item.note}
+                          onDelete={
+                            canDelete
+                              ? () =>
+                                  void deleteNote(item.note.id).then((ok) => {
+                                    if (!ok) toast.error(tNotes("deleteFailed"));
+                                  })
+                              : undefined
+                          }
+                        />
+                      );
+                    }
+                    const msg = item.message;
                     const parent = msg.reply_to_message_id
                       ? messagesById.get(msg.reply_to_message_id)
                       : null;
@@ -1160,6 +1203,7 @@ export function MessageThread({
         onOpenTemplates={handleOpenTemplates}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
+        onAddNote={addNote}
       />
 
       <TemplatePicker

@@ -159,6 +159,17 @@ export interface ContactNote {
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';
 
+/** Team-only note inside a conversation thread (migration 042). */
+export interface ConversationNote {
+  id: string;
+  account_id: string;
+  conversation_id: string;
+  user_id: string | null;
+  author_name: string | null;
+  body: string;
+  created_at: string;
+}
+
 export interface Conversation {
   id: string;
   user_id: string;
