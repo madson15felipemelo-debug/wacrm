@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { dateLocale } from "@/lib/date-locale";
 import { useTranslations } from "next-intl";
 import { setOptOut } from "@/lib/contacts/opt-out";
+import { ContactCustomFields } from "./contact-custom-fields";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -32,7 +33,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
-  const { accountId } = useAuth();
+  const { accountId, isViewer } = useAuth();
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
@@ -242,6 +243,12 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
               {optedOutAt ? tSidebar("reactivateBroadcasts") : tSidebar("blockBroadcasts")}
             </button>
           </div>
+
+          {/* Divider */}
+          <div className="my-4 border-t border-border" />
+
+          {/* Collection data — account custom fields, edited in place */}
+          <ContactCustomFields contactId={contact.id} canEdit={!isViewer} />
 
           {/* Divider */}
           <div className="my-4 border-t border-border" />

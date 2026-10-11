@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseAudienceCsv, splitCsvLine } from './csv-audience'
+import { fieldMatchKey, parseAudienceCsv, splitCsvLine } from './csv-audience'
 
 describe('splitCsvLine', () => {
   it('splits plain cells and trims them', () => {
@@ -71,5 +71,19 @@ describe('parseAudienceCsv', () => {
 
   it('rejects an empty file', () => {
     expect(() => parseAudienceCsv('   \n  ')).toThrow('vazio')
+  })
+})
+
+describe('parseAudienceCsv paramHeaders', () => {
+  it('returns the non-phone headers in order, keeping their original case', () => {
+    const parsed = parseAudienceCsv('Nome,phone,Contrato\nAna,5547999999999,123')
+    expect(parsed.paramHeaders).toEqual(['Nome', 'Contrato'])
+  })
+})
+
+describe('fieldMatchKey', () => {
+  it('matches column and field names ignoring case, accents and separators', () => {
+    expect(fieldMatchKey('Valor_da-Dívida')).toBe(fieldMatchKey('valor da divida'))
+    expect(fieldMatchKey('  CPF ')).toBe('cpf')
   })
 })

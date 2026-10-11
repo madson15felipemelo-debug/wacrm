@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
-import { parseAudienceCsv } from '@/lib/broadcasts/csv-audience'
+import { fieldMatchKey, parseAudienceCsv } from '@/lib/broadcasts/csv-audience'
 import { findOptedOutPhones, OPT_OUT_ERROR } from '@/lib/contacts/opt-out'
 import { brazilMobileVariants } from '@/lib/whatsapp/phone-utils'
 import { extractVariableIndices } from '@/lib/whatsapp/template-validators'
@@ -224,6 +224,46 @@ export async function POST(request: Request) {
       if (error) throw error
       for (const c of inserted ?? []) {
         contactIdByPhone.set(c.phone.replace(/\D/g, ''), c.id)
+      }
+    }
+
+    // CSV columns named like a contact custom field (Contrato, Valor,
+    // Vencimento…) are saved on the contact, so the agent sees them in
+    // the inbox panel when the customer replies. Empty cells are skipped
+    // — a blank never wipes a value already on file.
+    const { data: customFields, error: cfError } = await admin
+      .from('custom_fields')
+      .select('id, field_name')
+      .eq('account_id', accountId)
+    if (cfError) throw cfError
+    const fieldIdByKey = new Map(
+      (customFields ?? []).map((f) => [fieldMatchKey(f.field_name as string), f.id as string]),
+    )
+    const columnFields = parsed.paramHeaders
+      .map((header, col) => ({ col, fieldId: fieldIdByKey.get(fieldMatchKey(header)) }))
+      .filter((c): c is { col: number; fieldId: string } => !!c.fieldId)
+    if (columnFields.length > 0) {
+      const valueRows = new Map<string, { contact_id: string; custom_field_id: string; value: string }>()
+      for (const row of rows) {
+        const contactId = contactIdByPhone.get(row.phone)
+        if (!contactId) continue
+        for (const { col, fieldId } of columnFields) {
+          const value = (row.params[col] ?? '').trim()
+          if (!value) continue
+          // Last row wins if a contact appears twice.
+          valueRows.set(`${contactId}|${fieldId}`, {
+            contact_id: contactId,
+            custom_field_id: fieldId,
+            value,
+          })
+        }
+      }
+      const list = [...valueRows.values()]
+      for (let i = 0; i < list.length; i += INSERT_CHUNK) {
+        const { error } = await admin
+          .from('contact_custom_values')
+          .upsert(list.slice(i, i + INSERT_CHUNK), { onConflict: 'contact_id,custom_field_id' })
+        if (error) throw error
       }
     }
 

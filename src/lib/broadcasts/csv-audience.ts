@@ -16,6 +16,8 @@ export interface ParsedAudienceCsv {
   rows: AudienceRow[];
   /** Number of non-phone columns — how many template variables it can fill. */
   paramColumnCount: number;
+  /** Header text of each non-phone column, same order as `params`. */
+  paramHeaders: string[];
   /** Rows dropped for an empty or invalid phone number. */
   invalidCount: number;
   /** Rows dropped as repeats of an earlier phone. */
@@ -65,7 +67,8 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
     throw new Error('O arquivo está vazio.');
   }
 
-  const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
+  const rawHeaders = splitCsvLine(lines[0]);
+  const headers = rawHeaders.map((h) => h.toLowerCase());
   const phoneIdx = headers.indexOf('phone');
   if (phoneIdx === -1) {
     throw new Error("O CSV precisa ter a coluna 'phone'.");
@@ -102,7 +105,23 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
   return {
     rows,
     paramColumnCount: paramIdxs.length,
+    paramHeaders: paramIdxs.map((idx) => rawHeaders[idx]),
     invalidCount,
     duplicateCount,
   };
+}
+
+/**
+ * Key used to match a CSV column to a contact custom field: lowercase,
+ * no accents, `_`/`-` as spaces, collapsed whitespace. So the column
+ * "vencimento", "Vencimento" or "VENCIMENTO" fills the field "Vencimento".
+ */
+export function fieldMatchKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

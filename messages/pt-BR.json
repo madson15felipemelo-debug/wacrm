@@ -135,6 +135,11 @@
     }
   },
   "Inbox": {
+    "customFields": {
+      "title": "Dados da cobrança",
+      "empty": "Nenhum campo cadastrado. Crie em Configurações → Campos e etiquetas.",
+      "saveFailed": "Não foi possível salvar o campo."
+    },
     "reminders": {
       "button": "Criar lembrete",
       "title": "Criar lembrete",

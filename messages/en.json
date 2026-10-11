@@ -135,6 +135,11 @@
     }
   },
   "Inbox": {
+    "customFields": {
+      "title": "Collection data",
+      "empty": "No fields yet. Create them in Settings → Fields & tags.",
+      "saveFailed": "Couldn't save the field."
+    },
     "reminders": {
       "button": "Create reminder",
       "title": "Create reminder",
