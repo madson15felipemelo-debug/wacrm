@@ -1215,6 +1215,17 @@
     }
   },
   "Settings": {
+    "optOutButtons": {
+      "title": "Botões de \"não receber disparos\"",
+      "description": "Quando o cliente toca num botão com um destes nomes, num modelo ou num fluxo, ele para de receber disparos. As conversas no inbox continuam normais.",
+      "label": "Nomes dos botões (um por linha)",
+      "hint": "Maiúsculas, acentos e pontuação são ignorados. Só vale o toque no botão; texto digitado não bloqueia.",
+      "adminOnlyHint": "Apenas administradores da conta podem alterar esta lista.",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "saveFailed": "Falha ao salvar os botões",
+      "saveSuccess": "Botões atualizados"
+    },
     "pageTitle": "Configurações",
     "pageDesc": "Tudo em um só lugar — sua conta e seu espaço de trabalho. Escolha uma seção para gerenciar.",
     "overview": {

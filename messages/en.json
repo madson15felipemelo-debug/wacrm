@@ -1215,6 +1215,17 @@
     }
   },
   "Settings": {
+    "optOutButtons": {
+      "title": "\"Stop broadcasts\" buttons",
+      "description": "When a customer taps a button with one of these titles, in a template or a flow, they stop receiving broadcasts. Inbox conversations are unaffected.",
+      "label": "Button titles (one per line)",
+      "hint": "Case, accents and punctuation are ignored. Only a button tap counts; typed text never opts out.",
+      "adminOnlyHint": "Only account admins can change this list.",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveFailed": "Failed to save the buttons",
+      "saveSuccess": "Buttons updated"
+    },
     "pageTitle": "Settings",
     "pageDesc": "Everything in one place — your account and your workspace. Pick a section to manage it.",
     "overview": {

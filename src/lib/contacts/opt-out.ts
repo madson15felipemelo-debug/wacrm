@@ -4,17 +4,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export const OPT_OUT_ERROR = 'Contato pediu para não receber disparos.'
 
 /**
- * Titles of the button that means "stop sending me broadcasts". Only a
- * BUTTON TAP counts (the webhook checks that) — typed text never opts
- * anyone out, and words like "sair" belong to the flows (restart).
- * Compared after lowercasing and stripping accents/punctuation.
+ * Button titles that mean "stop sending me broadcasts" when the account
+ * hasn't customised them (Settings → Templates; `accounts.opt_out_buttons`,
+ * migration 040). Only a BUTTON TAP counts — the webhook checks that —
+ * so typed text never opts anyone out, and "sair" stays a flow word.
  */
-const OPT_OUT_PHRASES = new Set([
-  'nao quero receber',
-  'nao quero mais receber',
-  'nao quero receber mensagens',
-  'nao quero mais receber mensagens',
-])
+export const DEFAULT_OPT_OUT_BUTTONS = ['Não quero receber', 'Cancelar envio']
 
 function normalize(text: string): string {
   return text
@@ -26,9 +21,31 @@ function normalize(text: string): string {
     .trim()
 }
 
-export function isOptOutButton(text: string | null | undefined): boolean {
+/**
+ * Is this tapped button title one of the account's opt-out buttons?
+ * Ignores case, accents, punctuation and extra spaces.
+ */
+export function isOptOutButton(
+  text: string | null | undefined,
+  buttons: string[] = DEFAULT_OPT_OUT_BUTTONS,
+): boolean {
   if (!text) return false
-  return OPT_OUT_PHRASES.has(normalize(text))
+  const tapped = normalize(text)
+  return tapped !== '' && buttons.some((b) => normalize(b) === tapped)
+}
+
+/** The account's opt-out button titles, or the defaults if unset. */
+export async function loadOptOutButtons(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<string[]> {
+  const { data, error } = await db
+    .from('accounts')
+    .select('opt_out_buttons')
+    .eq('id', accountId)
+    .maybeSingle()
+  if (error || !Array.isArray(data?.opt_out_buttons)) return DEFAULT_OPT_OUT_BUTTONS
+  return data.opt_out_buttons as string[]
 }
 
 /**
