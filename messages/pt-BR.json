@@ -273,7 +273,7 @@
       "addNotePlaceholder": "Adicionar uma nota...",
       "optedOut": "Não recebe disparos",
       "receivesBroadcasts": "Recebe disparos",
-      "optedOutSince": "Pediu para sair em {date}",
+      "optedOutSince": "Pediu para não receber mais em {date}",
       "reactivateBroadcasts": "Reativar disparos",
       "blockBroadcasts": "Bloquear disparos"
     },
