@@ -4,7 +4,7 @@ import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
-import { isOptOutMessage } from '@/lib/contacts/opt-out'
+import { isOptOutButton } from '@/lib/contacts/opt-out'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
@@ -725,10 +725,12 @@ async function processMessage(
   // trigger installed in migration 003).
   await flagBroadcastReplyIfAny(accountId, contactRecord.id)
 
-  // Broadcast opt-out: "Cancelar envio" button / SAIR / PARAR marks the
-  // contact so every broadcast path skips it. The inbox conversation
-  // stays open — only mass sends stop.
-  const isOptOut = isOptOutMessage(contentText ?? message.text?.body)
+  // Broadcast opt-out: ONLY a tap on a "Não quero receber" button
+  // (template or flow) marks the contact so every broadcast path skips
+  // it. Typed text never does — "SAIR" restarts the flow instead. The
+  // inbox conversation stays open; only mass sends stop.
+  const isButtonTap = message.type === 'button' || message.type === 'interactive'
+  const isOptOut = isButtonTap && isOptOutButton(contentText)
   if (isOptOut) {
     const { error: optOutErr } = await supabaseAdmin()
       .from('contacts')

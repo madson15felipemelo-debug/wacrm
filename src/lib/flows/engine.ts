@@ -40,6 +40,7 @@ import {
   engineSendText,
 } from "./meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
+import { isFlowRestartMessage } from "./restart";
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { removeContactTag } from "@/lib/contacts/tag-write";
 import {
@@ -859,6 +860,21 @@ export async function dispatchInboundToFlows(
           flow_run_id: activeRun.id,
           outcome: "duplicate_inbound_ignored",
         };
+      }
+      // "SAIR" / "MENU" → leave the current step and start this same
+      // flow again from its first node.
+      if (isFlowRestartMessage(input.message)) {
+        await endRun(db, activeRun.id, "completed", "customer_restart");
+        const { data: flow } = await db
+          .from("flows")
+          .select("*")
+          .eq("id", activeRun.flow_id)
+          .maybeSingle();
+        if (!flow?.entry_node_id) {
+          return { consumed: true, flow_run_id: activeRun.id, outcome: "completed" };
+        }
+        const nodes = await loadAllNodes(db, flow.id);
+        return startNewRun(db, flow as FlowRow, input, nodes);
       }
       // One SELECT for the whole flow's nodes — advance loop is now
       // in-memory. See loadAllNodes.

@@ -4,19 +4,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export const OPT_OUT_ERROR = 'Contato pediu para não receber disparos.'
 
 /**
- * Whole-message replies that mean "stop sending me broadcasts": the
- * "Cancelar envio" template button and the usual keywords. Compared
- * after lowercasing and stripping accents/punctuation, and only as the
- * ENTIRE message — "não quero parar de pagar" must not opt anyone out.
+ * Titles of the button that means "stop sending me broadcasts". Only a
+ * BUTTON TAP counts (the webhook checks that) — typed text never opts
+ * anyone out, and words like "sair" belong to the flows (restart).
+ * Compared after lowercasing and stripping accents/punctuation.
  */
 const OPT_OUT_PHRASES = new Set([
-  'cancelar envio',
-  'cancelar envios',
-  'sair',
-  'parar',
-  'pare',
-  'stop',
-  'descadastrar',
   'nao quero receber',
   'nao quero mais receber',
   'nao quero receber mensagens',
@@ -33,7 +26,7 @@ function normalize(text: string): string {
     .trim()
 }
 
-export function isOptOutMessage(text: string | null | undefined): boolean {
+export function isOptOutButton(text: string | null | undefined): boolean {
   if (!text) return false
   return OPT_OUT_PHRASES.has(normalize(text))
 }

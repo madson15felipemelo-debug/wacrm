@@ -1,25 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { isOptOutMessage } from './opt-out'
+import { isOptOutButton } from './opt-out'
 
-describe('isOptOutMessage', () => {
-  it('matches the template button and the usual keywords', () => {
-    for (const text of ['Cancelar envio', 'SAIR', 'parar', 'Pare!', 'Não quero receber', 'stop']) {
-      expect(isOptOutMessage(text)).toBe(true)
+describe('isOptOutButton', () => {
+  it('matches the "Não quero receber" button and its variants', () => {
+    for (const text of ['Não quero receber', 'NAO QUERO MAIS RECEBER', 'Não quero receber mensagens']) {
+      expect(isOptOutButton(text)).toBe(true)
     }
   })
 
   it('ignores case, accents, punctuation and extra spaces', () => {
-    expect(isOptOutMessage('  nao   QUERO mais receber.  ')).toBe(true)
+    expect(isOptOutButton('  nao   QUERO receber.  ')).toBe(true)
   })
 
-  it('only matches the whole message, never a word inside a sentence', () => {
-    expect(isOptOutMessage('Quero o boleto')).toBe(false)
-    expect(isOptOutMessage('não quero parar de pagar')).toBe(false)
-    expect(isOptOutMessage('vou sair do trabalho e pago')).toBe(false)
+  it('does not treat flow words or other buttons as opt-out', () => {
+    for (const text of ['Sair', 'Parar', 'Menu', 'Cancelar envio', 'Quero o boleto']) {
+      expect(isOptOutButton(text)).toBe(false)
+    }
   })
 
   it('handles empty input', () => {
-    expect(isOptOutMessage('')).toBe(false)
-    expect(isOptOutMessage(null)).toBe(false)
+    expect(isOptOutButton('')).toBe(false)
+    expect(isOptOutButton(null)).toBe(false)
   })
 })
