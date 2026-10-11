@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { dateLocale } from "@/lib/date-locale";
 import { useTranslations } from "next-intl";
+import { setOptOut } from "@/lib/contacts/opt-out";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -133,16 +134,19 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   }, [contact, newNote, accountId]);
 
   const handleToggleOptOut = useCallback(async () => {
-    if (!contact) return;
+    if (!contact || !accountId) return;
     setSavingOptOut(true);
-    const next = optedOutAt ? null : new Date().toISOString();
-    const { error } = await createClient()
-      .from("contacts")
-      .update({ opted_out_at: next })
-      .eq("id", contact.id);
-    if (!error) setOptedOutAt(next);
+    // Applies to every spelling of the number (BR ninth digit), so a
+    // twin contact created by a CSV follows the same choice.
+    const { error } = await setOptOut(
+      createClient(),
+      accountId,
+      contact.phone,
+      !optedOutAt,
+    );
+    if (!error) setOptedOutAt(optedOutAt ? null : new Date().toISOString());
     setSavingOptOut(false);
-  }, [contact, optedOutAt]);
+  }, [contact, optedOutAt, accountId]);
 
   if (!contact) {
     return (

@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseAudienceCsv } from '@/lib/broadcasts/csv-audience'
 import { findOptedOutPhones } from '@/lib/contacts/opt-out'
+import { brazilMobileVariants } from '@/lib/whatsapp/phone-utils'
 import { extractVariableIndices } from '@/lib/whatsapp/template-validators'
 
 export const maxDuration = 60
@@ -163,20 +164,41 @@ export async function POST(request: Request) {
     // already typed in the CRM is never overwritten.
     const namesToFill: Array<{ id: string; name: string }> = []
 
-    for (let i = 0; i < phones.length; i += LOOKUP_CHUNK) {
-      const chunk = phones.slice(i, i + LOOKUP_CHUNK)
+    // A Brazilian mobile may already exist under the other spelling
+    // (with/without the ninth digit) — e.g. created when the customer
+    // replied. Reuse that contact instead of creating a twin, preferring
+    // an exact match when both exist.
+    const csvPhoneByVariant = new Map<string, string>()
+    for (const phone of phones) {
+      for (const v of brazilMobileVariants(phone)) {
+        if (!csvPhoneByVariant.has(v) || v === phone) csvPhoneByVariant.set(v, phone)
+      }
+    }
+    const variants = [...csvPhoneByVariant.keys()]
+    const matched = new Map<string, { id: string; name: string | null; exact: boolean }>()
+
+    for (let i = 0; i < variants.length; i += LOOKUP_CHUNK) {
+      const chunk = variants.slice(i, i + LOOKUP_CHUNK)
       const { data: existing, error } = await admin
         .from('contacts')
-        .select('id, phone, name')
+        .select('id, phone_normalized, name')
         .eq('account_id', accountId)
         .in('phone_normalized', chunk)
       if (error) throw error
       for (const c of existing ?? []) {
-        const phone = c.phone.replace(/\D/g, '')
-        contactIdByPhone.set(phone, c.id)
-        const csvName = nameByPhone.get(phone)
-        if (!c.name?.trim() && csvName) namesToFill.push({ id: c.id, name: csvName })
+        const csvPhone = csvPhoneByVariant.get(c.phone_normalized)
+        if (!csvPhone) continue
+        const exact = c.phone_normalized === csvPhone
+        const current = matched.get(csvPhone)
+        if (!current || (exact && !current.exact)) {
+          matched.set(csvPhone, { id: c.id, name: c.name, exact })
+        }
       }
+    }
+    for (const [phone, c] of matched) {
+      contactIdByPhone.set(phone, c.id)
+      const csvName = nameByPhone.get(phone)
+      if (!c.name?.trim() && csvName) namesToFill.push({ id: c.id, name: csvName })
     }
 
     for (let i = 0; i < namesToFill.length; i += NAME_UPDATE_CONCURRENCY) {
@@ -209,6 +231,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // Both spellings of one BR mobile in the same CSV now resolve to the
+    // same contact — send to it once (first row wins).
+    const seenContacts = new Set<string>()
+    const uniqueRows = rows.filter((row) => {
+      const id = contactIdByPhone.get(row.phone)!
+      if (seenContacts.has(id)) return false
+      seenContacts.add(id)
+      return true
+    })
+
     const { data: broadcast, error: broadcastError } = await admin
       .from('broadcasts')
       .insert({
@@ -218,7 +250,7 @@ export async function POST(request: Request) {
         template_name: templateName,
         template_language: templateLanguage,
         status: 'sending',
-        total_recipients: rows.length,
+        total_recipients: uniqueRows.length,
         audience_filter: {
           type: 'csv',
           storagePath,
@@ -231,7 +263,7 @@ export async function POST(request: Request) {
       .single()
     if (broadcastError || !broadcast) throw broadcastError ?? new Error('broadcast insert failed')
 
-    const recipients = rows.map((row) => ({
+    const recipients = uniqueRows.map((row) => ({
       broadcast_id: broadcast.id,
       contact_id: contactIdByPhone.get(row.phone)!,
       status: 'pending' as const,
@@ -246,7 +278,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       broadcastId: broadcast.id,
-      total: rows.length,
+      total: uniqueRows.length,
       invalidCount: parsed.invalidCount,
       duplicateCount: parsed.duplicateCount,
       optedOutCount: optedOut.size,

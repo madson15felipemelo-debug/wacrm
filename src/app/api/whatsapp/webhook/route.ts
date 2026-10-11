@@ -4,7 +4,7 @@ import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption'
 import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
-import { isOptOutButton, loadOptOutButtons } from '@/lib/contacts/opt-out'
+import { isOptOutButton, loadOptOutButtons, setOptOut } from '@/lib/contacts/opt-out'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
@@ -735,11 +735,14 @@ async function processMessage(
     isButtonTap &&
     isOptOutButton(contentText, await loadOptOutButtons(supabaseAdmin(), accountId))
   if (isOptOut) {
-    const { error: optOutErr } = await supabaseAdmin()
-      .from('contacts')
-      .update({ opted_out_at: new Date().toISOString() })
-      .eq('id', contactRecord.id)
-      .is('opted_out_at', null)
+    // Every spelling of the number (BR ninth digit) — a CSV may have
+    // created a twin contact with the other one.
+    const { error: optOutErr } = await setOptOut(
+      supabaseAdmin(),
+      accountId,
+      contactRecord.phone,
+      true,
+    )
     if (optOutErr) console.error('[webhook] opt-out update failed:', optOutErr.message)
   }
 

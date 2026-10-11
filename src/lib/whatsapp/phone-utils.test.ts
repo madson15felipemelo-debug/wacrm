@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  brazilMobileVariants,
   isRecipientNotAllowedError,
   isValidE164,
   normalizePhone,
@@ -160,5 +161,20 @@ describe("isRecipientNotAllowedError", () => {
       false,
     );
     expect(isRecipientNotAllowedError("")).toBe(false);
+  });
+});
+
+describe("brazilMobileVariants", () => {
+  it("adds the spelling without the ninth digit", () => {
+    expect(brazilMobileVariants("5547992678152")).toEqual(["5547992678152", "554792678152"]);
+  });
+
+  it("adds the spelling with the ninth digit", () => {
+    expect(brazilMobileVariants("554792678152")).toEqual(["554792678152", "5547992678152"]);
+  });
+
+  it("leaves landlines and non-Brazilian numbers alone", () => {
+    expect(brazilMobileVariants("554733221100")).toEqual(["554733221100"]);
+    expect(brazilMobileVariants("14155552671")).toEqual(["14155552671"]);
   });
 });

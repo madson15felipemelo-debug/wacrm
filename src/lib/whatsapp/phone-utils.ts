@@ -102,3 +102,23 @@ export function phoneVariants(sanitized: string): string[] {
 export function isRecipientNotAllowedError(message: string): boolean {
   return /131030|not in allowed list|not in the allowed list/i.test(message)
 }
+
+/**
+ * Both spellings of a Brazilian mobile number: with and without the
+ * ninth digit. Meta often reports a BR sender WITHOUT the 9
+ * (554791234567) while spreadsheets carry it (5547991234567), so the
+ * same person can end up as two contacts. Non-BR or landline numbers
+ * come back unchanged as a single-item list. Input is digits only.
+ */
+export function brazilMobileVariants(phone: string): string[] {
+  if (!phone.startsWith('55')) return [phone]
+  // 55 + DDD(2) + 9 + 8 digits → also without the 9
+  if (phone.length === 13 && phone[4] === '9') {
+    return [phone, phone.slice(0, 4) + phone.slice(5)]
+  }
+  // 55 + DDD(2) + 8-digit mobile (starts 6-9) → also with the 9
+  if (phone.length === 12 && /[6-9]/.test(phone[4])) {
+    return [phone, phone.slice(0, 4) + '9' + phone.slice(4)]
+  }
+  return [phone]
+}
