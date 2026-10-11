@@ -206,9 +206,10 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
       contacts = contacts.filter((c) => !excludedIds.has(c.id));
     }
 
-    // Contacts who opted out of broadcasts never become recipients
-    // (the send route also refuses them server-side).
-    return contacts.filter((c) => !c.opted_out_at);
+    // Opted-out contacts stay in the audience on purpose: the send route
+    // refuses them server-side and they show in the report as failed
+    // with "Contato pediu para não receber disparos."
+    return contacts;
   }
 
   /**

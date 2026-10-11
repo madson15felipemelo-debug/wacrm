@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { parseAudienceCsv } from '@/lib/broadcasts/csv-audience'
-import { findOptedOutPhones } from '@/lib/contacts/opt-out'
+import { findOptedOutPhones, OPT_OUT_ERROR } from '@/lib/contacts/opt-out'
 import { brazilMobileVariants } from '@/lib/whatsapp/phone-utils'
 import { extractVariableIndices } from '@/lib/whatsapp/template-validators'
 
@@ -141,19 +141,15 @@ export async function POST(request: Request) {
       )
     }
 
-    // Contacts who asked to stop receiving broadcasts never enter the queue.
+    // Contacts who asked to stop receiving broadcasts are never sent to,
+    // but they stay in the report as 'failed' with the reason, so the
+    // operator sees why they didn't get the message.
     const optedOut = await findOptedOutPhones(
       admin,
       accountId,
       parsed.rows.map((r) => r.phone),
     )
-    const rows = parsed.rows.filter((r) => !optedOut.has(r.phone))
-    if (rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Todos os contatos do CSV pediram para não receber disparos.' },
-        { status: 400 },
-      )
-    }
+    const rows = parsed.rows
 
     // Find or create one contact per phone, scoped to the account — the
     // same key the contacts index enforces, so no duplicate rows.
@@ -263,12 +259,16 @@ export async function POST(request: Request) {
       .single()
     if (broadcastError || !broadcast) throw broadcastError ?? new Error('broadcast insert failed')
 
-    const recipients = uniqueRows.map((row) => ({
-      broadcast_id: broadcast.id,
-      contact_id: contactIdByPhone.get(row.phone)!,
-      status: 'pending' as const,
-      template_params: row.params,
-    }))
+    const recipients = uniqueRows.map((row) => {
+      const skip = optedOut.has(row.phone)
+      return {
+        broadcast_id: broadcast.id,
+        contact_id: contactIdByPhone.get(row.phone)!,
+        status: skip ? ('failed' as const) : ('pending' as const),
+        error_message: skip ? OPT_OUT_ERROR : null,
+        template_params: row.params,
+      }
+    })
     for (let i = 0; i < recipients.length; i += INSERT_CHUNK) {
       const { error } = await admin
         .from('broadcast_recipients')
