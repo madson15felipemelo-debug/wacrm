@@ -61,6 +61,12 @@ interface WhatsAppMessage {
     button_reply?: { id: string; title: string }
     list_reply?: { id: string; title: string; description?: string }
   }
+  /**
+   * Set when the customer taps a quick-reply button on a TEMPLATE we
+   * sent (broadcasts). Unlike `interactive`, Meta delivers these as
+   * type `button`; `payload` defaults to the button text.
+   */
+  button?: { text?: string; payload?: string }
   /** Present when the customer swipe-replies to one of our messages. */
   context?: { id: string }
 }
@@ -973,6 +979,15 @@ async function parseMessageContent(
       }
       return { ...empty, contentText: '[Interactive reply]' }
     }
+
+    case 'button':
+      // Quick-reply tap on a template ("Quero o boleto"). Stored as plain
+      // text (type 'button' falls back to content_type 'text') so agents
+      // read it as the customer's answer and the AI auto-reply can act on it.
+      return {
+        ...empty,
+        contentText: message.button?.text || message.button?.payload || null,
+      }
 
     default:
       return {
