@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS cpf_responsibilities (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_cpf_responsibilities_cpf
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cpf_responsibilities_account_cpf
   ON cpf_responsibilities(account_id, cpf);
 
 CREATE INDEX IF NOT EXISTS idx_cpf_responsibilities_campaign

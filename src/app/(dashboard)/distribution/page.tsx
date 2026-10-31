@@ -23,6 +23,9 @@ import {
   UserX,
   X,
   RotateCcw,
+  Download,
+  FileSpreadsheet,
+  UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +110,18 @@ export default function DistributionPage() {
   const [newContractRef, setNewContractRef] = useState("");
   const [newCpfCampaignId, setNewCpfCampaignId] = useState("");
   const [savingCpf, setSavingCpf] = useState(false);
+
+  // CSV Bulk Import
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvDefaultCampaignId, setCsvDefaultCampaignId] = useState("");
+  const [uploadingCsv, setUploadingCsv] = useState(false);
+  const [importSummary, setImportSummary] = useState<{
+    importedCount: number;
+    totalLines: number;
+    invalidCpfCount: number;
+    campaignBreakdown: Record<string, number>;
+  } | null>(null);
 
   // Rules Config
   const [rules, setRules] = useState<DistributionRulesConfig | null>(null);
@@ -426,6 +441,54 @@ export default function DistributionPage() {
     }
   };
 
+  const handleUploadCsv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile) {
+      toast.error("Selecione um arquivo CSV para importar.");
+      return;
+    }
+    setUploadingCsv(true);
+    setImportSummary(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      if (csvDefaultCampaignId) {
+        formData.append("campaignId", csvDefaultCampaignId);
+      }
+      const res = await fetch("/api/distribution/responsibilities/import", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Importados com sucesso ${data.importedCount} CPFs!`);
+        setImportSummary(data);
+        loadResponsibilities();
+        loadCampaigns();
+        loadStats();
+      } else {
+        toast.error(data.error || "Erro ao importar arquivo CSV.");
+      }
+    } catch {
+      toast.error("Erro de conexão ao enviar CSV.");
+    } finally {
+      setUploadingCsv(false);
+    }
+  };
+
+  const downloadSampleCsv = () => {
+    const csvContent =
+      "cpf,cliente,nome,contrato\n12345678901,Colombo,João da Silva,CTR-1001\n98765432100,Fácil Resultado,Maria Santos,CTR-1002\n11122233344,Berlanda,Carlos Souza,CTR-1003";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "exemplo_distribuicao_cpf.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background p-6">
       {/* Top Header */}
@@ -713,7 +776,20 @@ export default function DistributionPage() {
                 Equipes exclusivas por carteira (Berlanda, Colombo, Condor, Fácil, PG, Nexus...)
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setImportSummary(null);
+                  setCsvFile(null);
+                  setIsCsvImportOpen(true);
+                }}
+                className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Importar Planilha CSV
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -1564,6 +1640,132 @@ export default function DistributionPage() {
               </Button>
               <Button type="submit" disabled={reassigning}>
                 {reassigning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar Transferência"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 6: IMPORTAÇÃO EM MASSA VIA CSV */}
+      <Dialog open={isCsvImportOpen} onOpenChange={setIsCsvImportOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <form onSubmit={handleUploadCsv}>
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  Importação de CPFs em Massa (CSV)
+                </DialogTitle>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={downloadSampleCsv}
+                  className="h-8 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar Modelo CSV
+                </Button>
+              </div>
+              <DialogDescription className="text-xs">
+                Suba uma planilha com apenas 2 colunas principais (<strong>cpf</strong> e <strong>cliente/assessoria</strong>). O sistema vincula automaticamente cada devedor à assessoria correspondente.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4 text-xs">
+              {/* File Drop Area */}
+              <div className="rounded-lg border-2 border-dashed border-border/80 p-5 text-center transition-colors hover:border-primary/50">
+                <UploadCloud className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-xs font-medium text-foreground">
+                  {csvFile ? csvFile.name : "Clique para selecionar ou arraste o arquivo CSV"}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Suporta arquivos .csv separados por vírgula (,) ou ponto-e-vírgula (;)
+                </p>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                  className="mt-3 cursor-pointer text-xs"
+                />
+              </div>
+
+              {/* Campaign Override (Optional) */}
+              <div>
+                <label className="font-medium text-foreground">
+                  Assessoria Específica (Opcional)
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Selecione se toda a planilha pertencer à mesma assessoria. Se deixar em branco, o sistema lerá a coluna <strong>cliente/assessoria</strong> de cada linha da planilha.
+                </p>
+                <select
+                  value={csvDefaultCampaignId}
+                  onChange={(e) => setCsvDefaultCampaignId(e.target.value)}
+                  className="mt-1.5 w-full rounded-md border border-border bg-muted px-3 py-2 text-xs text-foreground"
+                >
+                  <option value="">Detectar pela coluna do arquivo (Multi-Assessoria)</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} (fixar todos nesta assessoria)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Import Summary Results */}
+              {importSummary && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-foreground">
+                  <div className="flex items-center gap-2 font-semibold text-emerald-500">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Importação Concluída com Sucesso!
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded bg-background/50 p-2">
+                      <div className="text-base font-bold text-foreground">{importSummary.totalLines}</div>
+                      <div className="text-[10px] text-muted-foreground">Linhas lidas</div>
+                    </div>
+                    <div className="rounded bg-background/50 p-2">
+                      <div className="text-base font-bold text-emerald-500">{importSummary.importedCount}</div>
+                      <div className="text-[10px] text-muted-foreground">CPFs Importados</div>
+                    </div>
+                    <div className="rounded bg-background/50 p-2">
+                      <div className="text-base font-bold text-amber-500">{importSummary.invalidCpfCount}</div>
+                      <div className="text-[10px] text-muted-foreground">Inválidos</div>
+                    </div>
+                  </div>
+
+                  {Object.keys(importSummary.campaignBreakdown || {}).length > 0 && (
+                    <div className="mt-3">
+                      <p className="font-medium text-muted-foreground text-[11px]">Distribuição por Assessoria:</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {Object.entries(importSummary.campaignBreakdown).map(([name, count]) => (
+                          <Badge key={name} variant="outline" className="text-[10px]">
+                            {name}: {count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsCsvImportOpen(false)}>
+                Fechar
+              </Button>
+              <Button type="submit" disabled={uploadingCsv || !csvFile}>
+                {uploadingCsv ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importando base...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Iniciar Importação
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
