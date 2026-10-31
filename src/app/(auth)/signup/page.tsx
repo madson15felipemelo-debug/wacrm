@@ -3,7 +3,8 @@
 import { Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { AuthAurora } from "@/components/auth/auth-aurora";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MessageSquare, CheckCircle, UsersRound, AlertCircle, ArrowRight } from "lucide-react";
+import {
+  MessageSquare,
+  CheckCircle,
+  UsersRound,
+  AlertCircle,
+  ArrowRight,
+  Mail,
+  Loader2,
+} from "lucide-react";
 import { isUserAlreadyRegisteredError, translateAuthError } from "@/lib/auth/auth-errors";
 
 // `useSearchParams` opts the component out of static prerendering
@@ -37,6 +46,7 @@ function SignupPageInner() {
   // points back at /join/<token> so the user lands on the redeem
   // step after verifying instead of being dropped on /dashboard.
   const inviteToken = searchParams.get("invite");
+  const router = useRouter();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,8 +55,38 @@ function SignupPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [success, setSuccess] = useState(false);
   const supabase = createClient();
+
+  const handleSendMagicLink = async () => {
+    if (!email) return;
+    setSendingMagicLink(true);
+    try {
+      const emailRedirectTo = inviteToken
+        ? `${window.location.origin}/join/${encodeURIComponent(inviteToken)}`
+        : `${window.location.origin}/dashboard`;
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo,
+        },
+      });
+
+      if (otpError) {
+        toast.error(translateAuthError(otpError.message));
+      } else {
+        setMagicLinkSent(true);
+        toast.success("Link de acesso enviado! Verifique sua caixa de entrada.");
+      }
+    } catch {
+      toast.error("Não foi possível enviar o link de acesso.");
+    } finally {
+      setSendingMagicLink(false);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +125,23 @@ function SignupPageInner() {
     });
 
     if (error) {
+      if (isUserAlreadyRegisteredError(error.message)) {
+        // Tenta autenticar automaticamente caso a senha digitada coincida com a conta
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (!signInError) {
+          if (inviteToken) {
+            router.push(`/join/${encodeURIComponent(inviteToken)}`);
+            return;
+          }
+          router.push("/dashboard");
+          return;
+        }
+      }
+
       setIsAlreadyRegistered(isUserAlreadyRegisteredError(error.message));
       setError(translateAuthError(error.message));
       setLoading(false);
@@ -180,29 +237,71 @@ function SignupPageInner() {
                   <div className="space-y-2 flex-1">
                     <p className="font-semibold text-foreground text-sm">{error}</p>
                     {isAlreadyRegistered && (
-                      <div className="space-y-2 pt-2 border-t border-destructive/20 text-muted-foreground">
+                      <div className="space-y-3 pt-2 border-t border-destructive/20 text-muted-foreground">
                         <p className="leading-relaxed">
                           {inviteToken
-                            ? "Você já possui uma conta cadastrada com este e-mail. Não é necessário criar outra: basta entrar com sua senha para aceitar o convite e ingressar no time."
+                            ? "Você já possui uma conta no sistema com este e-mail. Para ingressar no time, você pode entrar com sua senha ou receber um link de acesso direto."
                             : "Você já possui uma conta cadastrada com este e-mail. Faça login ou recupere sua senha se a tiver esquecido."}
                         </p>
-                        <Link
-                          href={
-                            inviteToken
-                              ? `/login?invite=${encodeURIComponent(inviteToken)}&email=${encodeURIComponent(email)}`
-                              : `/login?email=${encodeURIComponent(email)}`
-                          }
-                          className="inline-block"
-                        >
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 cursor-pointer mt-1"
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Link
+                            href={
+                              inviteToken
+                                ? `/login?invite=${encodeURIComponent(inviteToken)}&email=${encodeURIComponent(email)}`
+                                : `/login?email=${encodeURIComponent(email)}`
+                            }
                           >
-                            Entrar com esta conta
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Button>
-                        </Link>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 cursor-pointer"
+                            >
+                              Entrar com senha
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+
+                          {inviteToken && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleSendMagicLink}
+                              disabled={sendingMagicLink || magicLinkSent}
+                              className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5 cursor-pointer"
+                            >
+                              {sendingMagicLink ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  Enviando link...
+                                </>
+                              ) : magicLinkSent ? (
+                                <>
+                                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                                  Link enviado para seu e-mail!
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="h-3.5 w-3.5" />
+                                  Entrar sem senha via e-mail
+                                </>
+                              )}
+                            </Button>
+                          )}
+
+                          <Link
+                            href={`/forgot-password?email=${encodeURIComponent(email)}`}
+                          >
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              Esqueci minha senha
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>
