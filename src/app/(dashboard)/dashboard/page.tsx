@@ -19,6 +19,7 @@ import {
   Radio,
   Flame,
   CalendarCheck,
+  Activity,
 } from 'lucide-react'
 
 import {
@@ -56,6 +57,7 @@ import { AttendancesManagementTab } from '@/components/dashboard/attendances-man
 import { LiveMonitorTab } from '@/components/dashboard/live-monitor-tab'
 import { MailingPerformanceTab } from '@/components/dashboard/mailing-performance-tab'
 import { ScheduledAgreementsTab } from '@/components/dashboard/scheduled-agreements-tab'
+import { OperatorEvolutionTab } from '@/components/dashboard/operator-evolution-tab'
 import { Badge } from '@/components/ui/badge'
 
 import { useTranslations } from 'next-intl'
@@ -69,8 +71,8 @@ export default function DashboardPage() {
   // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas & Pipeline)
   const [viewMode, setViewMode] = useState<'operational' | 'pipeline'>('operational')
 
-  // Operational Sub-tabs: 'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'
-  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'>('overview')
+  // Operational Sub-tabs: 'overview' | 'attendances' | 'evolution' | 'live' | 'mailings' | 'scheduled'
+  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'evolution' | 'live' | 'mailings' | 'scheduled'>('overview')
 
   // Global Filters State
   const [filters, setFilters] = useState<FilterState>({
@@ -337,7 +339,27 @@ export default function DashboardPage() {
                 )}
               </button>
 
-              {/* 3. Monitor Ao Vivo & Fila */}
+              {/* 3. Raio-X de Risco & Evolução Histórica */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('evolution')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all cursor-pointer',
+                  operationalSubTab === 'evolution'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Activity className="h-3.5 w-3.5 text-amber-500" />
+                Matriz de Risco & Evolução
+                {operationalData && operationalData.evolution.summary.criticalOperatorsCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-rose-500/15 text-rose-400 font-mono">
+                    {operationalData.evolution.summary.criticalOperatorsCount} críticos
+                  </Badge>
+                )}
+              </button>
+
+              {/* 4. Monitor Ao Vivo & Fila */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('live')}
@@ -480,6 +502,14 @@ export default function DashboardPage() {
             <AttendancesManagementTab
               attendances={operationalData?.attendances ?? []}
               operators={operationalData?.operators ?? []}
+              loading={operationalLoading}
+            />
+          )}
+
+          {operationalSubTab === 'evolution' && operationalData && (
+            <OperatorEvolutionTab
+              summary={operationalData.evolution.summary}
+              operators={operationalData.evolution.operators}
               loading={operationalLoading}
             />
           )}

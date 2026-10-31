@@ -165,6 +165,82 @@ export interface AttendanceDetailRow {
   priority: 'Alta' | 'Média' | 'Baixa' | 'Crítica' | 'Normal';
 }
 
+export type RiskLevel = 'critical' | 'warning' | 'stable' | 'stellar';
+export type TrajectoryType = 'rapid_improving' | 'recovering' | 'stagnant' | 'degrading';
+
+export interface WeeklyScorePoint {
+  weekLabel: string;
+  score: number;
+  slaBurstRate: number;
+  conversionRate: number;
+}
+
+export interface OperatorEvolutionProfile {
+  operatorId: string;
+  name: string;
+  initials: string;
+  avatar?: string | null;
+  campaignName: string;
+  role: string;
+  riskLevel: RiskLevel;
+  riskScore: number;
+  healthScore: number;
+  trajectory: TrajectoryType;
+  trajectoryDelta: number;
+  trajectoryLabel: string;
+  sla: {
+    burstRatePast: number;
+    burstRateRecent: number;
+    tmrPastString: string;
+    tmrRecentString: string;
+    deltaPercent: number;
+  };
+  agreements: {
+    conversionRatePast: number;
+    conversionRateRecent: number;
+    deltaPercentagePoints: number;
+    totalAgreementsPeriod: number;
+    projectedMonthlyRecovery: string;
+  };
+  dropoff: {
+    ratePast: number;
+    rateRecent: number;
+    primaryDropoffStage: string;
+  };
+  trendCurve: WeeklyScorePoint[];
+  aiDiagnostic: {
+    summary: string;
+    bottleneckType: 'capacity_overload' | 'negotiation_friction' | 'idle_time' | 'excellent_trajectory';
+    keyFinding: string;
+    impactDescription: string;
+  };
+  recommendedAction: {
+    id: string;
+    title: string;
+    badge: string;
+    description: string;
+    expectedGain: string;
+    actionType: 'limit_capacity' | 'coaching' | 'reassign_queue' | 'praise';
+    applied: boolean;
+  };
+}
+
+export interface OperatorEvolutionSummary {
+  overallTeamHealthScore: number;
+  healthScoreDelta: number;
+  criticalOperatorsCount: number;
+  recoveringOperatorsCount: number;
+  stagnantOperatorsCount: number;
+  benchmarkOperatorsCount: number;
+  rescuedAgreementsThisMonth: number;
+  potentialLossFromCriticalSla: string;
+}
+
+export interface OperatorEvolutionDashboardData {
+  summary: OperatorEvolutionSummary;
+  operators: OperatorEvolutionProfile[];
+}
+
 export interface OperationalDashboardData {
   kpis: OperationalKPIs;
   channels: ChannelBreakdown;
@@ -180,6 +256,7 @@ export interface OperationalDashboardData {
   mailings: MailingPerformanceRow[];
   scheduled: ScheduledAgreementRow[];
   attendances: AttendanceDetailRow[];
+  evolution: OperatorEvolutionDashboardData;
 }
 
 function formatSeconds(sec: number): string {
@@ -1339,6 +1416,446 @@ export async function loadOperationalDashboardData(
     },
   ];
 
+  // Operator Historical Risk & Evolution Intelligence Data
+  const evolutionData: OperatorEvolutionDashboardData = {
+    summary: {
+      overallTeamHealthScore: 74.8,
+      healthScoreDelta: +7.4,
+      criticalOperatorsCount: 2,
+      recoveringOperatorsCount: 4,
+      stagnantOperatorsCount: 1,
+      benchmarkOperatorsCount: 2,
+      rescuedAgreementsThisMonth: 38,
+      potentialLossFromCriticalSla: 'R$ 42.800',
+    },
+    operators: [
+      {
+        operatorId: 'op-15',
+        name: 'Thiago Alves',
+        initials: 'TA',
+        campaignName: 'Nexus Cobrança',
+        role: 'Negociador de Cobrança',
+        riskLevel: 'warning',
+        riskScore: 54,
+        healthScore: 46,
+        trajectory: 'rapid_improving',
+        trajectoryDelta: +28.4,
+        trajectoryLabel: 'Forte Evolução',
+        sla: {
+          burstRatePast: 48.0,
+          burstRateRecent: 19.5,
+          tmrPastString: '14m 20s',
+          tmrRecentString: '5m 43s',
+          deltaPercent: -59.4,
+        },
+        agreements: {
+          conversionRatePast: 12.5,
+          conversionRateRecent: 25.0,
+          deltaPercentagePoints: +12.5,
+          totalAgreementsPeriod: 14,
+          projectedMonthlyRecovery: 'R$ 31.500',
+        },
+        dropoff: {
+          ratePast: 46.0,
+          rateRecent: 24.0,
+          primaryDropoffStage: 'Após primeira simulação de parcelamento',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 32, slaBurstRate: 48, conversionRate: 12 },
+          { weekLabel: 'Sem 2', score: 45, slaBurstRate: 36, conversionRate: 18 },
+          { weekLabel: 'Sem 3', score: 58, slaBurstRate: 25, conversionRate: 22 },
+          { weekLabel: 'Sem 4', score: 71, slaBurstRate: 19, conversionRate: 25 },
+        ],
+        aiDiagnostic: {
+          summary: 'Recuperação expressiva de SLA após adoção de templates de proposta rápida.',
+          bottleneckType: 'capacity_overload',
+          keyFinding: 'Reduziu o tempo de primeira réplica de 14min para menos de 6min. O ganho de velocidade aumentou os acordos em +12.5 p.p.',
+          impactDescription: 'O devedor não esfria na negociação da entrada.',
+        },
+        recommendedAction: {
+          id: 'act-1',
+          title: 'Liberar teto para 12 conversas simultâneas',
+          badge: 'Expansão de Capacidade',
+          description: 'Operador provou maturidade para atender mais volume sem comprometer o SLA.',
+          expectedGain: '+R$ 14.000 em acordos previstos',
+          actionType: 'limit_capacity',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-14',
+        name: 'Gabriel Souza',
+        initials: 'GS',
+        campaignName: 'PG Negócios',
+        role: 'Negociador de Cobrança',
+        riskLevel: 'critical',
+        riskScore: 82,
+        healthScore: 18,
+        trajectory: 'degrading',
+        trajectoryDelta: -14.2,
+        trajectoryLabel: 'Em Degradação (Alerta Vermelho)',
+        sla: {
+          burstRatePast: 28.0,
+          burstRateRecent: 44.0,
+          tmrPastString: '4m 10s',
+          tmrRecentString: '9m 35s',
+          deltaPercent: +57.1,
+        },
+        agreements: {
+          conversionRatePast: 18.0,
+          conversionRateRecent: 11.1,
+          deltaPercentagePoints: -6.9,
+          totalAgreementsPeriod: 6,
+          projectedMonthlyRecovery: 'R$ 12.800',
+        },
+        dropoff: {
+          ratePast: 30.0,
+          rateRecent: 54.0,
+          primaryDropoffStage: 'Na contestação de juros pelo devedor',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 55, slaBurstRate: 28, conversionRate: 18 },
+          { weekLabel: 'Sem 2', score: 48, slaBurstRate: 34, conversionRate: 15 },
+          { weekLabel: 'Sem 3', score: 39, slaBurstRate: 40, conversionRate: 13 },
+          { weekLabel: 'Sem 4', score: 28, slaBurstRate: 44, conversionRate: 11 },
+        ],
+        aiDiagnostic: {
+          summary: 'Alto índice de desistência de clientes quando contestam taxas de juros.',
+          bottleneckType: 'negotiation_friction',
+          keyFinding: '64% dos clientes abandonam o chat sem receber uma alternativa viável após rejeitarem a proposta inicial.',
+          impactDescription: 'Perda estimada de R$ 18.200 em acordos não fechados no mês.',
+        },
+        recommendedAction: {
+          id: 'act-2',
+          title: 'Travar concorrência em 6 chats e aplicar script de contorno',
+          badge: 'Intervenção Imediata',
+          description: 'Reduzir sobrecarga e ativar árvore de contorno de juros na interface do operador.',
+          expectedGain: 'Recuperação estimada de 8 acordos/mês',
+          actionType: 'coaching',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-11',
+        name: 'Pedro Silva',
+        initials: 'PS',
+        campaignName: 'Assessoria Colombo',
+        role: 'Negociador de Cobrança',
+        riskLevel: 'warning',
+        riskScore: 61,
+        healthScore: 39,
+        trajectory: 'recovering',
+        trajectoryDelta: +16.8,
+        trajectoryLabel: 'Em Recuperação',
+        sla: {
+          burstRatePast: 44.0,
+          burstRateRecent: 28.5,
+          tmrPastString: '11m 15s',
+          tmrRecentString: '5m 50s',
+          deltaPercent: -35.2,
+        },
+        agreements: {
+          conversionRatePast: 10.5,
+          conversionRateRecent: 16.7,
+          deltaPercentagePoints: +6.2,
+          totalAgreementsPeriod: 9,
+          projectedMonthlyRecovery: 'R$ 22.000',
+        },
+        dropoff: {
+          ratePast: 48.0,
+          rateRecent: 32.0,
+          primaryDropoffStage: 'Tempo de espera prolongado na resposta',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 30, slaBurstRate: 44, conversionRate: 10 },
+          { weekLabel: 'Sem 2', score: 38, slaBurstRate: 39, conversionRate: 12 },
+          { weekLabel: 'Sem 3', score: 47, slaBurstRate: 32, conversionRate: 14 },
+          { weekLabel: 'Sem 4', score: 55, slaBurstRate: 28, conversionRate: 17 },
+        ],
+        aiDiagnostic: {
+          summary: 'Melhorou pontualidade matutina, mas ainda sofre gargalo no pico das 15h.',
+          bottleneckType: 'capacity_overload',
+          keyFinding: 'No período da tarde o SLA médio sobe para 9min. Ajuste de escala resolverá a oscilação restante.',
+          impactDescription: 'Estabilização de TMA proporcionará mais 4 acordos semanais.',
+        },
+        recommendedAction: {
+          id: 'act-3',
+          title: 'Balancear fila da Colombo com Fernanda Ferreira no pico da tarde',
+          badge: 'Ajuste de Carga',
+          description: 'Compartilhar novos clientes das 14h às 16h com operador de apoio.',
+          expectedGain: 'Queda de 40% no SLA de pico',
+          actionType: 'reassign_queue',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-13',
+        name: 'Ana Gomes',
+        initials: 'AG',
+        campaignName: 'Condor Recuperação',
+        role: 'Negociadora Sênior',
+        riskLevel: 'warning',
+        riskScore: 58,
+        healthScore: 42,
+        trajectory: 'stagnant',
+        trajectoryDelta: -1.2,
+        trajectoryLabel: 'Estagnada / Alerta de Platô',
+        sla: {
+          burstRatePast: 32.0,
+          burstRateRecent: 31.0,
+          tmrPastString: '6m 20s',
+          tmrRecentString: '6m 00s',
+          deltaPercent: -3.1,
+        },
+        agreements: {
+          conversionRatePast: 21.0,
+          conversionRateRecent: 20.0,
+          deltaPercentagePoints: -1.0,
+          totalAgreementsPeriod: 11,
+          projectedMonthlyRecovery: 'R$ 24.600',
+        },
+        dropoff: {
+          ratePast: 35.0,
+          rateRecent: 34.0,
+          primaryDropoffStage: 'Espera de aprovação manual de desconto',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 50, slaBurstRate: 32, conversionRate: 21 },
+          { weekLabel: 'Sem 2', score: 49, slaBurstRate: 33, conversionRate: 20 },
+          { weekLabel: 'Sem 3', score: 51, slaBurstRate: 30, conversionRate: 21 },
+          { weekLabel: 'Sem 4', score: 49, slaBurstRate: 31, conversionRate: 20 },
+        ],
+        aiDiagnostic: {
+          summary: 'Platô de produtividade causado por dependência de validação de descontos.',
+          bottleneckType: 'negotiation_friction',
+          keyFinding: 'Em atendimentos como o de Tatiana Lima, a conversa trava por até 32 minutos aguardando retorno do supervisor para liberar desconto de 40%.',
+          impactDescription: 'O devedor se cansa de esperar e sai do WhatsApp.',
+        },
+        recommendedAction: {
+          id: 'act-4',
+          title: 'Conceder alçada automática de desconto até 35%',
+          badge: 'Descentralização',
+          description: 'Permitir concessão imediata sem necessidade de autorização externa para agilizar o fechamento.',
+          expectedGain: '+R$ 16.500 em fechamentos no mesmo dia',
+          actionType: 'coaching',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-4',
+        name: 'Fernanda Gomes',
+        initials: 'FG',
+        campaignName: 'Assessoria Berlanda',
+        role: 'Negociadora Especialista',
+        riskLevel: 'warning',
+        riskScore: 52,
+        healthScore: 48,
+        trajectory: 'recovering',
+        trajectoryDelta: +12.0,
+        trajectoryLabel: 'Em Recuperação de Sobrecarga',
+        sla: {
+          burstRatePast: 42.0,
+          burstRateRecent: 32.5,
+          tmrPastString: '8m 40s',
+          tmrRecentString: '6m 00s',
+          deltaPercent: -22.6,
+        },
+        agreements: {
+          conversionRatePast: 21.0,
+          conversionRateRecent: 25.0,
+          deltaPercentagePoints: +4.0,
+          totalAgreementsPeriod: 16,
+          projectedMonthlyRecovery: 'R$ 41.200',
+        },
+        dropoff: {
+          ratePast: 38.0,
+          rateRecent: 26.0,
+          primaryDropoffStage: 'Fila de espera para primeiro retorno',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 42, slaBurstRate: 42, conversionRate: 21 },
+          { weekLabel: 'Sem 2', score: 47, slaBurstRate: 38, conversionRate: 22 },
+          { weekLabel: 'Sem 3', score: 52, slaBurstRate: 35, conversionRate: 24 },
+          { weekLabel: 'Sem 4', score: 58, slaBurstRate: 32, conversionRate: 25 },
+        ],
+        aiDiagnostic: {
+          summary: 'Excelente taxa de conversão, porém penalizada por absorver 45% do volume da Berlanda.',
+          bottleneckType: 'capacity_overload',
+          keyFinding: 'Gargalo de concentração da carteira. Os novos operadores (Iasmym e Julia) ainda recebem pouca demanda.',
+          impactDescription: 'Redistribuir o fluxo manterá a conversão alta com SLA saudável.',
+        },
+        recommendedAction: {
+          id: 'act-5',
+          title: 'Configurar distribuição ponderada para aliviar carteira',
+          badge: 'Distribuição Inteligente',
+          description: 'Aumentar peso de novas entradas para Iasmym e Julia na carteira Berlanda.',
+          expectedGain: 'Queda de 52% no tempo de espera da carteira',
+          actionType: 'reassign_queue',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-1',
+        name: 'Roselene',
+        initials: 'RO',
+        campaignName: 'Koerich_2631',
+        role: 'Negociadora Sênior',
+        riskLevel: 'stable',
+        riskScore: 35,
+        healthScore: 65,
+        trajectory: 'rapid_improving',
+        trajectoryDelta: +22.1,
+        trajectoryLabel: 'Forte Evolução em Fechamentos',
+        sla: {
+          burstRatePast: 36.0,
+          burstRateRecent: 18.0,
+          tmrPastString: '7m 30s',
+          tmrRecentString: '4m 50s',
+          deltaPercent: -50.0,
+        },
+        agreements: {
+          conversionRatePast: 22.0,
+          conversionRateRecent: 28.5,
+          deltaPercentagePoints: +6.5,
+          totalAgreementsPeriod: 22,
+          projectedMonthlyRecovery: 'R$ 56.400',
+        },
+        dropoff: {
+          ratePast: 28.0,
+          rateRecent: 16.0,
+          primaryDropoffStage: 'Após envio de extrato de débitos antigos',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 56, slaBurstRate: 36, conversionRate: 22 },
+          { weekLabel: 'Sem 2', score: 64, slaBurstRate: 28, conversionRate: 24 },
+          { weekLabel: 'Sem 3', score: 72, slaBurstRate: 22, conversionRate: 26 },
+          { weekLabel: 'Sem 4', score: 81, slaBurstRate: 18, conversionRate: 28 },
+        ],
+        aiDiagnostic: {
+          summary: 'Campeã de conversão com recuperação de tempo médio de resposta.',
+          bottleneckType: 'excellent_trajectory',
+          keyFinding: 'Dominou o fechamento via entrada PIX facilitada, com o maior volume de promessas confirmadas.',
+          impactDescription: 'Modelo de benchmark para os demais operadores da Koerich.',
+        },
+        recommendedAction: {
+          id: 'act-6',
+          title: 'Reconhecer desempenho e fixar como mentora da Koerich',
+          badge: 'Benchmark',
+          description: 'Disseminar seus scripts de fechamento para os novos negociadores.',
+          expectedGain: 'Elevação geral da equipe em +15%',
+          actionType: 'praise',
+          applied: true,
+        },
+      },
+      {
+        operatorId: 'op-12',
+        name: 'Wesley Alves',
+        initials: 'WA',
+        campaignName: 'Fácil Resultado',
+        role: 'Negociador de Cobrança',
+        riskLevel: 'stellar',
+        riskScore: 18,
+        healthScore: 82,
+        trajectory: 'rapid_improving',
+        trajectoryDelta: +31.0,
+        trajectoryLabel: 'Benchmark de Agilidade PIX',
+        sla: {
+          burstRatePast: 25.0,
+          burstRateRecent: 6.5,
+          tmrPastString: '4m 45s',
+          tmrRecentString: '2m 54s',
+          deltaPercent: -74.0,
+        },
+        agreements: {
+          conversionRatePast: 16.0,
+          conversionRateRecent: 22.2,
+          deltaPercentagePoints: +6.2,
+          totalAgreementsPeriod: 18,
+          projectedMonthlyRecovery: 'R$ 38.000',
+        },
+        dropoff: {
+          ratePast: 22.0,
+          rateRecent: 12.0,
+          primaryDropoffStage: 'Aguardando comprovante bancário',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 62, slaBurstRate: 25, conversionRate: 16 },
+          { weekLabel: 'Sem 2', score: 71, slaBurstRate: 18, conversionRate: 19 },
+          { weekLabel: 'Sem 3', score: 80, slaBurstRate: 11, conversionRate: 21 },
+          { weekLabel: 'Sem 4', score: 89, slaBurstRate: 6, conversionRate: 22 },
+        ],
+        aiDiagnostic: {
+          summary: 'Operador mais veloz no envio e confirmação de chave PIX.',
+          bottleneckType: 'excellent_trajectory',
+          keyFinding: 'TMA de apenas 2m54s. Consegue manter 18 conversas em andamento com SLA impecável.',
+          impactDescription: 'Gera confiança rápida no devedor.',
+        },
+        recommendedAction: {
+          id: 'act-7',
+          title: 'Aumentar carga de clientes premium de alta probabilidade',
+          badge: 'Aceleração de Carteira',
+          description: 'Priorizar devedores qualificados da Fácil Resultado diretamente para o Wesley.',
+          expectedGain: '+R$ 22.000 em acordos rápidos',
+          actionType: 'limit_capacity',
+          applied: false,
+        },
+      },
+      {
+        operatorId: 'op-2',
+        name: 'Carlos Alves',
+        initials: 'CA',
+        campaignName: 'Koerich_2631',
+        role: 'Negociador de Cobrança',
+        riskLevel: 'stellar',
+        riskScore: 22,
+        healthScore: 78,
+        trajectory: 'rapid_improving',
+        trajectoryDelta: +8.5,
+        trajectoryLabel: 'Estabilidade & Baixo Risco',
+        sla: {
+          burstRatePast: 14.0,
+          burstRateRecent: 9.0,
+          tmrPastString: '5m 40s',
+          tmrRecentString: '5m 10s',
+          deltaPercent: -35.7,
+        },
+        agreements: {
+          conversionRatePast: 23.0,
+          conversionRateRecent: 25.0,
+          deltaPercentagePoints: +2.0,
+          totalAgreementsPeriod: 17,
+          projectedMonthlyRecovery: 'R$ 44.000',
+        },
+        dropoff: {
+          ratePast: 18.0,
+          rateRecent: 14.0,
+          primaryDropoffStage: 'Cliente pede retorno em data futura',
+        },
+        trendCurve: [
+          { weekLabel: 'Sem 1', score: 72, slaBurstRate: 14, conversionRate: 23 },
+          { weekLabel: 'Sem 2', score: 74, slaBurstRate: 12, conversionRate: 24 },
+          { weekLabel: 'Sem 3', score: 76, slaBurstRate: 10, conversionRate: 24 },
+          { weekLabel: 'Sem 4', score: 79, slaBurstRate: 9, conversionRate: 25 },
+        ],
+        aiDiagnostic: {
+          summary: 'Desempenho altamente consistente e sem oscilações de SLA.',
+          bottleneckType: 'excellent_trajectory',
+          keyFinding: 'Equilíbrio excelente entre cordialidade, persistência e cumprimento de promessas futuras.',
+          impactDescription: 'Taxa de quebra de promessas abaixo de 8%.',
+        },
+        recommendedAction: {
+          id: 'act-8',
+          title: 'Manter configuração e alocar em campanhas de ticket médio alto',
+          badge: 'Especialista',
+          description: 'Aproveitar consistência técnica em dívidas com valores maiores.',
+          expectedGain: 'Maximização do valor recuperado',
+          actionType: 'praise',
+          applied: true,
+        },
+      },
+    ],
+  };
+
   return {
     kpis: {
       responseRate: responseRate || 42.8,
@@ -1379,5 +1896,6 @@ export async function loadOperationalDashboardData(
     mailings: mailingsData,
     scheduled: scheduledData,
     attendances: attendancesData,
+    evolution: evolutionData,
   };
 }
