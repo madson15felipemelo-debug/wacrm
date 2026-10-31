@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,7 +13,6 @@ import {
   Bot,
   Sparkles,
   UserCheck,
-  Check,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { MiniCalendarPicker } from "./mini-calendar-picker";
 
 export interface FilterState {
   datePreset: "today" | "yesterday" | "7d" | "15d" | "30d" | "month" | "custom";
@@ -39,15 +40,6 @@ interface DashboardFiltersBarProps {
   isRefreshing?: boolean;
   lastUpdated?: string;
 }
-
-const DATE_PRESETS = [
-  { id: "today", label: "Hoje" },
-  { id: "yesterday", label: "Ontem" },
-  { id: "7d", label: "Últimos 7 dias" },
-  { id: "15d", label: "Últimos 15 dias" },
-  { id: "30d", label: "Últimos 30 dias" },
-  { id: "month", label: "Este Mês" },
-] as const;
 
 const CAMPAIGNS = [
   { id: "all", label: "Todas as Campanhas / Assessorias" },
@@ -78,29 +70,6 @@ export function DashboardFiltersBar({
   lastUpdated = "agora",
 }: DashboardFiltersBarProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
-
-  const handleSelectPreset = (preset: typeof DATE_PRESETS[number]["id"], label: string) => {
-    onFilterChange({
-      ...filters,
-      datePreset: preset,
-      dateLabel: label,
-    });
-    setCalendarOpen(false);
-  };
-
-  const handleApplyCustom = () => {
-    if (!customStart) return;
-    onFilterChange({
-      ...filters,
-      datePreset: "custom",
-      dateLabel: `${customStart} até ${customEnd || customStart}`,
-      startDate: customStart,
-      endDate: customEnd,
-    });
-    setCalendarOpen(false);
-  };
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-xs shadow-xs lg:flex-row lg:items-center lg:justify-between">
@@ -114,67 +83,28 @@ export function DashboardFiltersBar({
         {/* 1. Calendário Premium / Date Range Popover */}
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger
-            className="inline-flex items-center h-8 gap-2 rounded-md border border-border/80 bg-background px-3 text-xs font-medium hover:bg-muted transition-colors cursor-pointer"
+            className="inline-flex items-center h-8 gap-2 rounded-md border border-border/80 bg-background px-3 text-xs font-medium hover:bg-muted transition-colors cursor-pointer shadow-xs"
           >
             <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-            <span>{filters.dateLabel}</span>
+            <span className="font-semibold text-foreground">{filters.dateLabel}</span>
             <ChevronDown className="h-3 w-3 opacity-50" />
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-3" align="start">
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-foreground">Selecionar Período</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {DATE_PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleSelectPreset(p.id, p.label)}
-                    className={cn(
-                      "flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors",
-                      filters.datePreset === p.id
-                        ? "bg-primary text-primary-foreground font-semibold"
-                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <span>{p.label}</span>
-                    {filters.datePreset === p.id && <Check className="h-3 w-3" />}
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Date Inputs */}
-              <div className="border-t border-border/60 pt-2.5 space-y-2">
-                <p className="text-[11px] font-medium text-muted-foreground">Intervalo Personalizado</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">Início</label>
-                    <input
-                      type="date"
-                      value={customStart}
-                      onChange={(e) => setCustomStart(e.target.value)}
-                      className="w-full rounded-md border border-border/80 bg-background px-2 py-1 text-xs text-foreground"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">Fim</label>
-                    <input
-                      type="date"
-                      value={customEnd}
-                      onChange={(e) => setCustomEnd(e.target.value)}
-                      className="w-full rounded-md border border-border/80 bg-background px-2 py-1 text-xs text-foreground"
-                    />
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full h-7 text-xs font-semibold"
-                  onClick={handleApplyCustom}
-                >
-                  Aplicar Datas
-                </Button>
-              </div>
-            </div>
+          <PopoverContent className="w-auto p-3 shadow-xl border border-border/80 bg-card/95 backdrop-blur-md" align="start">
+            <MiniCalendarPicker
+              initialStart={filters.startDate ? new Date(filters.startDate) : null}
+              initialEnd={filters.endDate ? new Date(filters.endDate) : null}
+              onApply={(start, end, label) => {
+                onFilterChange({
+                  ...filters,
+                  datePreset: "custom",
+                  dateLabel: label,
+                  startDate: format(start, "yyyy-MM-dd"),
+                  endDate: format(end, "yyyy-MM-dd"),
+                });
+                setCalendarOpen(false);
+              }}
+              onCancel={() => setCalendarOpen(false)}
+            />
           </PopoverContent>
         </Popover>
 
