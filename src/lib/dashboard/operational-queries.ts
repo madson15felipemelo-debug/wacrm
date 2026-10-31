@@ -209,6 +209,8 @@ export interface OperatorEvolutionProfile {
   };
   trendCurve: WeeklyScorePoint[];
   aiDiagnostic: {
+    analystName: string;
+    analystQuote: string;
     summary: string;
     bottleneckType: 'capacity_overload' | 'negotiation_friction' | 'idle_time' | 'excellent_trajectory';
     keyFinding: string;
@@ -225,6 +227,18 @@ export interface OperatorEvolutionProfile {
   };
 }
 
+export interface QualityAnalystProfile {
+  name: string;
+  role: string;
+  badge: string;
+  avatar: string;
+  status: string;
+  auditedConversationsCount: number;
+  scriptAdherencePercent: number;
+  generalInsight: string;
+  criticalAlert: string;
+}
+
 export interface OperatorEvolutionSummary {
   overallTeamHealthScore: number;
   healthScoreDelta: number;
@@ -237,6 +251,7 @@ export interface OperatorEvolutionSummary {
 }
 
 export interface OperatorEvolutionDashboardData {
+  analyst: QualityAnalystProfile;
   summary: OperatorEvolutionSummary;
   operators: OperatorEvolutionProfile[];
 }
@@ -1418,6 +1433,17 @@ export async function loadOperationalDashboardData(
 
   // Operator Historical Risk & Evolution Intelligence Data
   const evolutionData: OperatorEvolutionDashboardData = {
+    analyst: {
+      name: 'Bekah',
+      role: 'Analista de Qualidade LUMA',
+      badge: 'LUMA Quality Intelligence',
+      avatar: '/avatars/bekah.jpg',
+      status: 'Auditando atendimentos e fluxos de negociação em tempo real',
+      auditedConversationsCount: 1240,
+      scriptAdherencePercent: 78.5,
+      generalInsight: 'Olá time! Auditei as últimas 4 semanas de atendimento da nossa equipe de cobrança. Temos 2 pontos de atenção crítica onde devedores estão desistindo (especialmente nas carteiras PG Negócios e Condor), mas identifiquei uma recuperação fantástica do Thiago Alves (+28.4%) e o modelo benchmark da Roselene. Preparei diagnósticos detalhados e planos de ação para cada um abaixo.',
+      criticalAlert: 'Atenção especial com Gabriel Souza (PG Negócios): 64% dos clientes saem sem contraproposta. Recomendo travar a concorrência em 6 chats e aplicar script de contorno com urgência.',
+    },
     summary: {
       overallTeamHealthScore: 74.8,
       healthScoreDelta: +7.4,
@@ -1467,6 +1493,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 71, slaBurstRate: 19, conversionRate: 25 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'Orgulho de ver a virada do Thiago! Ele sofria com mais de 14 minutos de espera no mês passado, mas aplicou a proposta rápida e hoje responde em menos de 6 minutos. O devedor não esfria e o fechamento sobe.',
           summary: 'Recuperação expressiva de SLA após adoção de templates de proposta rápida.',
           bottleneckType: 'capacity_overload',
           keyFinding: 'Reduziu o tempo de primeira réplica de 14min para menos de 6min. O ganho de velocidade aumentou os acordos em +12.5 p.p.',
@@ -1520,6 +1548,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 28, slaBurstRate: 44, conversionRate: 11 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'Ouvi as conversas do Gabriel. Quando o cliente reclama "esses juros são abusivos", ele trava e demora até 12 minutos para responder. O devedor sai. Precisamos colocar a árvore de contorno de juros na tela dele e reduzir a fila para 6 chats.',
           summary: 'Alto índice de desistência de clientes quando contestam taxas de juros.',
           bottleneckType: 'negotiation_friction',
           keyFinding: '64% dos clientes abandonam o chat sem receber uma alternativa viável após rejeitarem a proposta inicial.',
@@ -1573,6 +1603,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 55, slaBurstRate: 28, conversionRate: 17 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'O Pedro atende super bem até as 13h. A partir das 14h, com o pico da tarde, as mensagens acumulam e ele começa a priorizar clientes aleatórios. Dividir a fila com a Fernanda no vespertino vai estabilizar o SLA dele.',
           summary: 'Melhorou pontualidade matutina, mas ainda sofre gargalo no pico das 15h.',
           bottleneckType: 'capacity_overload',
           keyFinding: 'No período da tarde o SLA médio sobe para 9min. Ajuste de escala resolverá a oscilação restante.',
@@ -1626,6 +1658,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 49, slaBurstRate: 31, conversionRate: 20 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'A Ana tem uma comunicação empática impecável. O único motivo de o SLA estourar para 32 minutos (como no caso da Tatiana Lima) é ela ter que parar e pedir autorização de desconto de 40% no sistema. Dando alçada de até 35% pra ela, os acordos sobem no mesmo dia.',
           summary: 'Platô de produtividade causado por dependência de validação de descontos.',
           bottleneckType: 'negotiation_friction',
           keyFinding: 'Em atendimentos como o de Tatiana Lima, a conversa trava por até 32 minutos aguardando retorno do supervisor para liberar desconto de 40%.',
@@ -1679,6 +1713,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 58, slaBurstRate: 32, conversionRate: 25 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'A Fernanda é nossa negociadora mais dedicada na Berlanda, mas está sobrecarregada atendendo 45% do volume total. Vamos redistribuir novos devedores para a Iasmym e a Julia para ela não estourar o SLA de pico.',
           summary: 'Excelente taxa de conversão, porém penalizada por absorver 45% do volume da Berlanda.',
           bottleneckType: 'capacity_overload',
           keyFinding: 'Gargalo de concentração da carteira. Os novos operadores (Iasmym e Julia) ainda recebem pouca demanda.',
@@ -1732,6 +1768,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 81, slaBurstRate: 18, conversionRate: 28 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'A Roselene é nossa campeã na Koerich! O jeito que ela conduz a negociação de entrada ("se pagar R$ 150 hoje eu consigo o parcelamento sem juros") é cirúrgico. Fixei ela como mentora para replicar esse método.',
           summary: 'Campeã de conversão com recuperação de tempo médio de resposta.',
           bottleneckType: 'excellent_trajectory',
           keyFinding: 'Dominou o fechamento via entrada PIX facilitada, com o maior volume de promessas confirmadas.',
@@ -1785,6 +1823,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 89, slaBurstRate: 6, conversionRate: 22 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'Agilidade impecável: o Wesley fecha acordos na Fácil Resultado em menos de 15 minutos enviando a chave PIX no timing exato.',
           summary: 'Operador mais veloz no envio e confirmação de chave PIX.',
           bottleneckType: 'excellent_trajectory',
           keyFinding: 'TMA de apenas 2m54s. Consegue manter 18 conversas em andamento com SLA impecável.',
@@ -1838,6 +1878,8 @@ export async function loadOperationalDashboardData(
           { weekLabel: 'Sem 4', score: 79, slaBurstRate: 9, conversionRate: 25 },
         ],
         aiDiagnostic: {
+          analystName: 'Bekah',
+          analystQuote: 'Consistência exemplar: menor índice de reclamações da carteira Koerich e alta pontualidade no SLA.',
           summary: 'Desempenho altamente consistente e sem oscilações de SLA.',
           bottleneckType: 'excellent_trajectory',
           keyFinding: 'Equilíbrio excelente entre cordialidade, persistência e cumprimento de promessas futuras.',

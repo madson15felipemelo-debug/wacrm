@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import type {
   OperatorEvolutionProfile,
   OperatorEvolutionSummary,
+  QualityAnalystProfile,
   TrajectoryType,
   RiskLevel,
 } from "@/lib/dashboard/operational-queries";
@@ -39,10 +40,14 @@ import {
   HelpCircle,
   Activity,
   ArrowRight,
+  MessageSquare,
+  Bot,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OperatorEvolutionTabProps {
+  analyst?: QualityAnalystProfile;
   summary: OperatorEvolutionSummary;
   operators: OperatorEvolutionProfile[];
   loading?: boolean;
@@ -51,7 +56,22 @@ interface OperatorEvolutionTabProps {
 type TrajectoryFilter = "all" | TrajectoryType;
 type ViewLayout = "cards" | "table";
 
+const DEFAULT_ANALYST: QualityAnalystProfile = {
+  name: "Bekah",
+  role: "Analista de Qualidade LUMA",
+  badge: "LUMA Quality Intelligence",
+  avatar: "/avatars/bekah.jpg",
+  status: "Auditando atendimentos e fluxos de negociação em tempo real",
+  auditedConversationsCount: 1240,
+  scriptAdherencePercent: 78.5,
+  generalInsight:
+    "Olá time! Auditei as últimas 4 semanas de atendimento da nossa equipe de cobrança. Temos 2 pontos de atenção crítica onde devedores estão desistindo (especialmente nas carteiras PG Negócios e Condor), mas identifiquei uma recuperação fantástica do Thiago Alves (+28.4%) e o modelo benchmark da Roselene. Preparei diagnósticos detalhados e planos de ação para cada um abaixo.",
+  criticalAlert:
+    "Atenção especial com Gabriel Souza (PG Negócios): 64% dos clientes saem sem contraproposta. Recomendo travar a concorrência em 6 chats e aplicar script de contorno com urgência.",
+};
+
 export function OperatorEvolutionTab({
+  analyst = DEFAULT_ANALYST,
   summary,
   operators: initialOperators,
   loading = false,
@@ -66,6 +86,7 @@ export function OperatorEvolutionTab({
     "act-8": true,
   });
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [isAuditing, setIsAuditing] = useState(false);
 
   // Distinct campaigns
   const campaigns = useMemo(() => {
@@ -91,7 +112,8 @@ export function OperatorEvolutionTab({
         return (
           op.name.toLowerCase().includes(q) ||
           op.campaignName.toLowerCase().includes(q) ||
-          op.role.toLowerCase().includes(q)
+          op.role.toLowerCase().includes(q) ||
+          op.aiDiagnostic.analystQuote.toLowerCase().includes(q)
         );
       }
       return true;
@@ -107,14 +129,29 @@ export function OperatorEvolutionTab({
     }));
 
     if (isNowApplied) {
-      setFeedbackToast(`Intervenção ativada para ${operatorName}: "${actionTitle}".`);
+      setFeedbackToast(
+        `Bekah confirmou: Intervenção ativada para ${operatorName} ("${actionTitle}"). Monitorando os próximos 20 atendimentos.`
+      );
     } else {
       setFeedbackToast(`Intervenção pausada para ${operatorName}.`);
     }
 
     setTimeout(() => {
       setFeedbackToast(null);
-    }, 4000);
+    }, 4500);
+  };
+
+  // Re-audit trigger by Bekah
+  const handleRequestReaudit = async () => {
+    setIsAuditing(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setIsAuditing(false);
+    setFeedbackToast(
+      "Bekah reauditou as últimas 150 mensagens com sucesso! Todos os índices de SLA e acordos estão sincronizados."
+    );
+    setTimeout(() => {
+      setFeedbackToast(null);
+    }, 4500);
   };
 
   const getTrajectoryBadge = (trajectory: TrajectoryType, delta: number, label: string) => {
@@ -189,24 +226,120 @@ export function OperatorEvolutionTab({
 
   return (
     <div className="space-y-6">
-      {/* Toast Feedback */}
+      {/* Toast Feedback da Bekah */}
       {feedbackToast && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400 shadow-md animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+        <div className="flex items-center justify-between rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-xs text-orange-400 shadow-md animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-6 w-6 ring-1 ring-orange-500/50">
+              <AvatarImage src={analyst.avatar} alt="Bekah" />
+              <AvatarFallback className="bg-orange-500 text-white font-bold text-[10px]">BK</AvatarFallback>
+            </Avatar>
             <span className="font-semibold text-foreground">{feedbackToast}</span>
           </div>
           <button
             type="button"
             onClick={() => setFeedbackToast(null)}
-            className="text-emerald-400 hover:text-emerald-300 text-xs cursor-pointer font-bold"
+            className="text-orange-400 hover:text-orange-300 text-xs cursor-pointer font-bold"
           >
             Fechar
           </button>
         </div>
       )}
 
-      {/* 1. Header Estratégico & Indicadores de Risco Operacional */}
+      {/* 1. CENTRAL DE QUALIDADE LUMA — SPOTLIGHT EXECUTIVO DA BEKAH */}
+      <div className="relative overflow-hidden rounded-2xl border border-orange-500/40 bg-gradient-to-br from-orange-500/15 via-card/95 to-card p-5 shadow-lg">
+        {/* Glow de fundo laranja suave */}
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-orange-500/15 blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          {/* Perfil da Bekah com Foto Oficial LUMA */}
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <Avatar className="h-20 w-20 ring-4 ring-orange-500/40 shadow-md">
+                <AvatarImage src={analyst.avatar} alt="Bekah" className="object-cover" />
+                <AvatarFallback className="text-lg bg-orange-500 text-white font-bold">BK</AvatarFallback>
+              </Avatar>
+              <span
+                className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-background ring-2 ring-emerald-500/40 animate-pulse"
+                title="Online e auditando em tempo real"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-foreground tracking-tight">{analyst.name}</h3>
+                <Badge className="bg-orange-500/25 text-orange-400 border-orange-500/40 text-[10px] font-semibold">
+                  {analyst.badge}
+                </Badge>
+              </div>
+              <p className="text-xs font-semibold text-orange-400/90">{analyst.role}</p>
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {analyst.status}
+              </p>
+            </div>
+          </div>
+
+          {/* Métricas de Auditoria & Botão de Análise */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="rounded-xl border border-border/60 bg-background/60 px-3.5 py-2 text-center shadow-xs">
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                Conversas Auditadas
+              </span>
+              <span className="text-base font-bold font-mono text-foreground">
+                {analyst.auditedConversationsCount.toLocaleString("pt-BR")}
+              </span>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-background/60 px-3.5 py-2 text-center shadow-xs">
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                Aderência ao Script
+              </span>
+              <span className="text-base font-bold font-mono text-emerald-400">
+                {analyst.scriptAdherencePercent}%
+              </span>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleRequestReaudit}
+              disabled={isAuditing}
+              className="h-10 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-xs cursor-pointer transition-all"
+            >
+              {isAuditing ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Auditando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Pedir Parecer da Bekah
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Parecer Executivo Geral da Bekah para a Supervisão */}
+        <div className="mt-4 rounded-xl border border-orange-500/30 bg-background/70 p-4 space-y-2 backdrop-blur-xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-orange-400" />
+            <span className="text-xs font-bold text-orange-400">
+              Parecer Executivo da Bekah para a Supervisão
+            </span>
+          </div>
+          <p className="text-xs text-foreground/90 leading-relaxed italic">
+            "{analyst.generalInsight}"
+          </p>
+          <div className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+            <span className="text-rose-400 font-medium">
+              <strong>Ponto de Intervenção Imediata da Bekah:</strong> {analyst.criticalAlert}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Strip de KPIs da Operação & Controles de Layout */}
       <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-muted/20 p-5 shadow-xs">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -214,15 +347,15 @@ export function OperatorEvolutionTab({
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
                 <Activity className="h-4 w-4" />
               </div>
-              <h2 className="text-lg font-bold text-foreground">
-                Raio-X de Risco Operacional & Evolução Histórica
+              <h2 className="text-base font-bold text-foreground">
+                Matriz de Risco Operacional & Evolução Histórica
               </h2>
               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] font-mono">
-                IA Diagnostics
+                Auditado por Bekah
               </Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-              Mapeamento de negociadores com histórico de SLA crítico ou baixa conversão, aferição de tendência semanal (30d vs 7d) e planos práticos de reversão.
+              Mapeamento de negociadores com histórico de SLA crítico ou baixa conversão, aferição de tendência semanal (30d vs 7d) e intervenções recomendadas pela Bekah.
             </p>
           </div>
 
@@ -290,7 +423,7 @@ export function OperatorEvolutionTab({
               </span>
               <span className="text-xs text-rose-400/80">operadores</span>
             </div>
-            <p className="mt-0.5 text-[10px] text-rose-400/80">Requerem intervenção imediata</p>
+            <p className="mt-0.5 text-[10px] text-rose-400/80">Intervenção urgente sugerida</p>
           </div>
 
           {/* Em Forte Evolução / Revertendo */}
@@ -324,7 +457,7 @@ export function OperatorEvolutionTab({
         </div>
       </div>
 
-      {/* 2. Barra de Filtros e Segmentação por Trajetória */}
+      {/* 3. Barra de Filtros e Segmentação por Trajetória */}
       <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-xs shadow-xs lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-semibold text-muted-foreground mr-1">
@@ -432,7 +565,7 @@ export function OperatorEvolutionTab({
         </div>
       </div>
 
-      {/* 3. VISÃO EM CARDS DETALHADOS (MASTERPIECE VIEW) */}
+      {/* 4. VISÃO EM CARDS DETALHADOS COM O PARECER DA BEKAH */}
       {viewLayout === "cards" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {filteredOperators.map((op) => {
@@ -546,7 +679,7 @@ export function OperatorEvolutionTab({
                     </div>
                   </div>
 
-                  {/* Sparkline Semanal das 4 Semanas */}
+                  {/* Curva de Tendência Semanal (Sparkline 4 Semanas) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                       <span>Curva de Eficiência Operacional (Últimas 4 Semanas)</span>
@@ -579,20 +712,36 @@ export function OperatorEvolutionTab({
                     </div>
                   </div>
 
-                  {/* Diagnóstico da Causa Raiz por IA (Root Cause Analysis) */}
-                  <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-bold text-foreground">
-                        Diagnóstico de Causa Raiz da IA
-                      </span>
+                  {/* PARECER DA ANALISTA DE QUALIDADE BEKAH (AUDITORIA DE CONVERSAS) */}
+                  <div className="rounded-xl border border-orange-500/35 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-3.5 space-y-2 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 ring-2 ring-orange-500/40">
+                          <AvatarImage src={analyst.avatar} alt="Bekah" />
+                          <AvatarFallback className="text-[10px] bg-orange-500 text-white font-bold">BK</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span>Parecer da Bekah</span>
+                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px] py-0 font-medium">
+                              Auditoria LUMA
+                            </Badge>
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-muted-foreground font-mono">Feedback Qualitativo</span>
                     </div>
-                    <p className="text-[11px] font-medium text-foreground leading-snug">
-                      "{op.aiDiagnostic.summary}"
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-normal">
-                      <strong>Fato Relevante:</strong> {op.aiDiagnostic.keyFinding}
-                    </p>
+
+                    <div className="rounded-lg bg-background/70 border border-orange-500/20 p-2.5">
+                      <p className="text-[11px] text-foreground italic leading-relaxed">
+                        "{op.aiDiagnostic.analystQuote}"
+                      </p>
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground pt-0.5 space-y-0.5">
+                      <p><strong>Causa Raiz Técnica:</strong> {op.aiDiagnostic.keyFinding}</p>
+                      <p className="text-orange-400/90 font-medium"><strong>Impacto Projetado:</strong> {op.aiDiagnostic.impactDescription}</p>
+                    </div>
                   </div>
 
                   {/* Plano de Intervenção Recomendado com Botão de Ação */}
@@ -646,7 +795,7 @@ export function OperatorEvolutionTab({
           })}
         </div>
       ) : (
-        /* 4. VISÃO EM TABELA MATRIZ RESUMIDA */
+        /* 5. VISÃO EM TABELA MATRIZ RESUMIDA */
         <Card className="border border-border/80 shadow-xs">
           <CardHeader className="pb-3 border-b border-border/60">
             <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
@@ -654,7 +803,7 @@ export function OperatorEvolutionTab({
               Matriz Comparativa de Risco & Histórico de Operadores ({filteredOperators.length})
             </CardTitle>
             <CardDescription className="text-xs">
-              Comparativo direto de SLA passado (30d) vs recente (7d), evolução em acordos e intervenções recomendadas
+              Auditado por Bekah • Comparativo direto de SLA passado (30d) vs recente (7d), evolução em acordos e intervenções recomendadas
             </CardDescription>
           </CardHeader>
 
@@ -669,7 +818,7 @@ export function OperatorEvolutionTab({
                     <th className="px-3 py-2.5">Trajetória</th>
                     <th className="px-3 py-2.5">SLA (30d vs 7d)</th>
                     <th className="px-3 py-2.5">Acordos (30d vs 7d)</th>
-                    <th className="px-3 py-2.5">Diagnóstico IA</th>
+                    <th className="px-3 py-2.5">Parecer da Bekah</th>
                     <th className="py-2.5 pl-3 pr-6 text-right">Ação Recomendada</th>
                   </tr>
                 </thead>
@@ -734,11 +883,17 @@ export function OperatorEvolutionTab({
                           </div>
                         </td>
 
-                        {/* Diagnóstico IA */}
-                        <td className="px-3 py-3 max-w-[220px]">
-                          <p className="text-[11px] text-muted-foreground truncate" title={op.aiDiagnostic.summary}>
-                            {op.aiDiagnostic.summary}
-                          </p>
+                        {/* Parecer da Bekah */}
+                        <td className="px-3 py-3 max-w-[240px]">
+                          <div className="flex items-start gap-1.5">
+                            <Avatar className="h-4 w-4 shrink-0 mt-0.5">
+                              <AvatarImage src={analyst.avatar} alt="Bekah" />
+                              <AvatarFallback className="text-[8px] bg-orange-500 text-white">BK</AvatarFallback>
+                            </Avatar>
+                            <p className="text-[11px] text-muted-foreground truncate" title={op.aiDiagnostic.analystQuote}>
+                              "{op.aiDiagnostic.analystQuote}"
+                            </p>
+                          </div>
                         </td>
 
                         {/* Ação Recomendada */}

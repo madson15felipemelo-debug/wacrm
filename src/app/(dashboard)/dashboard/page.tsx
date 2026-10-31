@@ -508,6 +508,7 @@ export default function DashboardPage() {
 
           {operationalSubTab === 'evolution' && operationalData && (
             <OperatorEvolutionTab
+              analyst={operationalData.evolution.analyst}
               summary={operationalData.evolution.summary}
               operators={operationalData.evolution.operators}
               loading={operationalLoading}
