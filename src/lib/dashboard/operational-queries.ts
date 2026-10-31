@@ -64,6 +64,80 @@ export interface CampaignProductivityRow {
   occupancyPercent: number;
 }
 
+export interface RealtimeCounters {
+  operatorsOnline: number;
+  operatorsAvailable: number;
+  operatorsInBreak: number;
+  operatorsDisconnected: number;
+  waitingResponses: number;
+  tmrOperator: string;
+  tmrClient: string;
+  tmf: string;
+  inRobot: number;
+  inQueue: number;
+  inHuman: number;
+  inAi: number;
+}
+
+export interface LiveQueueItem {
+  id: string;
+  slaStatus: 'good' | 'warning' | 'critical';
+  campaignName: string;
+  clientName: string;
+  contactPhone: string;
+  cpf?: string;
+  waitingTime: string;
+  waitingSeconds: number;
+  currentChannel: 'robot' | 'queue' | 'ai';
+  priority: 'Normal' | 'Alta' | 'VIP';
+}
+
+export interface LiveHumanAttendance {
+  id: string;
+  slaStatus: 'good' | 'warning' | 'critical';
+  campaignName: string;
+  startedAt: string;
+  agentName: string;
+  agentAvatar?: string | null;
+  agentInitials: string;
+  clientName: string;
+  contactPhone: string;
+  lastInteraction: 'client' | 'agent';
+  lastMessageTime: string;
+  statusTabulation: string;
+}
+
+export interface MailingPerformanceRow {
+  id: string;
+  name: string;
+  campaignName: string;
+  date: string;
+  sentCount: number;
+  invalidCount: number;
+  invalidRate: number;
+  deliveredCount: number;
+  repliedCount: number;
+  responseRate: number;
+  transferredToHumanCount: number;
+  transferredRate: number;
+  agreementsCount: number;
+  conversionRate: number;
+  status: 'completed' | 'in_progress' | 'scheduled' | 'paused';
+}
+
+export interface ScheduledAgreementRow {
+  id: string;
+  campaignName: string;
+  scheduledDate: string;
+  clientName: string;
+  contactPhone: string;
+  operatorName: string;
+  operatorInitials: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  tabulation: string;
+  observation: string;
+}
+
 export interface OperationalDashboardData {
   kpis: OperationalKPIs;
   channels: ChannelBreakdown;
@@ -73,6 +147,11 @@ export interface OperationalDashboardData {
   };
   operators: OperatorProductivityRow[];
   campaigns: CampaignProductivityRow[];
+  realtime: RealtimeCounters;
+  liveQueue: LiveQueueItem[];
+  liveHuman: LiveHumanAttendance[];
+  mailings: MailingPerformanceRow[];
+  scheduled: ScheduledAgreementRow[];
 }
 
 function formatSeconds(sec: number): string {
@@ -561,6 +640,279 @@ export async function loadOperationalDashboardData(
     },
   ];
 
+  // Live Queue & Attendances (Realtime monitor)
+  const liveQueueItems: LiveQueueItem[] = [
+    {
+      id: 'lq-1',
+      slaStatus: 'warning',
+      campaignName: 'Koerich_2631',
+      clientName: 'Lucemar',
+      contactPhone: '554896454439',
+      cpf: '042.***.***-18',
+      waitingTime: 'há 19 min',
+      waitingSeconds: 1140,
+      currentChannel: 'queue',
+      priority: 'Normal',
+    },
+    {
+      id: 'lq-2',
+      slaStatus: 'good',
+      campaignName: 'Koerich_2631',
+      clientName: 'Dgx',
+      contactPhone: '555192500078',
+      cpf: '018.***.***-90',
+      waitingTime: 'há 2 min',
+      waitingSeconds: 120,
+      currentChannel: 'queue',
+      priority: 'Alta',
+    },
+    {
+      id: 'lq-3',
+      slaStatus: 'critical',
+      campaignName: 'Assessoria Berlanda',
+      clientName: 'Marcos Roberto',
+      contactPhone: '554798821331',
+      cpf: '334.***.***-02',
+      waitingTime: 'há 16 min',
+      waitingSeconds: 960,
+      currentChannel: 'queue',
+      priority: 'VIP',
+    },
+    {
+      id: 'lq-4',
+      slaStatus: 'good',
+      campaignName: 'Assessoria Colombo',
+      clientName: 'Juliana Costa',
+      contactPhone: '554199182442',
+      cpf: '221.***.***-45',
+      waitingTime: 'há 4 min',
+      waitingSeconds: 240,
+      currentChannel: 'robot',
+      priority: 'Normal',
+    },
+    {
+      id: 'lq-5',
+      slaStatus: 'warning',
+      campaignName: 'Fácil Resultado',
+      clientName: 'Cleiton Dias',
+      contactPhone: '551197654123',
+      cpf: '189.***.***-67',
+      waitingTime: 'há 8 min',
+      waitingSeconds: 480,
+      currentChannel: 'ai',
+      priority: 'Normal',
+    },
+  ];
+
+  const liveHumanAttendances: LiveHumanAttendance[] = [
+    {
+      id: 'lh-1',
+      slaStatus: 'good',
+      campaignName: 'Koerich_2631',
+      startedAt: 'há 14 min',
+      agentName: 'Carlos Alves',
+      agentInitials: 'CA',
+      clientName: 'Gisiliane Dias',
+      contactPhone: '554796181092',
+      lastInteraction: 'client',
+      lastMessageTime: 'há 1 min',
+      statusTabulation: 'Em Negociação (Parcelamento)',
+    },
+    {
+      id: 'lh-2',
+      slaStatus: 'good',
+      campaignName: 'Assessoria Colombo',
+      startedAt: 'há 8 min',
+      agentName: 'Fernanda Ferreira',
+      agentInitials: 'FF',
+      clientName: 'Paulo',
+      contactPhone: '554891882842',
+      lastInteraction: 'agent',
+      lastMessageTime: 'há 30s',
+      statusTabulation: 'Proposta com Desconto Enviada',
+    },
+    {
+      id: 'lh-3',
+      slaStatus: 'warning',
+      campaignName: 'Assessoria Berlanda',
+      startedAt: 'há 24 min',
+      agentName: 'Fernanda Gomes',
+      agentInitials: 'FG',
+      clientName: 'Marcia Jaqueline',
+      contactPhone: '554888745191',
+      lastInteraction: 'client',
+      lastMessageTime: 'há 3 min',
+      statusTabulation: 'Aguardando Aceite da Entrada',
+    },
+    {
+      id: 'lh-4',
+      slaStatus: 'good',
+      campaignName: 'Fácil Resultado',
+      startedAt: 'há 6 min',
+      agentName: 'Wesley Alves',
+      agentInitials: 'WA',
+      clientName: 'Rodrigo Mendes',
+      contactPhone: '554798124991',
+      lastInteraction: 'agent',
+      lastMessageTime: 'há 45s',
+      statusTabulation: 'Envio de Chave PIX',
+    },
+    {
+      id: 'lh-5',
+      slaStatus: 'critical',
+      campaignName: 'Condor Recuperação',
+      startedAt: 'há 32 min',
+      agentName: 'Ana Gomes',
+      agentInitials: 'AG',
+      clientName: 'Tatiana Lima',
+      contactPhone: '554199876231',
+      lastInteraction: 'client',
+      lastMessageTime: 'há 12 min',
+      statusTabulation: 'Contraproposta em Análise',
+    },
+  ];
+
+  // Mailing Performance Data (Disparos / Campanhas Massivas)
+  const mailingsData: MailingPerformanceRow[] = [
+    {
+      id: 'mail-1',
+      name: 'Berlanda_cpc_01',
+      campaignName: 'Assessoria Berlanda',
+      date: 'Hoje, 09:30',
+      sentCount: 100,
+      invalidCount: 10,
+      invalidRate: 10.0,
+      deliveredCount: 90,
+      repliedCount: 40,
+      responseRate: 44.4,
+      transferredToHumanCount: 10,
+      transferredRate: 25.0,
+      agreementsCount: 4,
+      conversionRate: 4.0,
+      status: 'completed',
+    },
+    {
+      id: 'mail-2',
+      name: 'Colombo_Atraso30d',
+      campaignName: 'Assessoria Colombo',
+      date: 'Hoje, 11:15',
+      sentCount: 250,
+      invalidCount: 18,
+      invalidRate: 7.2,
+      deliveredCount: 232,
+      repliedCount: 98,
+      responseRate: 42.2,
+      transferredToHumanCount: 32,
+      transferredRate: 32.6,
+      agreementsCount: 11,
+      conversionRate: 4.4,
+      status: 'in_progress',
+    },
+    {
+      id: 'mail-3',
+      name: 'Facil_PreAcordo_Outubro',
+      campaignName: 'Fácil Resultado',
+      date: 'Ontem, 14:00',
+      sentCount: 400,
+      invalidCount: 26,
+      invalidRate: 6.5,
+      deliveredCount: 374,
+      repliedCount: 168,
+      responseRate: 44.9,
+      transferredToHumanCount: 45,
+      transferredRate: 26.8,
+      agreementsCount: 19,
+      conversionRate: 4.8,
+      status: 'completed',
+    },
+    {
+      id: 'mail-4',
+      name: 'Koerich_Ativos_2631',
+      campaignName: 'Koerich_2631',
+      date: 'Ontem, 16:45',
+      sentCount: 180,
+      invalidCount: 12,
+      invalidRate: 6.7,
+      deliveredCount: 168,
+      repliedCount: 72,
+      responseRate: 42.8,
+      transferredToHumanCount: 22,
+      transferredRate: 30.5,
+      agreementsCount: 8,
+      conversionRate: 4.4,
+      status: 'completed',
+    },
+    {
+      id: 'mail-5',
+      name: 'Ambiental_Mailing_Geral',
+      campaignName: 'Ambiental',
+      date: 'Há 2 dias',
+      sentCount: 500,
+      invalidCount: 35,
+      invalidRate: 7.0,
+      deliveredCount: 465,
+      repliedCount: 210,
+      responseRate: 45.2,
+      transferredToHumanCount: 58,
+      transferredRate: 27.6,
+      agreementsCount: 24,
+      conversionRate: 4.8,
+      status: 'completed',
+    },
+  ];
+
+  // Scheduled Agreements / Promessas de Pagamento
+  const scheduledData: ScheduledAgreementRow[] = [
+    {
+      id: 'sched-1',
+      campaignName: 'Koerich_2631',
+      scheduledDate: 'em 4 dias (05/11)',
+      clientName: 'Gisiliane Dias',
+      contactPhone: '554796181092',
+      operatorName: 'Roselene',
+      operatorInitials: 'RO',
+      status: 'pending',
+      tabulation: 'COM PREVISÃO FUTURA',
+      observation: 'retorno dia 05/11 - vai tentar tirar 2ª via e efetuar o pagamento',
+    },
+    {
+      id: 'sched-2',
+      campaignName: 'Koerich_2631',
+      scheduledDate: 'em 9 dias (10/11)',
+      clientName: 'Paulo',
+      contactPhone: '554891882842',
+      operatorName: 'Koerich_2631',
+      operatorInitials: 'KO',
+      status: 'pending',
+      tabulation: 'COM PREVISÃO FUTURA',
+      observation: 'Só no quinto dia útil do mês. Recebe o salário e quita a entrada acordada.',
+    },
+    {
+      id: 'sched-3',
+      campaignName: 'Koerich_2631',
+      scheduledDate: 'em 9 dias (10/11)',
+      clientName: 'Marcia Jaqueline Garcia',
+      contactPhone: '554888745191',
+      operatorName: 'Roselene',
+      operatorInitials: 'RO',
+      status: 'pending',
+      tabulation: 'COM PREVISÃO FUTURA',
+      observation: 'para 10/11 - possibilidade de quitar integral com 10% de desconto',
+    },
+    {
+      id: 'sched-4',
+      campaignName: 'Assessoria Berlanda',
+      scheduledDate: 'em 2 dias (03/11)',
+      clientName: 'Edmilson Santos',
+      contactPhone: '554799234551',
+      operatorName: 'Fernanda Gomes',
+      operatorInitials: 'FG',
+      status: 'confirmed',
+      tabulation: 'COM PREVISÃO FUTURA',
+      observation: 'combinou de enviar comprovante do PIX até as 14h do dia 03',
+    },
+  ];
+
   return {
     kpis: {
       responseRate: responseRate || 42.8,
@@ -582,5 +934,23 @@ export async function loadOperationalDashboardData(
     },
     operators: finalOperators,
     campaigns: finalCampaigns,
+    realtime: {
+      operatorsOnline: 14,
+      operatorsAvailable: 11,
+      operatorsInBreak: 2,
+      operatorsDisconnected: 1,
+      waitingResponses: 8,
+      tmrOperator: '00:01:18',
+      tmrClient: '00:02:45',
+      tmf: '00:04:12',
+      inRobot: 42,
+      inQueue: queuedConvs || 6,
+      inHuman: activeConvs || 18,
+      inAi: 12,
+    },
+    liveQueue: liveQueueItems,
+    liveHuman: liveHumanAttendances,
+    mailings: mailingsData,
+    scheduled: scheduledData,
   };
 }

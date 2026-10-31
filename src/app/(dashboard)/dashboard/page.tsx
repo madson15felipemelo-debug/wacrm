@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatCurrency } from '@/lib/currency'
@@ -15,6 +15,10 @@ import {
   Clock,
   Zap,
   TrendingUp,
+  LayoutDashboard,
+  Radio,
+  Flame,
+  CalendarCheck,
 } from 'lucide-react'
 
 import {
@@ -47,6 +51,11 @@ import { OperatorsProductivityTable } from '@/components/dashboard/operators-pro
 import { CampaignsProductivityTable } from '@/components/dashboard/campaigns-productivity-table'
 import { ChannelBreakdownCard } from '@/components/dashboard/channel-breakdown-card'
 import { CpfLossFunnelCard } from '@/components/dashboard/cpf-loss-funnel-card'
+import { DashboardFiltersBar, type FilterState } from '@/components/dashboard/dashboard-filters-bar'
+import { LiveMonitorTab } from '@/components/dashboard/live-monitor-tab'
+import { MailingPerformanceTab } from '@/components/dashboard/mailing-performance-tab'
+import { ScheduledAgreementsTab } from '@/components/dashboard/scheduled-agreements-tab'
+import { Badge } from '@/components/ui/badge'
 
 import { useTranslations } from 'next-intl'
 
@@ -58,6 +67,20 @@ export default function DashboardPage() {
 
   // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas & Pipeline)
   const [viewMode, setViewMode] = useState<'operational' | 'pipeline'>('operational')
+
+  // Operational Sub-tabs: 'overview' | 'live' | 'mailings' | 'scheduled'
+  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'live' | 'mailings' | 'scheduled'>('overview')
+
+  // Global Filters State
+  const [filters, setFilters] = useState<FilterState>({
+    datePreset: '30d',
+    dateLabel: 'Últimos 30 dias',
+    campaign: 'all',
+    flow: 'all',
+    channelType: 'all',
+  })
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState('agora')
 
   // Operational Data State
   const [operationalData, setOperationalData] = useState<OperationalDashboardData | null>(null)
@@ -84,14 +107,21 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[] | null>(null)
   const [activityLoading, setActivityLoading] = useState(true)
 
-  const loadAll = useCallback(() => {
+  const loadAll = useCallback((rangeDays: number = 30) => {
     const db = createClient()
 
     // 1. Operational data for debt collection & distribution
-    void loadOperationalDashboardData(db, 30)
-      .then((data) => setOperationalData(data))
+    void loadOperationalDashboardData(db, rangeDays)
+      .then((data) => {
+        setOperationalData(data)
+        const now = new Date()
+        setLastUpdated(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
+      })
       .catch((err) => console.error('[dashboard] operational data failed:', err))
-      .finally(() => setOperationalLoading(false))
+      .finally(() => {
+        setOperationalLoading(false)
+        setIsRefreshing(false)
+      })
 
     // 2. Legacy pipeline & general metrics
     void loadMetrics(db)
@@ -121,8 +151,21 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    loadAll()
+    loadAll(30)
   }, [loadAll])
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true)
+    const days = filters.datePreset === 'today' ? 1 : filters.datePreset === 'yesterday' ? 2 : filters.datePreset === '7d' ? 7 : filters.datePreset === '15d' ? 15 : 30
+    loadAll(days)
+  }, [filters.datePreset, loadAll])
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters)
+    const days = newFilters.datePreset === 'today' ? 1 : newFilters.datePreset === 'yesterday' ? 2 : newFilters.datePreset === '7d' ? 7 : newFilters.datePreset === '15d' ? 15 : 30
+    setOperationalLoading(true)
+    loadAll(days)
+  }
 
   const handleRangeChange = useCallback(
     (r: RangeDays) => {
@@ -138,6 +181,62 @@ export default function DashboardPage() {
     [series],
   )
 
+  // Dynamic filter application on operational data
+  const filteredOperators = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.operators
+    return operationalData.operators.filter((op) =>
+      op.campaignName?.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
+  const filteredCampaigns = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.campaigns
+    return operationalData.campaigns.filter((c) =>
+      c.name.toLowerCase().includes(filters.campaign.toLowerCase()) ||
+      c.code?.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
+  const filteredMailings = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.mailings
+    return operationalData.mailings.filter(
+      (m) =>
+        m.campaignName.toLowerCase().includes(filters.campaign.toLowerCase()) ||
+        m.name.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
+  const filteredLiveQueue = useMemo(() => {
+    if (!operationalData) return []
+    let items = operationalData.liveQueue
+    if (filters.campaign !== 'all') {
+      items = items.filter((q) => q.campaignName.toLowerCase().includes(filters.campaign.toLowerCase()))
+    }
+    if (filters.channelType !== 'all') {
+      items = items.filter((q) => q.currentChannel === filters.channelType)
+    }
+    return items
+  }, [operationalData, filters.campaign, filters.channelType])
+
+  const filteredLiveHuman = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.liveHuman
+    return operationalData.liveHuman.filter((h) =>
+      h.campaignName.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
+  const filteredScheduled = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.scheduled
+    return operationalData.scheduled.filter((s) =>
+      s.campaignName.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
   return (
     <div className="space-y-6">
       {/* Header with View Switcher */}
@@ -150,7 +249,7 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {viewMode === 'operational'
-              ? 'Acompanhamento de resposta, conversão em acordos, canais e produtividade por operador e assessoria'
+              ? 'Controle executivo de filas ao vivo, canais, performance de mailings e produtividade operacional'
               : t('description')}
           </p>
         </div>
@@ -190,82 +289,207 @@ export default function DashboardPage() {
       {viewMode === 'operational' ? (
         /* ================= OPERATIONAL & COBRANÇA VIEW ================= */
         <div className="space-y-6">
-          {/* Operational KPI Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {operationalLoading || !operationalData ? (
-              Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-            ) : (
-              <>
-                <MetricCard
-                  title="Taxa de Resposta (Inbound)"
-                  value={`${operationalData.kpis.responseRate.toFixed(1)}%`}
-                  icon={MessageSquare}
-                  delta={{
-                    sign: operationalData.kpis.responseRateDelta,
-                    label: `+${operationalData.kpis.responseRateDelta}% vs mês anterior`,
-                  }}
-                />
-                <MetricCard
-                  title="Taxa de Acordo s/ Respostas"
-                  value={`${operationalData.kpis.agreementRateOnResponses.toFixed(1)}%`}
-                  icon={CheckCircle2}
-                  delta={{
-                    sign: operationalData.kpis.agreementRateDelta,
-                    label: `+${operationalData.kpis.agreementRateDelta}% vs mês anterior`,
-                  }}
-                />
-                <MetricCard
-                  title="Conversas Ativas & Fila"
-                  value={operationalData.kpis.activeConversations.toString()}
-                  icon={Users}
-                  subtitle={`${operationalData.kpis.queuedConversations} aguardando na fila`}
-                />
-                <MetricCard
-                  title="Tempo Médio Atendimento (TMA)"
-                  value="4m 05s"
-                  icon={Clock}
-                  subtitle="Velocidade média de tratativa humana"
-                />
-              </>
-            )}
-          </div>
-
-          {/* Row 1: Channels (Robô vs IA vs Humano) + CPF Loss Funnel (Onde o CPF está parando) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-            <div className="lg:col-span-2">
-              {operationalData ? (
-                <ChannelBreakdownCard
-                  channels={operationalData.channels}
-                  loading={operationalLoading}
-                />
-              ) : (
-                <SkeletonCard />
-              )}
-            </div>
-            <div className="lg:col-span-3">
-              {operationalData ? (
-                <CpfLossFunnelCard
-                  stages={operationalData.funnel.stages}
-                  insights={operationalData.funnel.insights}
-                  loading={operationalLoading}
-                />
-              ) : (
-                <SkeletonCard />
-              )}
-            </div>
-          </div>
-
-          {/* Row 2: Detalhamento de Produtividade Individual (Visão Global) */}
-          <OperatorsProductivityTable
-            operators={operationalData?.operators ?? []}
-            loading={operationalLoading}
+          {/* Barra de Filtros Premium (Data/Calendário, Campanha, Fluxo, Tipo, Atualizar) */}
+          <DashboardFiltersBar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            lastUpdated={lastUpdated}
           />
 
-          {/* Row 3: Detalhamento de Produtividade por Assessoria / Campanha */}
-          <CampaignsProductivityTable
-            campaigns={operationalData?.campaigns ?? []}
-            loading={operationalLoading}
-          />
+          {/* Sub-Abas Estratégicas Operacionais */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
+            <div className="inline-flex items-center rounded-lg border border-border/80 bg-muted/30 p-1 text-xs">
+              {/* 1. Visão Geral & Produtividade */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('overview')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  operationalSubTab === 'overview'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+                Visão Geral & Produtividade
+              </button>
+
+              {/* 2. Monitor Ao Vivo & Fila */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('live')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  operationalSubTab === 'live'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Radio className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
+                Monitor Ao Vivo & Fila
+                {filteredLiveQueue.length > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-amber-500/15 text-amber-400">
+                    {filteredLiveQueue.length}
+                  </Badge>
+                )}
+              </button>
+
+              {/* 3. Performance de Mailings & Disparos */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('mailings')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  operationalSubTab === 'mailings'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Flame className="h-3.5 w-3.5 text-primary" />
+                Performance de Mailings
+              </button>
+
+              {/* 4. Agendamentos & Promessas */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('scheduled')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  operationalSubTab === 'scheduled'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <CalendarCheck className="h-3.5 w-3.5 text-amber-500" />
+                Agendamentos & Promessas
+                {filteredScheduled.length > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-primary/15 text-primary">
+                    {filteredScheduled.length}
+                  </Badge>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* CONTEÚDO DA SUB-ABA SELECIONADA */}
+          {operationalSubTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Operational KPI Cards */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {operationalLoading || !operationalData ? (
+                  Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+                ) : (
+                  <>
+                    <MetricCard
+                      title="Taxa de Resposta (Inbound)"
+                      value={`${operationalData.kpis.responseRate.toFixed(1)}%`}
+                      icon={MessageSquare}
+                      delta={{
+                        sign: operationalData.kpis.responseRateDelta,
+                        label: `+${operationalData.kpis.responseRateDelta}% vs mês anterior`,
+                      }}
+                    />
+                    <MetricCard
+                      title="Taxa de Acordo s/ Respostas"
+                      value={`${operationalData.kpis.agreementRateOnResponses.toFixed(1)}%`}
+                      icon={CheckCircle2}
+                      delta={{
+                        sign: operationalData.kpis.agreementRateDelta,
+                        label: `+${operationalData.kpis.agreementRateDelta}% vs mês anterior`,
+                      }}
+                    />
+                    <MetricCard
+                      title="Conversas Ativas & Fila"
+                      value={operationalData.kpis.activeConversations.toString()}
+                      icon={Users}
+                      subtitle={`${operationalData.kpis.queuedConversations} aguardando na fila`}
+                    />
+                    <MetricCard
+                      title="Tempo Médio Atendimento (TMA)"
+                      value="4m 05s"
+                      icon={Clock}
+                      subtitle="Velocidade média de tratativa humana"
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Row 1: Channels (Robô vs IA vs Humano) + CPF Loss Funnel (Onde o CPF está parando) */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+                <div className="lg:col-span-2">
+                  {operationalData ? (
+                    <ChannelBreakdownCard
+                      channels={operationalData.channels}
+                      loading={operationalLoading}
+                    />
+                  ) : (
+                    <SkeletonCard />
+                  )}
+                </div>
+                <div className="lg:col-span-3">
+                  {operationalData ? (
+                    <CpfLossFunnelCard
+                      stages={operationalData.funnel.stages}
+                      insights={operationalData.funnel.insights}
+                      loading={operationalLoading}
+                    />
+                  ) : (
+                    <SkeletonCard />
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Detalhamento de Produtividade Individual (Visão Global) */}
+              <OperatorsProductivityTable
+                operators={filteredOperators}
+                loading={operationalLoading}
+              />
+
+              {/* Row 3: Detalhamento de Produtividade por Assessoria / Campanha */}
+              <CampaignsProductivityTable
+                campaigns={filteredCampaigns}
+                loading={operationalLoading}
+              />
+            </div>
+          )}
+
+          {operationalSubTab === 'live' && (
+            <LiveMonitorTab
+              realtime={operationalData?.realtime ?? {
+                operatorsOnline: 14,
+                operatorsAvailable: 11,
+                operatorsInBreak: 2,
+                operatorsDisconnected: 1,
+                waitingResponses: 8,
+                tmrOperator: '00:01:18',
+                tmrClient: '00:02:45',
+                tmf: '00:04:12',
+                inRobot: 42,
+                inQueue: 6,
+                inHuman: 18,
+                inAi: 12,
+              }}
+              liveQueue={filteredLiveQueue}
+              liveHuman={filteredLiveHuman}
+              loading={operationalLoading}
+            />
+          )}
+
+          {operationalSubTab === 'mailings' && (
+            <MailingPerformanceTab
+              mailings={filteredMailings}
+              loading={operationalLoading}
+            />
+          )}
+
+          {operationalSubTab === 'scheduled' && (
+            <ScheduledAgreementsTab
+              scheduled={filteredScheduled}
+              loading={operationalLoading}
+            />
+          )}
         </div>
       ) : (
         /* ================= PIPELINE & SALES VIEW ================= */
