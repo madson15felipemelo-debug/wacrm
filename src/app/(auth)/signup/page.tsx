@@ -16,7 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MessageSquare, CheckCircle, UsersRound } from "lucide-react";
+import { MessageSquare, CheckCircle, UsersRound, AlertCircle, ArrowRight } from "lucide-react";
+import { isUserAlreadyRegisteredError, translateAuthError } from "@/lib/auth/auth-errors";
 
 // `useSearchParams` opts the component out of static prerendering
 // unless wrapped in Suspense — same pattern as /login.
@@ -42,6 +43,7 @@ function SignupPageInner() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const supabase = createClient();
@@ -49,6 +51,7 @@ function SignupPageInner() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsAlreadyRegistered(false);
 
     if (password !== confirmPassword) {
       setError("As senhas não coincidem");
@@ -82,7 +85,8 @@ function SignupPageInner() {
     });
 
     if (error) {
-      setError(error.message);
+      setIsAlreadyRegistered(isUserAlreadyRegisteredError(error.message));
+      setError(translateAuthError(error.message));
       setLoading(false);
       return;
     }
@@ -170,8 +174,39 @@ function SignupPageInner() {
         <CardContent>
           <form onSubmit={handleSignup} className="flex flex-col gap-4">
             {error && (
-              <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+                  <div className="space-y-2 flex-1">
+                    <p className="font-semibold text-foreground text-sm">{error}</p>
+                    {isAlreadyRegistered && (
+                      <div className="space-y-2 pt-2 border-t border-destructive/20 text-muted-foreground">
+                        <p className="leading-relaxed">
+                          {inviteToken
+                            ? "Você já possui uma conta cadastrada com este e-mail. Não é necessário criar outra: basta entrar com sua senha para aceitar o convite e ingressar no time."
+                            : "Você já possui uma conta cadastrada com este e-mail. Faça login ou recupere sua senha se a tiver esquecido."}
+                        </p>
+                        <Link
+                          href={
+                            inviteToken
+                              ? `/login?invite=${encodeURIComponent(inviteToken)}&email=${encodeURIComponent(email)}`
+                              : `/login?email=${encodeURIComponent(email)}`
+                          }
+                          className="inline-block"
+                        >
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 cursor-pointer mt-1"
+                          >
+                            Entrar com esta conta
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
