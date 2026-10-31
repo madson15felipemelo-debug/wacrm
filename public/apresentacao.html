@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WACRM - O Futuro do CRM para WhatsApp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-base: #030712;
+            --primary: #10b981; /* Emerald */
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --primary-light: #34d399;
+            --secondary: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(255, 255, 255, 0.02);
+            --card-border: rgba(255, 255, 255, 0.05);
+            --card-hover-border: rgba(16, 185, 129, 0.3);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, .btn { font-family: 'Outfit', sans-serif; }
+
+        /* Premium Background Mesh & Grid */
+        .bg-grid {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(circle at center, black, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black, transparent 80%);
+        }
+
+        .blob-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; pointer-events: none;
+        }
+
+        .blob {
+            position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; animation: float 10s ease-in-out infinite alternate;
+        }
+
+        .blob-1 { width: 500px; height: 500px; background: rgba(16, 185, 129, 0.15); top: -100px; left: -100px; animation-delay: 0s; }
+        .blob-2 { width: 400px; height: 400px; background: rgba(59, 130, 246, 0.1); bottom: -100px; right: -100px; animation-delay: -5s; }
+
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 50px) scale(1.2); } }
+
+        /* Container */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+        /* Navbar */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 1.25rem 0; z-index: 100;
+            background: rgba(3, 7, 18, 0.5); backdrop-filter: blur(12px); border-bottom: 1px solid var(--card-border);
+        }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+        .logo { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+        .logo span { color: var(--primary); }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding-top: 8rem; padding-bottom: 4rem; position: relative;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 99px; color: var(--primary-light); font-size: 0.875rem; font-weight: 500; margin-bottom: 2rem;
+            animation: fadeUp 0.8s ease-out forwards;
+        }
+
+        .hero h1 {
+            font-size: clamp(3.5rem, 8vw, 6.5rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.04em; margin-bottom: 1.5rem;
+            background: linear-gradient(180deg, #fff 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: fadeUp 1s ease-out 0.1s forwards; opacity: 0; transform: translateY(30px);
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem; color: var(--text-muted); max-width: 650px; margin-bottom: 3rem; line-height: 1.6;
+            animation: fadeUp 1s ease-out 0.2s forwards; opacity: 0; transform: translateY(30px);
+        }
+
+        .hero-img-container {
+            width: 100%; max-width: 1050px; border-radius: 24px; padding: 0.5rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.8), 0 0 60px rgba(16, 185, 129, 0.15);
+            animation: fadeUp 1s ease-out 0.4s forwards; opacity: 0; transform: translateY(30px);
+            position: relative; overflow: hidden;
+        }
+
+        .hero-img-container::before {
+            content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%); z-index: 1; pointer-events: none; border-radius: 24px;
+        }
+
+        .hero-img-container img {
+            width: 100%; border-radius: 18px; display: block; position: relative; z-index: 0;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        /* Features Bento Grid */
+        .features { padding: 8rem 0; }
+        .section-header { text-align: center; margin-bottom: 5rem; }
+        .section-header h2 { font-size: 3rem; letter-spacing: -0.02em; margin-bottom: 1rem; }
+        .section-header p { color: var(--text-muted); font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+
+        .bento-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; grid-auto-rows: minmax(250px, auto);
+        }
+
+        .bento-card {
+            background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 24px; padding: 2.5rem;
+            position: relative; overflow: hidden; transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column;
+        }
+
+        .bento-card::after {
+            content: ''; position: absolute; inset: 0; background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.06), transparent 40%); opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+
+        .bento-card:hover { transform: translateY(-5px); border-color: rgba(16, 185, 129, 0.3); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5); }
+        .bento-card:hover::after { opacity: 1; }
+
+        .bento-card.large { grid-column: span 2; }
+        
+        .card-icon-wrapper {
+            width: 56px; height: 56px; border-radius: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
+            display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; color: var(--primary);
+            transition: transform 0.3s ease;
+        }
+
+        .bento-card:hover .card-icon-wrapper { transform: scale(1.1) rotate(5deg); background: rgba(16, 185, 129, 0.2); }
+
+        .bento-card h3 { font-size: 1.5rem; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
+        .bento-card p { color: var(--text-muted); line-height: 1.6; font-size: 1.05rem; }
+
+        /* Highlights */
+        .highlight-row { display: flex; align-items: center; gap: 5rem; margin-top: 8rem; }
+        .highlight-row:nth-child(even) { flex-direction: row-reverse; }
+        .highlight-content { flex: 1; }
+        .highlight-content h2 { font-size: 2.8rem; letter-spacing: -0.03em; margin-bottom: 1.5rem; line-height: 1.2; }
+        .highlight-content p { font-size: 1.15rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2rem; }
+
+        .highlight-visual {
+            flex: 1.2; aspect-ratio: 4/3; border-radius: 24px; background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid var(--card-border); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+        }
+
+        .highlight-visual::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, var(--primary-glow) 0%, transparent 70%); opacity: 0.3; }
+
+        /* Abstract UI Components for Visuals */
+        .abstract-ui { display: flex; flex-direction: column; gap: 1rem; width: 70%; z-index: 1; perspective: 1000px;}
+        .abstract-bar { height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; backdrop-filter: blur(8px); animation: slideIn 3s ease-out infinite alternate; }
+        .abstract-bar.active { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); box-shadow: 0 0 20px rgba(16,185,129,0.2); width: 100% !important; animation-delay: 0.5s;}
+
+        @keyframes slideIn { 0% { transform: translateX(-5px); } 100% { transform: translateX(5px); } }
+
+        /* CTA */
+        .cta {
+            padding: 8rem 0 10rem 0; text-align: center; position: relative; overflow: hidden;
+            border-top: 1px solid var(--card-border); background: radial-gradient(ellipse at top center, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+        }
+
+        .cta h2 { font-size: 3.5rem; letter-spacing: -0.03em; margin-bottom: 1.5rem; }
+        
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem; background: #fff; color: #000; text-decoration: none;
+            padding: 1rem 2.5rem; font-weight: 600; font-size: 1.1rem; border-radius: 99px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 0 0 rgba(255,255,255,0.7);
+        }
+
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(255,255,255,0.3); }
+        .btn i { transition: transform 0.3s; }
+        .btn:hover i { transform: translateX(4px); }
+
+        /* Reveal Animations */
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 900px) {
+            .bento-grid { grid-template-columns: 1fr; }
+            .bento-card.large { grid-column: span 1; }
+            .highlight-row, .highlight-row:nth-child(even) { flex-direction: column; gap: 3rem; text-align: center; }
+            .hero h1 { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dynamic Background -->
+    <div class="bg-grid"></div>
+    <div class="blob-container">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <!-- Glass Navbar -->
+    <nav>
+        <div class="nav-content">
+            <div class="logo"><i data-lucide="message-square-dashed" style="color: var(--primary);"></i> WA<span>CRM</span></div>
+            <a href="#features" class="btn" style="padding: 0.5rem 1.5rem; font-size: 0.9rem;">Explorar Tecnologias</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="container">
+        <section class="hero">
+            <div class="badge"><i data-lucide="sparkles" style="width: 16px; height: 16px;"></i> Nova Geração de Atendimento Autônomo</div>
+            <h1>O CRM Definitivo para <span>WhatsApp</span></h1>
+            <p>Caixa de entrada compartilhada, inteligência artificial integrada nativamente, automações visuais e pipelines de vendas em um único ecossistema premium.</p>
+            
+            <div class="hero-img-container">
+                <!-- Fallback to a placeholder if crm_mockup.png is missing -->
+                <img src="/crm_mockup.png" alt="CRM Dashboard Mockup" onerror="this.src='https://images.unsplash.com/photo-1618761714954-0b8cd0026356?q=80&w=1200&auto=format&fit=crop'; this.style.filter='grayscale(80%) opacity(0.8)'">
+            </div>
+        </section>
+
+        <!-- Bento Grid Section -->
+        <section id="features" class="features">
+            <div class="section-header reveal">
+                <h2>Engenharia de Ponta</h2>
+                <p>Construído para escalar o seu negócio sem limites. Cada funcionalidade foi desenhada com precisão absoluta e foco no design corporativo.</p>
+            </div>
+            
+            <div class="bento-grid">
+                <div class="bento-card large reveal">
+                    <div class="card-icon-wrapper"><i data-lucide="users"></i></div>
+                    <h3>Inbox Compartilhada Multi-Agente</h3>
+                    <p>Conecte toda a sua equipe em um único número oficial de WhatsApp. Atribua conversas, crie notas internas e tenha visibilidade total do atendimento em tempo real, sem gargalos operacionais.</p>
+                </div>
+                
+                <div class="bento-card reveal" style="transition-delay: 0.1s;">
+                    <div class="card-icon-wrapper"><i data-lucide="bot"></i></div>
+                    <h3>Inteligência Artificial (LLMs)</h3>
+                    <p>Modelos de última geração (Gemini/Claude/OpenAI) respondem automaticamente com base nas regras do seu negócio e executam Handoff seguro para atendentes.</p>
+                </div>
+
+                <div class="bento-card reveal" style="transition-delay: 0.2s;">
+                    <div class="card-icon-wrapper"><i data-lucide="workflow"></i></div>
+                    <h3>Automações No-Code</h3>
+                    <p>Construtor visual determinístico. Crie gatilhos por palavras-chave, mensagens de saudação e roteamento inteligente sem digitar uma única linha de código.</p>
+                </div>
+
+                <div class="bento-card large reveal" style="transition-delay: 0.3s;">
+                    <div class="card-icon-wrapper"><i data-lucide="kanban-square"></i></div>
+                    <h3>Pipelines (CRM Kanban)</h3>
+                    <p>Transforme cada conversa do WhatsApp em uma oportunidade tangível. Arraste cards pelos estágios do funil e tenha previsibilidade de faturamento conectada diretamente ao chat do cliente.</p>
+                </div>
+            </div>
+
+            <!-- Visual Highlight 1 -->
+            <div class="highlight-row reveal">
+                <div class="highlight-content">
+                    <h2>Rastreamento Absoluto</h2>
+                    <p>Nossa visão 360 graus permite gerenciar equipes inteiras em tempo real. Acompanhe tempos de resposta, SLAs e o valor exato do seu funil. Transforme conversas caóticas em inteligência de vendas e saiba exatamente quanto dinheiro está na mesa em cada etapa do pipeline.</p>
+                </div>
+                <div class="highlight-visual">
+                    <div class="abstract-ui" style="align-items: center; justify-content: center;">
+                        <div style="width: 180px; height: 180px; border-radius: 50%; border: 4px dashed rgba(255,255,255,0.05); border-top-color: var(--primary); animation: spin 8s linear infinite;"></div>
+                        <i data-lucide="bar-chart-3" style="position: absolute; width: 56px; height: 56px; color: var(--primary);"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Highlight 2 -->
+            <div class="highlight-row reveal">
+                <div class="highlight-content">
+                    <h2>Comunicação em Massa e Ativa</h2>
+                    <p>Crie campanhas de broadcast impactantes usando templates aprovados pela Cloud API da Meta. Monitore taxas de entrega e leitura instantaneamente. Insira variáveis dinâmicas para que milhares de clientes recebam mensagens personalizadas e humanas em segundos.</p>
+                </div>
+                <div class="highlight-visual">
+                    <div class="abstract-ui">
+                        <div class="abstract-bar" style="width: 85%;"></div>
+                        <div class="abstract-bar" style="width: 65%; animation-delay: 0.2s;"></div>
+                        <div class="abstract-bar active"></div>
+                        <div class="abstract-bar" style="width: 95%; animation-delay: 0.7s;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Call to Action -->
+    <section class="cta reveal">
+        <div class="container">
+            <h2>Pronto para escalar as operações?</h2>
+            <p style="color: var(--text-muted); font-size: 1.25rem; margin-bottom: 3rem; max-width: 600px; margin-inline: auto;">Junte-se ao novo ecossistema de vendas por WhatsApp com o sistema mais seguro e robusto do mercado.</p>
+            <a href="#" class="btn">Garantir Meu Acesso <i data-lucide="arrow-right"></i></a>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <script>
+        // 1. Inicia os ícones Lucide
+        lucide.createIcons();
+
+        // 2. Animação de entrada dos elementos (Reveal)
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.15, rootMargin: "0px 0px -50px 0px" });
+
+        revealElements.forEach(el => revealObserver.observe(el));
+
+        // 3. Efeito de brilho dinâmico (Mouse Hover) nos Bento Cards
+        document.querySelectorAll('.bento-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // 4. Injeta keyframes pro spinner animado dos gráficos abstratos
+        const style = document.createElement('style');
+        style.textContent = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

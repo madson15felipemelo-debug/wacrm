@@ -18,6 +18,7 @@ import {
   describeMetaStatusError,
   type MetaStatusError,
 } from '@/lib/whatsapp/meta-status-error'
+import { executeDistribution } from '@/lib/distribution/distribution-engine'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -848,6 +849,21 @@ async function processMessage(
       contactId: contactRecord.id,
       configOwnerUserId,
     })
+  }
+
+  // Distribuição Inteligente (Migration 045): se a conversa não foi consumida
+  // por um fluxo de triagem e não possui operador, direciona pela responsabilidade do CPF.
+  if (!flowConsumed && !conversation.assigned_agent_id) {
+    try {
+      await executeDistribution(supabaseAdmin(), {
+        accountId,
+        conversationId: conversation.id,
+        contactId: contactRecord.id,
+        messageText: inboundText,
+      })
+    } catch (distErr) {
+      console.error('[webhook] executeDistribution failed:', distErr)
+    }
   }
 
   // message.received webhook (public API). Awaited — not fire-and-forget

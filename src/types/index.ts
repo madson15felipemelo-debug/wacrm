@@ -196,6 +196,9 @@ export interface Conversation {
   ai_autoreply_disabled?: boolean;
   ai_reply_count?: number;
   ai_handoff_summary?: string | null;
+  /** Campanha / Assessoria de distribuição vinculada (Migration 045). */
+  campaign_id?: string | null;
+  campaign?: DistributionCampaign | null;
 }
 
 // ============================================================
@@ -675,3 +678,89 @@ export interface QuickReply {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Intelligent Distribution & Campaign Entities (Migration 045)
+// ============================================================
+
+export type DistributionStrategy = 'least_busy' | 'round_robin' | 'smart';
+export type ContingencyStrategy = 'queue' | 'substitute' | 'supervisor';
+export type DistributionMode = 'operational_smart' | 'cpf_responsibility' | 'manual';
+export type DistributionAuditStatus = 'success' | 'queued' | 'triage' | 'conflict' | 'failed';
+
+export interface DistributionCampaign {
+  id: string;
+  account_id: string;
+  name: string;
+  code?: string | null;
+  client_name?: string | null;
+  distribution_strategy: DistributionStrategy;
+  contingency_strategy: ContingencyStrategy;
+  max_concurrent_chats: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  operators_count?: number;
+  online_operators_count?: number;
+  active_conversations_count?: number;
+}
+
+export interface CampaignOperator {
+  id: string;
+  account_id: string;
+  campaign_id: string;
+  user_id: string;
+  is_substitute: boolean;
+  max_capacity: number;
+  weight: number;
+  created_at: string;
+  profile?: Profile | null;
+}
+
+export interface CpfResponsibility {
+  id: string;
+  account_id: string;
+  cpf: string;
+  campaign_id?: string | null;
+  assigned_agent_id?: string | null;
+  contract_ref?: string | null;
+  debtor_name?: string | null;
+  creditor_name?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  campaign?: DistributionCampaign | null;
+  assigned_agent?: Profile | null;
+}
+
+export interface DistributionRulesConfig {
+  account_id: string;
+  active_mode: DistributionMode;
+  default_strategy: DistributionStrategy;
+  external_api_url?: string | null;
+  external_api_token?: string | null;
+  fallback_behavior: 'triage' | 'all_online' | 'unassigned';
+  auto_distribute_on_inbound: boolean;
+  updated_at: string;
+}
+
+export interface DistributionAuditLog {
+  id: string;
+  account_id: string;
+  conversation_id?: string | null;
+  contact_id?: string | null;
+  cpf?: string | null;
+  campaign_id?: string | null;
+  campaign_name?: string | null;
+  previous_agent_id?: string | null;
+  assigned_agent_id?: string | null;
+  assigned_agent_name?: string | null;
+  actor_user_id?: string | null;
+  distribution_mode: DistributionMode;
+  strategy_used?: string | null;
+  status: DistributionAuditStatus;
+  reason?: string | null;
+  execution_time_ms?: number;
+  created_at: string;
+}
+

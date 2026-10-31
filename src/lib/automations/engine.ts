@@ -24,6 +24,7 @@ import { MAX_TAG_CHAIN_DEPTH, getTagChainDepth } from '@/lib/contacts/tag-chain'
 import { engineSendText, engineSendTemplate, engineSendInteractive } from './meta-send'
 import { validateInteractivePayload } from '@/lib/whatsapp/interactive'
 import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
+import { executeDistribution, extractCpfFromText } from '@/lib/distribution/distribution-engine'
 
 // ------------------------------------------------------------
 // Public API
@@ -477,15 +478,14 @@ async function runStep(step: AutomationStep, args: ExecuteArgs): Promise<string>
       if (!args.contactId) throw new Error('assign_conversation needs a contact')
       let agentId = cfg.agent_id
       if (cfg.mode === 'round_robin') {
-        // Pick any member of the account. The existing implementation
-        // only ever returned the automation's author; preserving that
-        // shape until a real round-robin algorithm replaces it.
-        const { data: profiles } = await db
-          .from('profiles')
-          .select('user_id')
-          .eq('account_id', args.automation.account_id)
-          .limit(1)
-        agentId = profiles?.[0]?.user_id
+        const dist = await executeDistribution(db, {
+          accountId: args.automation.account_id,
+          conversationId: args.context?.conversation_id ?? '',
+          contactId: args.contactId,
+          cpf: args.context?.message_text ? extractCpfFromText(args.context.message_text) : null,
+          messageText: args.context?.message_text,
+        })
+        agentId = dist.assignedAgentId ?? undefined
       }
       if (!agentId) return 'no agent resolved'
       await db

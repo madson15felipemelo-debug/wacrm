@@ -22,6 +22,7 @@
     "contacts": "Contacts",
     "pipelines": "Pipelines",
     "broadcasts": "Broadcasts",
+    "distribution": "Distribution",
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
@@ -60,6 +61,7 @@
     "menuSignOut": "Sign out",
     "welcomeTo": "Welcome to",
     "live": "Live data",
+    "distribution": "Distribution Hub",
     "flows": "Flows",
     "agents": "AI Agents"
   },

@@ -22,6 +22,7 @@
     "contacts": "Contatos",
     "pipelines": "Funis",
     "broadcasts": "Disparos",
+    "distribution": "Distribuição",
     "automations": "Automações",
     "flows": "Fluxos",
     "aiAgents": "Agentes de IA",
@@ -60,6 +61,7 @@
     "menuSignOut": "Sair",
     "welcomeTo": "Bem-vindo ao",
     "live": "Dados ao vivo",
+    "distribution": "Central de Distribuição",
     "flows": "Fluxos",
     "agents": "Agentes de IA"
   },

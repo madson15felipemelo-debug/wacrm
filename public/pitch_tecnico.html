@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apresentação: Sistema CRM WhatsApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-color: #0f172a; /* Slate 900 */
+      --card-bg: #1e293b; /* Slate 800 */
+      --accent: #38bdf8; /* Sky 400 */
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      overflow-x: hidden;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+
+    section {
+      height: 100vh;
+      width: 100vw;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .tech-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 3rem;
+      max-width: 900px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.5s ease-out;
+    }
+    
+    .tech-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; color: #fff; }
+    .subtitle { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--accent); margin-bottom: 2rem; letter-spacing: 1px; text-transform: uppercase;}
+    h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 1.5rem; color: #e2e8f0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;}
+    p { font-size: 1.05rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.5rem; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+    .item { display: flex; align-items: flex-start; gap: 1rem; background: rgba(0,0,0,0.2); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.02); }
+    .icon { color: var(--accent); flex-shrink: 0; }
+    .item h3 { font-size: 1.05rem; color: #f1f5f9; margin-bottom: 0.5rem; font-family: 'Inter', sans-serif; font-weight: 600; }
+    .item p { font-size: 0.95rem; margin-bottom: 0; color: #94a3b8; }
+
+    .code-block {
+      background: #000;
+      color: #a6e22e;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 1.5rem;
+      border: 1px solid #333;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    .scroll-indicator {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; font-size: 0.875rem;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <!-- Slide 1 -->
+  <section>
+    <div class="tech-card observer-target">
+      <h1>Arquitetura do CRM WhatsApp</h1>
+      <div class="subtitle">A tecnologia por trás do sistema</div>
+      <p>Uma visão executiva sobre como nosso sistema foi construído. Foco em segurança, inteligência artificial integrada e capacidade de crescer sem travar.</p>
+      
+      <div class="code-block">
+RESUMO DA TECNOLOGIA:
+- Linguagem de Programação: TypeScript / JavaScript
+- Criação das Telas:        React (Next.js)
+- Banco de Dados:           PostgreSQL (Supabase)
+- Onde está Hospedado:      Servidores em Nuvem (Vercel)
+      </div>
+    </div>
+    <div class="scroll-indicator"><i data-lucide="arrow-down"></i></div>
+  </section>
+
+  <!-- Slide 2 -->
+  <section>
+    <div class="tech-card observer-target">
+      <h2>Onde Está Hospedado? (Nuvem)</h2>
+      <p>Nosso sistema não fica em computadores simples. Ele vive numa infraestrutura de nuvem moderna, preparado para lidar com muitas pessoas ao mesmo tempo sem ficar lento.</p>
+      <div class="grid">
+        <div class="item">
+          <div class="icon"><i data-lucide="cloud"></i></div>
+          <div>
+            <h3>Servidores Inteligentes (Vercel)</h3>
+            <p>O sistema usa uma tecnologia que se adapta sozinha. Se recebermos 10 mensagens ou 10.000 mensagens de uma vez, a nuvem aumenta a capacidade automaticamente para não perder nenhuma requisição.</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="icon"><i data-lucide="database"></i></div>
+          <div>
+            <h3>Banco de Dados Seguro</h3>
+            <p>Usamos o PostgreSQL, um dos bancos de dados mais famosos e robustos do mercado, para garantir que as conversas e históricos de clientes nunca se percam.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3 -->
+  <section>
+    <div class="tech-card observer-target">
+      <h2>Conexão Oficial com WhatsApp</h2>
+      <p>Nós trabalhamos 100% dentro das regras legais. Não fazemos "gambiarras" que colocam o número de WhatsApp da empresa em risco de ser banido.</p>
+      <div class="grid">
+        <div class="item">
+          <div class="icon"><i data-lucide="shield-check"></i></div>
+          <div>
+            <h3>API Oficial da Meta</h3>
+            <p>Não usamos aquele sistema antigo de escanear Código QR no celular. O nosso sistema conversa diretamente e oficialmente com os computadores da Meta (dona do WhatsApp).</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="icon"><i data-lucide="zap"></i></div>
+          <div>
+            <h3>Comunicação Imediata</h3>
+            <p>Assim que o cliente manda a mensagem no celular dele, a Meta avisa nosso sistema em milissegundos, garantindo um atendimento muito mais rápido.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4 -->
+  <section>
+    <div class="tech-card observer-target">
+      <h2>Inteligência Artificial Controlada</h2>
+      <p>A IA foi programada diretamente dentro do nosso código. Nós temos o controle absoluto do que ela pode e do que ela não pode fazer ou falar.</p>
+      <div class="grid">
+        <div class="item">
+          <div class="icon"><i data-lucide="brain"></i></div>
+          <div>
+            <h3>IA que Não Inventa</h3>
+            <p>O robô (alimentado pelas melhores IAs como Gemini/ChatGPT) só recebe o histórico exato do cliente e as regras da sua empresa. Ele não sabe de coisas de fora e não "inventa" dados.</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="icon"><i data-lucide="user-plus"></i></div>
+          <div>
+            <h3>Repassar para um Humano</h3>
+            <p>Se o cliente fizer uma pergunta difícil ou quiser falar com um atendente, nosso código manda a IA ficar calada na mesma hora e alerta um humano para assumir a conversa.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5 -->
+  <section>
+    <div class="tech-card observer-target">
+      <h2>Código Próprio e Protegido</h2>
+      <p>Nós fomos os engenheiros de software que construíram isso. O sistema foi escrito do zero usando a linguagem TypeScript (uma das mais modernas do mercado).</p>
+      <div class="grid">
+        <div class="item">
+          <div class="icon"><i data-lucide="lock"></i></div>
+          <div>
+            <h3>Dados Totalmente Isolados</h3>
+            <p>O sistema tem regras rígidas de segurança nativas: os dados de uma empresa ficam trancados. É impossível uma conta conseguir acessar o painel ou as mensagens de outra.</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="icon"><i data-lucide="code"></i></div>
+          <div>
+            <h3>Nós Somos os Donos do Código</h3>
+            <p>Como fomos nós que programamos a ferramenta, não temos limites. Podemos criar qualquer nova funcionalidade que o negócio precisar amanhã, sem depender de plataformas engessadas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    lucide.createIcons();
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.2 });
+    document.querySelectorAll('.observer-target').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

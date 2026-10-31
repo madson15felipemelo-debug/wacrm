@@ -43,6 +43,7 @@ import { decideFallback, resolveFallbackPolicy } from "./fallback";
 import { isFlowRestartMessage } from "./restart";
 import { addContactTagAndDispatch } from "@/lib/contacts/tag-events";
 import { removeContactTag } from "@/lib/contacts/tag-write";
+import { executeDistribution } from "@/lib/distribution/distribution-engine";
 import {
   type CollectInputNodeConfig,
   type ConditionNodeConfig,
@@ -443,7 +444,26 @@ async function executeHandoff(
     status: "pending",
     updated_at: new Date().toISOString(),
   };
-  if (cfg.assign_to) convUpdate.assigned_agent_id = cfg.assign_to;
+  if (cfg.assign_to) {
+    convUpdate.assigned_agent_id = cfg.assign_to;
+  } else if (run.conversation_id) {
+    // Intelligent Distribution: extract CPF if captured in flow vars (e.g. from collect_input)
+    const vars = (run.vars ?? {}) as Record<string, string>;
+    const cpf = vars.cpf || vars.CPF || null;
+    try {
+      const dist = await executeDistribution(db, {
+        accountId: run.account_id,
+        conversationId: run.conversation_id,
+        contactId: run.contact_id!,
+        cpf,
+      });
+      if (dist.assignedAgentId) convUpdate.assigned_agent_id = dist.assignedAgentId;
+      if (dist.campaignId) convUpdate.campaign_id = dist.campaignId;
+    } catch (err) {
+      console.error("[flows] executeDistribution in handoff failed:", err);
+    }
+  }
+
   if (run.conversation_id) {
     await db
       .from("conversations")
@@ -452,7 +472,7 @@ async function executeHandoff(
   }
   await logEvent(db, run.id, "handoff", node.node_key, {
     note: cfg.note ?? null,
-    assigned_to: cfg.assign_to ?? null,
+    assigned_to: cfg.assign_to ?? convUpdate.assigned_agent_id ?? null,
   });
   await endRun(db, run.id, "handed_off", "handoff_node");
 }

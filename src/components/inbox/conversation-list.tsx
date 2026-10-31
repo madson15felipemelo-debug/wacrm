@@ -550,6 +550,13 @@ function ConversationItem({
             />
           </div>
         </div>
+        {conversation.campaign && (
+          <div className="mt-1 flex items-center">
+            <span className="inline-flex items-center rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {conversation.campaign.name}
+            </span>
+          </div>
+        )}
       </div>
     </button>
   );
