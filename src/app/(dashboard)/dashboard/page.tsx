@@ -52,6 +52,7 @@ import { CampaignsProductivityTable } from '@/components/dashboard/campaigns-pro
 import { ChannelBreakdownCard } from '@/components/dashboard/channel-breakdown-card'
 import { CpfLossFunnelCard } from '@/components/dashboard/cpf-loss-funnel-card'
 import { DashboardFiltersBar, type FilterState } from '@/components/dashboard/dashboard-filters-bar'
+import { AttendancesManagementTab } from '@/components/dashboard/attendances-management-tab'
 import { LiveMonitorTab } from '@/components/dashboard/live-monitor-tab'
 import { MailingPerformanceTab } from '@/components/dashboard/mailing-performance-tab'
 import { ScheduledAgreementsTab } from '@/components/dashboard/scheduled-agreements-tab'
@@ -68,8 +69,8 @@ export default function DashboardPage() {
   // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas & Pipeline)
   const [viewMode, setViewMode] = useState<'operational' | 'pipeline'>('operational')
 
-  // Operational Sub-tabs: 'overview' | 'live' | 'mailings' | 'scheduled'
-  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'live' | 'mailings' | 'scheduled'>('overview')
+  // Operational Sub-tabs: 'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'
+  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'>('overview')
 
   // Global Filters State
   const [filters, setFilters] = useState<FilterState>({
@@ -316,7 +317,27 @@ export default function DashboardPage() {
                 Visão Geral & Produtividade
               </button>
 
-              {/* 2. Monitor Ao Vivo & Fila */}
+              {/* 2. Visão por Atendimento */}
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('attendances')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  operationalSubTab === 'attendances'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                Visão por Atendimento
+                {operationalData && operationalData.attendances.length > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-primary/15 text-primary font-mono">
+                    {operationalData.attendances.length}
+                  </Badge>
+                )}
+              </button>
+
+              {/* 3. Monitor Ao Vivo & Fila */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('live')}
@@ -453,6 +474,13 @@ export default function DashboardPage() {
                 loading={operationalLoading}
               />
             </div>
+          )}
+
+          {operationalSubTab === 'attendances' && (
+            <AttendancesManagementTab
+              attendances={operationalData?.attendances ?? []}
+              loading={operationalLoading}
+            />
           )}
 
           {operationalSubTab === 'live' && (

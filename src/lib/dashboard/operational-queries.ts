@@ -138,6 +138,33 @@ export interface ScheduledAgreementRow {
   observation: string;
 }
 
+export interface AttendanceDetailRow {
+  id: string;
+  conversationId: string;
+  clientName: string;
+  cpf?: string;
+  phone: string;
+  campaignName: string;
+  campaignCode?: string;
+  assignedType: 'human' | 'ai' | 'robot';
+  operatorName?: string;
+  operatorInitials?: string;
+  operatorAvatar?: string | null;
+  status: 'open' | 'pending' | 'closed';
+  negotiationStatus: 'in_negotiation' | 'waiting_client' | 'waiting_operator' | 'proposal_sent' | 'agreement_won' | 'abandoned';
+  negotiationStatusLabel: string;
+  slaStatus: 'good' | 'warning' | 'critical';
+  waitingMinutes: number;
+  waitingString: string;
+  waitingTarget: 'operator' | 'client';
+  totalDurationMinutes: number;
+  totalDurationString: string;
+  lastMessageSnippet: string;
+  lastMessageSender: 'client' | 'agent' | 'bot';
+  lastMessageAt: string;
+  priority: 'Alta' | 'Média' | 'Baixa' | 'Crítica' | 'Normal';
+}
+
 export interface OperationalDashboardData {
   kpis: OperationalKPIs;
   channels: ChannelBreakdown;
@@ -152,6 +179,7 @@ export interface OperationalDashboardData {
   liveHuman: LiveHumanAttendance[];
   mailings: MailingPerformanceRow[];
   scheduled: ScheduledAgreementRow[];
+  attendances: AttendanceDetailRow[];
 }
 
 function formatSeconds(sec: number): string {
@@ -913,6 +941,250 @@ export async function loadOperationalDashboardData(
     },
   ];
 
+  // Detailed Attendances Overview (Visão por Atendimento)
+  const attendancesData: AttendanceDetailRow[] = [
+    {
+      id: 'att-1',
+      conversationId: 'conv-1',
+      clientName: 'Lucemar',
+      cpf: '042.819.340-18',
+      phone: '554896454439',
+      campaignName: 'Koerich_2631',
+      assignedType: 'human',
+      operatorName: 'Roselene',
+      operatorInitials: 'RO',
+      status: 'open',
+      negotiationStatus: 'waiting_operator',
+      negotiationStatusLabel: 'Aguardando Operador',
+      slaStatus: 'critical',
+      waitingMinutes: 52,
+      waitingString: 'há 52 min',
+      waitingTarget: 'operator',
+      totalDurationMinutes: 145,
+      totalDurationString: '2h 25m',
+      lastMessageSnippet: 'Olá, vocês conseguem parcelar em 6 vezes sem juros para eu pagar ainda hoje?',
+      lastMessageSender: 'client',
+      lastMessageAt: '17:48',
+      priority: 'Crítica',
+    },
+    {
+      id: 'att-2',
+      conversationId: 'conv-2',
+      clientName: 'Marcos Roberto',
+      cpf: '334.901.120-02',
+      phone: '554798821331',
+      campaignName: 'Assessoria Berlanda',
+      assignedType: 'human',
+      operatorName: 'Fernanda Gomes',
+      operatorInitials: 'FG',
+      status: 'open',
+      negotiationStatus: 'waiting_operator',
+      negotiationStatusLabel: 'Aguardando Operador',
+      slaStatus: 'critical',
+      waitingMinutes: 38,
+      waitingString: 'há 38 min',
+      waitingTarget: 'operator',
+      totalDurationMinutes: 90,
+      totalDurationString: '1h 30m',
+      lastMessageSnippet: 'Mandei o print da fatura antiga, aguardo retorno sobre o desconto prometido.',
+      lastMessageSender: 'client',
+      lastMessageAt: '18:02',
+      priority: 'Alta',
+    },
+    {
+      id: 'att-3',
+      conversationId: 'conv-3',
+      clientName: 'Tatiana Lima',
+      cpf: '455.910.332-11',
+      phone: '554199876231',
+      campaignName: 'Condor Recuperação',
+      assignedType: 'human',
+      operatorName: 'Ana Gomes',
+      operatorInitials: 'AG',
+      status: 'open',
+      negotiationStatus: 'waiting_operator',
+      negotiationStatusLabel: 'Contraproposta em Análise',
+      slaStatus: 'critical',
+      waitingMinutes: 32,
+      waitingString: 'há 32 min',
+      waitingTarget: 'operator',
+      totalDurationMinutes: 65,
+      totalDurationString: '1h 05m',
+      lastMessageSnippet: 'Consigo dar 200 de entrada e mais 3 parcelas de 100. Pode aprovar com seu supervisor?',
+      lastMessageSender: 'client',
+      lastMessageAt: '18:08',
+      priority: 'Alta',
+    },
+    {
+      id: 'att-4',
+      conversationId: 'conv-4',
+      clientName: 'Dgx',
+      cpf: '018.773.490-90',
+      phone: '555192500078',
+      campaignName: 'Koerich_2631',
+      assignedType: 'human',
+      operatorName: 'Roselene',
+      operatorInitials: 'RO',
+      status: 'open',
+      negotiationStatus: 'waiting_operator',
+      negotiationStatusLabel: 'Aguardando Operador',
+      slaStatus: 'warning',
+      waitingMinutes: 14,
+      waitingString: 'há 14 min',
+      waitingTarget: 'operator',
+      totalDurationMinutes: 45,
+      totalDurationString: '45m',
+      lastMessageSnippet: 'Pode gerar o boleto com vencimento pro dia 10?',
+      lastMessageSender: 'client',
+      lastMessageAt: '18:26',
+      priority: 'Alta',
+    },
+    {
+      id: 'att-5',
+      conversationId: 'conv-5',
+      clientName: 'Gisiliane Dias',
+      cpf: '119.452.889-70',
+      phone: '554796181092',
+      campaignName: 'Koerich_2631',
+      assignedType: 'human',
+      operatorName: 'Carlos Alves',
+      operatorInitials: 'CA',
+      status: 'open',
+      negotiationStatus: 'in_negotiation',
+      negotiationStatusLabel: 'Em Negociação (Entrada)',
+      slaStatus: 'good',
+      waitingMinutes: 4,
+      waitingString: 'há 4 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 28,
+      totalDurationString: '28m',
+      lastMessageSnippet: 'Perfeito Gisiliane, com entrada de R$ 150,00 conseguimos liberar as 4 parcelas restantes.',
+      lastMessageSender: 'agent',
+      lastMessageAt: '18:36',
+      priority: 'Normal',
+    },
+    {
+      id: 'att-6',
+      conversationId: 'conv-6',
+      clientName: 'Paulo',
+      cpf: '882.341.092-33',
+      phone: '554891882842',
+      campaignName: 'Assessoria Colombo',
+      assignedType: 'human',
+      operatorName: 'Fernanda Ferreira',
+      operatorInitials: 'FF',
+      status: 'open',
+      negotiationStatus: 'proposal_sent',
+      negotiationStatusLabel: 'Proposta com Desconto Enviada',
+      slaStatus: 'good',
+      waitingMinutes: 2,
+      waitingString: 'há 2 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 18,
+      totalDurationString: '18m',
+      lastMessageSnippet: 'Proposta com 40% de desconto gerada no sistema. Aguardando sua confirmação.',
+      lastMessageSender: 'agent',
+      lastMessageAt: '18:38',
+      priority: 'Média',
+    },
+    {
+      id: 'att-7',
+      conversationId: 'conv-7',
+      clientName: 'Cleiton Dias',
+      cpf: '189.204.551-67',
+      phone: '551197654123',
+      campaignName: 'Fácil Resultado',
+      assignedType: 'ai',
+      operatorName: 'IA Autônoma',
+      operatorInitials: 'IA',
+      status: 'open',
+      negotiationStatus: 'in_negotiation',
+      negotiationStatusLabel: 'Triagem por IA',
+      slaStatus: 'good',
+      waitingMinutes: 1,
+      waitingString: 'há 1 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 8,
+      totalDurationString: '8m',
+      lastMessageSnippet: 'Localizei seu contrato com a Ambiental. O saldo atualizado possui condições especiais para quitação.',
+      lastMessageSender: 'bot',
+      lastMessageAt: '18:39',
+      priority: 'Normal',
+    },
+    {
+      id: 'att-8',
+      conversationId: 'conv-8',
+      clientName: 'Rodrigo Mendes',
+      cpf: '762.119.804-55',
+      phone: '554798124991',
+      campaignName: 'Fácil Resultado',
+      assignedType: 'human',
+      operatorName: 'Wesley Alves',
+      operatorInitials: 'WA',
+      status: 'open',
+      negotiationStatus: 'agreement_won',
+      negotiationStatusLabel: 'Acordo Fechado (Chave PIX)',
+      slaStatus: 'good',
+      waitingMinutes: 3,
+      waitingString: 'há 3 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 12,
+      totalDurationString: '12m',
+      lastMessageSnippet: 'Chave PIX enviada com sucesso. Assim que compensar, o termo de quitação é disparado.',
+      lastMessageSender: 'agent',
+      lastMessageAt: '18:37',
+      priority: 'Média',
+    },
+    {
+      id: 'att-9',
+      conversationId: 'conv-9',
+      clientName: 'Edmilson Santos',
+      cpf: '554.712.909-44',
+      phone: '554799234551',
+      campaignName: 'Assessoria Berlanda',
+      assignedType: 'human',
+      operatorName: 'Fernanda Gomes',
+      operatorInitials: 'FG',
+      status: 'open',
+      negotiationStatus: 'proposal_sent',
+      negotiationStatusLabel: 'Promessa Futura Registrada',
+      slaStatus: 'good',
+      waitingMinutes: 5,
+      waitingString: 'há 5 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 35,
+      totalDurationString: '35m',
+      lastMessageSnippet: 'Combinado Edmilson, agendado para o dia 03/11. Enviaremos o lembrete pela manhã.',
+      lastMessageSender: 'agent',
+      lastMessageAt: '18:35',
+      priority: 'Normal',
+    },
+    {
+      id: 'att-10',
+      conversationId: 'conv-10',
+      clientName: 'Juliana Costa',
+      cpf: '221.908.432-45',
+      phone: '554199182442',
+      campaignName: 'Ambiental',
+      assignedType: 'robot',
+      operatorName: 'Robô Triagem',
+      operatorInitials: 'RB',
+      status: 'open',
+      negotiationStatus: 'in_negotiation',
+      negotiationStatusLabel: 'Coleta de CPF',
+      slaStatus: 'good',
+      waitingMinutes: 1,
+      waitingString: 'há 1 min',
+      waitingTarget: 'client',
+      totalDurationMinutes: 4,
+      totalDurationString: '4m',
+      lastMessageSnippet: 'Por favor, digite seu CPF (somente números) para localizarmos seu contrato.',
+      lastMessageSender: 'bot',
+      lastMessageAt: '18:39',
+      priority: 'Normal',
+    },
+  ];
+
   return {
     kpis: {
       responseRate: responseRate || 42.8,
@@ -952,5 +1224,6 @@ export async function loadOperationalDashboardData(
     liveHuman: liveHumanAttendances,
     mailings: mailingsData,
     scheduled: scheduledData,
+    attendances: attendancesData,
   };
 }
