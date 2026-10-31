@@ -16,7 +16,16 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  X,
+  Inbox,
+  User,
+  UserX,
+  Clock,
+  CircleDot,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { dateLocale } from "@/lib/date-locale";
 import { useTranslations } from "next-intl";
@@ -62,6 +71,37 @@ const VIEW_LABEL_KEYS: Record<InboxView, string> = {
   unread: "viewUnread",
 };
 
+const VIEW_ICONS: Record<InboxView, React.ComponentType<{ className?: string }>> = {
+  all: Inbox,
+  mine: User,
+  unassigned: UserX,
+  awaiting: Clock,
+  unread: CircleDot,
+};
+
+const VIEW_BADGE_ACCENTS: Record<InboxView, { active: string; inactive: string }> = {
+  all: {
+    active: "bg-primary-foreground/20 text-primary-foreground",
+    inactive: "bg-background/90 text-foreground",
+  },
+  mine: {
+    active: "bg-primary-foreground/20 text-primary-foreground",
+    inactive: "bg-background/90 text-foreground",
+  },
+  unassigned: {
+    active: "bg-primary-foreground/20 text-primary-foreground",
+    inactive: "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold",
+  },
+  awaiting: {
+    active: "bg-primary-foreground/20 text-primary-foreground",
+    inactive: "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold",
+  },
+  unread: {
+    active: "bg-primary-foreground/20 text-primary-foreground",
+    inactive: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold",
+  },
+};
+
 export function ConversationList({
   activeConversationId,
   onSelect,
@@ -90,6 +130,41 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+
+  const scrollTrackRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollTrackRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [checkScroll]);
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0 && scrollTrackRef.current) {
+      scrollTrackRef.current.scrollLeft += e.deltaY * 0.75;
+      checkScroll();
+    }
+  };
+
+  const handleViewChange = (v: InboxView, e?: React.MouseEvent<HTMLButtonElement>) => {
+    setView(v);
+    if (e?.currentTarget) {
+      e.currentTarget.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  };
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -246,31 +321,65 @@ export function ConversationList({
     // row with the thread + contact sidebar.
     <div className="flex h-full w-full flex-col border-r border-border bg-card lg:w-80">
       {/* Search + Filter */}
-      <div className="space-y-2 border-b border-border p-3">
-        {/* Queue views with live counters */}
-        <div className="-mx-1 flex flex-wrap gap-1">
-          {INBOX_VIEWS.map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors",
-                view === v
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {t(VIEW_LABEL_KEYS[v])}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 text-[10px] font-semibold",
-                  view === v ? "bg-primary-foreground/20" : "bg-background/60"
-                )}
-              >
-                {viewCounts[v]}
-              </span>
-            </button>
-          ))}
+      <div className="space-y-2.5 border-b border-border p-3">
+        {/* Queue views with live counters (organized horizontal track) */}
+        <div className="relative -mx-1">
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-6 bg-gradient-to-r from-card via-card/80 to-transparent" />
+          )}
+
+          <div
+            ref={scrollTrackRef}
+            onScroll={checkScroll}
+            onWheel={handleWheel}
+            className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth px-1 py-0.5"
+          >
+            {INBOX_VIEWS.map((v) => {
+              const Icon = VIEW_ICONS[v];
+              const isCurrent = view === v;
+              const count = viewCounts[v];
+              const hasCount = count > 0;
+              const accent = VIEW_BADGE_ACCENTS[v];
+
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={(e) => handleViewChange(v, e)}
+                  className={cn(
+                    "shrink-0 inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+                    isCurrent
+                      ? "bg-primary text-primary-foreground shadow-xs shadow-primary/25 font-semibold"
+                      : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/50"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "h-3 w-3 shrink-0",
+                      isCurrent ? "text-primary-foreground" : "text-muted-foreground"
+                    )}
+                  />
+                  <span>{t(VIEW_LABEL_KEYS[v])}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.2 text-[10px] transition-colors",
+                      isCurrent
+                        ? accent.active
+                        : hasCount
+                          ? accent.inactive
+                          : "bg-background/40 text-muted-foreground/70"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {canScrollRight && (
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-6 bg-gradient-to-l from-card via-card/80 to-transparent" />
+          )}
         </div>
 
         <div className="relative">
