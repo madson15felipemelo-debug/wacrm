@@ -780,6 +780,16 @@ export default function DistributionPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={downloadSampleCsv}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+                title="Baixar planilha de exemplo pronta (.csv)"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Baixar Modelo CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setImportSummary(null);
                   setCsvFile(null);
@@ -1650,44 +1660,98 @@ export default function DistributionPage() {
       <Dialog open={isCsvImportOpen} onOpenChange={setIsCsvImportOpen}>
         <DialogContent className="sm:max-w-xl">
           <form onSubmit={handleUploadCsv}>
-            <DialogHeader>
-              <div className="flex items-center justify-between">
-                <DialogTitle className="flex items-center gap-2 text-base font-bold">
-                  <FileSpreadsheet className="h-5 w-5 text-primary" />
-                  Importação de CPFs em Massa (CSV)
-                </DialogTitle>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={downloadSampleCsv}
-                  className="h-8 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar Modelo CSV
-                </Button>
-              </div>
+            <DialogHeader className="pr-8">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                Importação de CPFs em Massa (CSV)
+              </DialogTitle>
               <DialogDescription className="text-xs">
-                Suba uma planilha com apenas 2 colunas principais (<strong>cpf</strong> e <strong>cliente/assessoria</strong>). O sistema vincula automaticamente cada devedor à assessoria correspondente.
+                Vincule milhares de devedores às suas respectivas assessorias de cobrança (Modalidade 2).
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4 text-xs">
-              {/* File Drop Area */}
-              <div className="rounded-lg border-2 border-dashed border-border/80 p-5 text-center transition-colors hover:border-primary/50">
-                <UploadCloud className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 text-xs font-medium text-foreground">
-                  {csvFile ? csvFile.name : "Clique para selecionar ou arraste o arquivo CSV"}
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Suporta arquivos .csv separados por vírgula (,) ou ponto-e-vírgula (;)
-                </p>
-                <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                  className="mt-3 cursor-pointer text-xs"
-                />
+            <div className="space-y-4 py-3 text-xs">
+              {/* PASSO 1: CARD ESTRATÉGICO DO MODELO OFICIAL */}
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition-all">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
+                      <FileSpreadsheet className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Passo 1
+                        </span>
+                        <h4 className="text-xs font-bold text-foreground">
+                          Baixar Planilha Modelo Oficial
+                        </h4>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Use nossa planilha pronta com apenas 2 colunas: <strong>cpf</strong> e <strong>cliente</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={downloadSampleCsv}
+                    className="shrink-0 gap-2 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                  >
+                    <Download className="h-4 w-4" />
+                    Baixar Modelo CSV
+                  </Button>
+                </div>
+
+                {/* Exemplo visual claro das colunas */}
+                <div className="mt-3 overflow-hidden rounded-lg border border-border/80 bg-background/80 p-2 text-[11px]">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <span>Exemplo de como sua planilha deve ficar:</span>
+                    <span className="text-primary font-normal">Excel ou Google Sheets (.csv)</span>
+                  </div>
+                  <div className="mt-1.5 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div className="rounded bg-muted/60 p-1.5">
+                      <span className="font-bold text-foreground">cpf</span>
+                      <p className="text-muted-foreground text-[10px]">12345678901</p>
+                      <p className="text-muted-foreground text-[10px]">98765432100</p>
+                    </div>
+                    <div className="rounded bg-muted/60 p-1.5">
+                      <span className="font-bold text-foreground">cliente</span>
+                      <p className="text-muted-foreground text-[10px]">Colombo</p>
+                      <p className="text-muted-foreground text-[10px]">Fácil Resultado</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* PASSO 2: ÁREA DE UPLOAD */}
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Passo 2
+                  </span>
+                  <label className="font-medium text-foreground text-xs">
+                    Enviar Planilha Preenchida
+                  </label>
+                </div>
+
+                <div className="rounded-lg border-2 border-dashed border-border/80 p-5 text-center transition-colors hover:border-primary/50">
+                  <UploadCloud className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-xs font-medium text-foreground">
+                    {csvFile ? csvFile.name : "Clique para selecionar ou arraste o arquivo CSV"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Suporta arquivos .csv separados por vírgula (,) ou ponto-e-vírgula (;)
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                    className="mt-3 cursor-pointer text-xs"
+                  />
+                </div>
               </div>
 
               {/* Campaign Override (Optional) */}
