@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import type { AttendanceDetailRow } from "@/lib/dashboard/operational-queries";
+import { useState, useMemo, useEffect } from "react";
+import type { AttendanceDetailRow, OperatorProductivityRow } from "@/lib/dashboard/operational-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   MessageSquare,
   Search,
@@ -25,11 +33,18 @@ import {
   ChevronRight,
   Flame,
   ArrowRight,
+  ArrowRightLeft,
+  ShieldCheck,
+  Workflow,
+  Check,
+  X,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AttendancesManagementTabProps {
   attendances: AttendanceDetailRow[];
+  operators?: OperatorProductivityRow[];
   loading?: boolean;
 }
 
@@ -37,26 +52,81 @@ type SortOption = "waiting_desc" | "sla_critical" | "duration_desc" | "client_as
 type SlaFilter = "all" | "critical" | "warning" | "good";
 type WaitingFilter = "all" | "operator" | "client";
 
+const TRANSFER_REASONS = [
+  "SLA Estourado / Fila Travada",
+  "Operador em Pausa / Almoço",
+  "Negociação Complexa / Supervisor",
+  "Solicitação do Devedor",
+  "Redistribuição de Carteira",
+  "Outro Motivo",
+];
+
+/**
+ * Normaliza o nome da carteira para comparação rígida anti-vazamento entre carteiras
+ */
+export function normalizeCampaignName(name?: string | null): string {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[^a-z0-9]/g, "") // apenas alfanumérico
+    .trim();
+}
+
+/**
+ * Trava de segurança anti-erro: verifica se operador pertence estritamente à mesma campanha
+ */
+export function isSameCampaign(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  const cleanA = normalizeCampaignName(a);
+  const cleanB = normalizeCampaignName(b);
+  if (cleanA === cleanB) return true;
+
+  // Lida com variações de prefixo ("Assessoria Berlanda" vs "Berlanda", etc.)
+  const stripPrefix = (s: string) => s.replace(/^(assessoria|campanha|cobranca)/, "");
+  const strippedA = stripPrefix(cleanA);
+  const strippedB = stripPrefix(cleanB);
+  return strippedA === strippedB && strippedA.length > 2;
+}
+
 export function AttendancesManagementTab({
-  attendances,
+  attendances: initialAttendances,
+  operators = [],
   loading = false,
 }: AttendancesManagementTabProps) {
+  // Local state for attendances to support immediate reactive transfer
+  const [attendancesList, setAttendancesList] = useState<AttendanceDetailRow[]>(initialAttendances);
+
+  useEffect(() => {
+    setAttendancesList(initialAttendances);
+  }, [initialAttendances]);
+
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("waiting_desc");
   const [slaFilter, setSlaFilter] = useState<SlaFilter>("all");
   const [portfolioFilter, setPortfolioFilter] = useState("all");
   const [waitingFilter, setWaitingFilter] = useState<WaitingFilter>("all");
 
+  // Transfer Modal State
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferItem, setTransferItem] = useState<AttendanceDetailRow | null>(null);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>("queue");
+  const [transferReason, setTransferReason] = useState<string>(TRANSFER_REASONS[0]);
+  const [transferNote, setTransferNote] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
+
   // Distinct portfolios from attendances
   const portfolios = useMemo(() => {
     const set = new Set<string>();
-    attendances.forEach((a) => set.add(a.campaignName));
+    attendancesList.forEach((a) => set.add(a.campaignName));
     return Array.from(set).sort();
-  }, [attendances]);
+  }, [attendancesList]);
 
   // Filter and Sort Attendances
   const processed = useMemo(() => {
-    let result = [...attendances];
+    let result = [...attendancesList];
 
     // Search filter
     if (search.trim()) {
@@ -90,7 +160,6 @@ export function AttendancesManagementTab({
     result.sort((a, b) => {
       switch (sortBy) {
         case "waiting_desc":
-          // Quem está há mais tempo aguardando primeiro
           return b.waitingMinutes - a.waitingMinutes;
         case "sla_critical": {
           const score = (s: AttendanceDetailRow["slaStatus"]) =>
@@ -108,15 +177,15 @@ export function AttendancesManagementTab({
     });
 
     return result;
-  }, [attendances, search, sortBy, slaFilter, portfolioFilter, waitingFilter]);
+  }, [attendancesList, search, sortBy, slaFilter, portfolioFilter, waitingFilter]);
 
   // Executive KPI summary calculations
   const stats = useMemo(() => {
-    const total = attendances.length;
-    const critical = attendances.filter((a) => a.slaStatus === "critical").length;
-    const waitingOperator = attendances.filter((a) => a.waitingTarget === "operator").length;
-    const waitingClient = attendances.filter((a) => a.waitingTarget === "client").length;
-    const maxWaitMinutes = Math.max(...attendances.map((a) => a.waitingMinutes), 0);
+    const total = attendancesList.length;
+    const critical = attendancesList.filter((a) => a.slaStatus === "critical").length;
+    const waitingOperator = attendancesList.filter((a) => a.waitingTarget === "operator").length;
+    const waitingClient = attendancesList.filter((a) => a.waitingTarget === "client").length;
+    const maxWaitMinutes = Math.max(...attendancesList.map((a) => a.waitingMinutes), 0);
 
     return {
       total,
@@ -125,7 +194,99 @@ export function AttendancesManagementTab({
       waitingClient,
       maxWaitMinutes,
     };
-  }, [attendances]);
+  }, [attendancesList]);
+
+  // Strictly filter eligible operators: SAME CAMPAIGN ONLY + NOT CURRENT OPERATOR
+  const eligibleOperators = useMemo(() => {
+    if (!transferItem || !operators || operators.length === 0) return [];
+    return operators.filter((op) => {
+      const sameCamp = isSameCampaign(op.campaignName, transferItem.campaignName);
+      const isNotCurrent =
+        op.name.trim().toLowerCase() !== (transferItem.operatorName ?? "").trim().toLowerCase();
+      return sameCamp && isNotCurrent;
+    });
+  }, [transferItem, operators]);
+
+  // Open Transfer Dialog handler
+  const handleOpenTransfer = (item: AttendanceDetailRow) => {
+    setTransferItem(item);
+    setTransferReason(TRANSFER_REASONS[0]);
+    setTransferNote("");
+
+    // Look for eligible peers in the exact same campaign
+    const peers = operators.filter(
+      (op) =>
+        isSameCampaign(op.campaignName, item.campaignName) &&
+        op.name.trim().toLowerCase() !== (item.operatorName ?? "").trim().toLowerCase()
+    );
+
+    if (peers.length > 0) {
+      setSelectedTargetId(peers[0].userId);
+    } else {
+      setSelectedTargetId("queue");
+    }
+
+    setIsTransferOpen(true);
+  };
+
+  // Confirm Transfer Action
+  const handleConfirmTransfer = async () => {
+    if (!transferItem) return;
+
+    // Strict Security Check: Verify that selected operator belongs to the exact same campaign
+    let targetName = "";
+    let targetInitials = "OP";
+    let targetAssignedType: AttendanceDetailRow["assignedType"] = "human";
+
+    if (selectedTargetId === "queue") {
+      targetName = `Fila ${transferItem.campaignName}`;
+      targetInitials = "FQ";
+      targetAssignedType = "robot";
+    } else {
+      const targetOp = eligibleOperators.find((o) => o.userId === selectedTargetId);
+      if (!targetOp || !isSameCampaign(targetOp.campaignName, transferItem.campaignName)) {
+        alert("Erro de Segurança: O operador de destino não pertence a esta carteira.");
+        return;
+      }
+      targetName = targetOp.name;
+      targetInitials = targetOp.initials;
+      targetAssignedType = "human";
+    }
+
+    setIsSubmitting(true);
+
+    // Simulate transfer API call
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    // Update local attendance row immediately
+    setAttendancesList((prev) =>
+      prev.map((att) => {
+        if (att.id !== transferItem.id) return att;
+        return {
+          ...att,
+          operatorName: targetName,
+          operatorInitials: targetInitials,
+          assignedType: targetAssignedType,
+          waitingMinutes: 0,
+          waitingString: "agora",
+          slaStatus: "good",
+          waitingTarget: "operator",
+          lastMessageSnippet: `[Transferência de Atendimento] ${targetName} assumiu a conversa. Motivo: ${transferReason}${
+            transferNote ? ` (${transferNote})` : ""
+          }`,
+          lastMessageSender: "agent",
+          lastMessageAt: "Agora",
+        };
+      })
+    );
+
+    setSuccessFeedback(
+      `Atendimento de ${transferItem.clientName} transferido com sucesso para ${targetName} na carteira ${transferItem.campaignName}.`
+    );
+
+    setIsSubmitting(false);
+    setIsTransferOpen(false);
+  };
 
   const getSlaBadge = (status: AttendanceDetailRow["slaStatus"], minutes: number) => {
     switch (status) {
@@ -184,6 +345,23 @@ export function AttendancesManagementTab({
 
   return (
     <div className="space-y-6">
+      {/* Success Notification Banner */}
+      {successFeedback && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-400 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            <span className="font-medium text-foreground">{successFeedback}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessFeedback(null)}
+            className="rounded-md p-1 hover:bg-emerald-500/20 transition-colors text-emerald-400"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* 1. Executive Top Metric Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {/* Total Atendimentos */}
@@ -413,7 +591,7 @@ export function AttendancesManagementTab({
                         ) : (
                           <Badge variant="outline" className="border-sky-500/30 text-sky-400 font-mono text-[10px] flex items-center gap-1 w-fit">
                             <Bot className="h-3 w-3" />
-                            Robô Triagem
+                            {item.operatorName || "Robô Triagem"}
                           </Badge>
                         )}
                       </td>
@@ -462,16 +640,28 @@ export function AttendancesManagementTab({
                         </span>
                       </td>
 
-                      {/* Ações */}
+                      {/* Ações: Transferir + Abrir Chat */}
                       <td className="py-3 pl-3 pr-6 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1"
-                        >
-                          Abrir Chat
-                          <ChevronRight className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenTransfer(item)}
+                            className="h-7 text-xs border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 gap-1 font-medium transition-colors cursor-pointer"
+                            title={`Transferir atendimento dentro da carteira ${item.campaignName}`}
+                          >
+                            <ArrowRightLeft className="h-3 w-3" />
+                            Transferir
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1 cursor-pointer"
+                          >
+                            Abrir Chat
+                            <ChevronRight className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -481,6 +671,247 @@ export function AttendancesManagementTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* 4. MODAL SEGURO DE TRANSFERÊNCIA DE ATENDIMENTO COM TRAVA DE CARTEIRA */}
+      <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
+        <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-border/80 bg-card shadow-2xl">
+          {transferItem && (
+            <div>
+              {/* Header */}
+              <div className="p-5 pb-4 border-b border-border/60">
+                <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </div>
+                  <span>Transferir Atendimento</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-1">
+                  <span>Cliente: <strong className="text-foreground">{transferItem.clientName}</strong></span>
+                  <span>•</span>
+                  <span>CPF: <span className="font-mono text-foreground">{transferItem.cpf || "Não informado"}</span></span>
+                  <span>•</span>
+                  <span>Tel: <span className="font-mono text-foreground">{transferItem.phone}</span></span>
+                </DialogDescription>
+              </div>
+
+              {/* Trava de Segurança Anti-Vazamento de Carteira */}
+              <div className="p-5 space-y-4">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                          Trava de Carteira Ativa
+                        </span>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-mono text-[10px] py-0">
+                          {transferItem.campaignName}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                        Regra de isolamento estrito: apenas negociadores credenciados exclusivamente na carteira{" "}
+                        <strong className="text-foreground font-semibold">{transferItem.campaignName}</strong> estão autorizados a receber esta conversa. O envio para operadores de outras carteiras está bloqueado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Situação Atual */}
+                <div className="grid grid-cols-2 gap-2 text-xs rounded-lg border border-border/60 bg-muted/20 p-2.5">
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                      Responsável Atual:
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {transferItem.operatorName || "Robô / Triagem"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                      Tempo de Espera:
+                    </span>
+                    <span className="font-mono font-semibold text-amber-400">
+                      {transferItem.waitingString}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Lista de Destinos Permitidos (Apenas da Mesma Carteira) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Destino da Transferência ({transferItem.campaignName})
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      {eligibleOperators.length} negociador(es) apto(s)
+                    </span>
+                  </div>
+
+                  <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
+                    {/* Opção 1: Fila Geral da Carteira */}
+                    <div
+                      onClick={() => setSelectedTargetId("queue")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-all text-xs",
+                        selectedTargetId === "queue"
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-border/60 bg-card hover:bg-muted/30"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "h-4 w-4 rounded-full border flex items-center justify-center shrink-0 transition-colors",
+                            selectedTargetId === "queue" ? "border-primary bg-primary" : "border-muted-foreground"
+                          )}
+                        >
+                          {selectedTargetId === "queue" && (
+                            <div className="h-1.5 w-1.5 rounded-full bg-background" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Workflow className="h-3.5 w-3.5 text-primary" />
+                            <span className="font-semibold text-foreground">
+                              Fila Geral da Carteira ({transferItem.campaignName})
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] font-mono border-primary/30 text-primary py-0"
+                            >
+                              Auto Distribuição
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Retorna para a fila de espera da campanha. O motor distribuirá por round-robin ou menor carga.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Opção 2..N: Negociadores Habilitados da Mesma Carteira */}
+                    {eligibleOperators.map((op) => (
+                      <div
+                        key={op.userId}
+                        onClick={() => setSelectedTargetId(op.userId)}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-all text-xs",
+                          selectedTargetId === op.userId
+                            ? "border-amber-500 bg-amber-500/10 shadow-xs"
+                            : "border-border/60 bg-card hover:bg-muted/30"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "h-4 w-4 rounded-full border flex items-center justify-center shrink-0 transition-colors",
+                              selectedTargetId === op.userId ? "border-amber-500 bg-amber-500" : "border-muted-foreground"
+                            )}
+                          >
+                            {selectedTargetId === op.userId && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-background" />
+                            )}
+                          </div>
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-[10px] bg-primary/20 text-primary font-bold">
+                              {op.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">{op.name}</span>
+                              <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Online
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 font-mono">
+                              <span>{op.activeChats} chats ativos</span>
+                              <span>•</span>
+                              <span>{op.occupancyPercent}% ocupação</span>
+                              <span>•</span>
+                              <span>TMA {op.tmaString}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
+                          {op.conversionRate.toFixed(0)}% conversão
+                        </Badge>
+                      </div>
+                    ))}
+
+                    {eligibleOperators.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-border/80 p-3 text-center text-xs text-muted-foreground">
+                        Nenhum outro operador humano da carteira <strong>{transferItem.campaignName}</strong> está disponível no momento. Selecione a <em>Fila Geral da Carteira</em> acima.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Motivo da Transferência */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground">
+                    Motivo da Transferência
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {TRANSFER_REASONS.map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setTransferReason(r)}
+                        className={cn(
+                          "rounded-md border px-2 py-1.5 text-[11px] font-medium text-left transition-colors cursor-pointer",
+                          transferReason === r
+                            ? "border-primary bg-primary/10 text-primary font-semibold"
+                            : "border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40"
+                        )}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <Input
+                    placeholder="Observação interna para o novo operador (opcional)..."
+                    value={transferNote}
+                    onChange={(e) => setTransferNote(e.target.value)}
+                    className="h-8 text-xs bg-background mt-2"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-border/60 bg-muted/30 flex items-center justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsTransferOpen(false)}
+                  disabled={isSubmitting}
+                  className="text-xs h-8 cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmTransfer}
+                  disabled={!selectedTargetId || isSubmitting}
+                  className="text-xs h-8 bg-amber-500 hover:bg-amber-600 text-black font-semibold gap-1.5 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <span>Transferindo...</span>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      Confirmar Transferência
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

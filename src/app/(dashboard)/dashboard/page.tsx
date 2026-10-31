@@ -479,6 +479,7 @@ export default function DashboardPage() {
           {operationalSubTab === 'attendances' && (
             <AttendancesManagementTab
               attendances={operationalData?.attendances ?? []}
+              operators={operationalData?.operators ?? []}
               loading={operationalLoading}
             />
           )}
