@@ -58,6 +58,7 @@ import { AttendancesManagementTab } from '@/components/dashboard/attendances-man
 import { LiveMonitorTab } from '@/components/dashboard/live-monitor-tab'
 import { MailingPerformanceTab } from '@/components/dashboard/mailing-performance-tab'
 import { ScheduledAgreementsTab } from '@/components/dashboard/scheduled-agreements-tab'
+import { WhatsAppNumberHealthBar } from '@/components/dashboard/whatsapp-number-health-bar'
 
 import { useTranslations } from 'next-intl'
 
@@ -296,6 +297,8 @@ export default function DashboardPage() {
       {viewMode === 'operational' ? (
         /* ================= OPERATIONAL & COBRANÇA VIEW ================= */
         <div className="space-y-6">
+          <WhatsAppNumberHealthBar />
+
           <DashboardFiltersBar
             filters={filters}
             onFilterChange={handleFilterChange}

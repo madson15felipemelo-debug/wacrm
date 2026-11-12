@@ -26,10 +26,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
+import {
+  formatMessagingTier,
+  formatPhoneStatus,
+  getQualityMeta,
+} from '@/components/dashboard/whatsapp-number-health-bar';
+import { cn } from '@/lib/utils';
+
 interface PhoneMeta {
   verified_name: string;
   display_phone_number: string;
   quality_rating: string;
+  status?: string;
+  messaging_limit_tier?: string;
   name_status: string;
   new_display_name: string | null;
   new_name_status: string | null;
@@ -301,6 +310,116 @@ export function WhatsAppBusinessProfileCard() {
               </div>
             </div>
 
+            {/* Acompanhamento de Saúde e Status do Número */}
+            {phoneMeta && (() => {
+              const quality = getQualityMeta(phoneMeta.quality_rating);
+              const statusInfo = formatPhoneStatus(phoneMeta.status);
+              const tierLabel = formatMessagingTier(phoneMeta.messaging_limit_tier);
+              const QualityIcon = quality.icon;
+
+              return (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {/* Saúde do Número (Baixa / Média / Boa) */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Saúde do Número
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold',
+                          quality.badgeClass,
+                        )}
+                      >
+                        <QualityIcon className="size-3" />
+                        {quality.label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 rounded-lg bg-background/80 p-1 border border-border/60 text-center text-[11px]">
+                      <span
+                        className={cn(
+                          'rounded py-1 font-medium transition-colors',
+                          quality.level === 'low'
+                            ? 'bg-red-500 text-white font-semibold'
+                            : 'text-muted-foreground/60',
+                        )}
+                      >
+                        Baixa
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded py-1 font-medium transition-colors',
+                          quality.level === 'medium'
+                            ? 'bg-amber-500 text-white font-semibold'
+                            : 'text-muted-foreground/60',
+                        )}
+                      >
+                        Média
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded py-1 font-medium transition-colors',
+                          quality.level === 'good'
+                            ? 'bg-emerald-500 text-white font-semibold'
+                            : 'text-muted-foreground/60',
+                        )}
+                      >
+                        Boa
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {quality.description}
+                    </p>
+                  </div>
+
+                  {/* Status da Linha */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Status da Linha
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold',
+                          statusInfo.className,
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'size-1.5 rounded-full',
+                            statusInfo.tone === 'ok'
+                              ? 'bg-emerald-500'
+                              : statusInfo.tone === 'warn'
+                                ? 'bg-amber-500'
+                                : 'bg-red-500',
+                          )}
+                        />
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Estado operacional do número na Cloud API da Meta.
+                    </p>
+                  </div>
+
+                  {/* Limite de Disparos */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Capacidade de Envio
+                      </span>
+                      <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                        {tierLabel}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Limite diário de conversas iniciadas pela empresa em 24h.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Nome de Apresentação */}
             <div className="space-y-2.5 rounded-xl border border-border bg-muted/20 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -467,3 +586,4 @@ export function WhatsAppBusinessProfileCard() {
     </Card>
   );
 }
+

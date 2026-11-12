@@ -7,7 +7,7 @@ const META_API_VERSION = 'v21.0';
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-async function getAccountWhatsAppCredentials() {
+async function getAccountWhatsAppCredentials(requireWrite = false) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,8 +28,15 @@ async function getAccountWhatsAppCredentials() {
     return { error: 'Conta não encontrada', status: 403 as const };
   }
 
-  if (profile.account_role !== 'owner' && profile.account_role !== 'admin') {
-    return { error: 'Apenas o dono da conta pode editar o perfil do WhatsApp', status: 403 as const };
+  if (
+    requireWrite &&
+    profile.account_role !== 'owner' &&
+    profile.account_role !== 'admin'
+  ) {
+    return {
+      error: 'Apenas o dono da conta pode editar o perfil do WhatsApp',
+      status: 403 as const,
+    };
   }
 
   const { data: config } = await supabase
@@ -99,7 +106,7 @@ export async function GET() {
         },
       ),
       fetch(
-        `${META_API_BASE}/${phoneNumberId}?fields=verified_name,display_phone_number,quality_rating,name_status,new_display_name,new_name_status`,
+        `${META_API_BASE}/${phoneNumberId}?fields=verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },
           cache: 'no-store',
@@ -138,6 +145,8 @@ export async function GET() {
         verified_name: phoneJson?.verified_name ?? '',
         display_phone_number: phoneJson?.display_phone_number ?? '',
         quality_rating: phoneJson?.quality_rating ?? '',
+        status: phoneJson?.status ?? 'CONNECTED',
+        messaging_limit_tier: phoneJson?.messaging_limit_tier ?? '',
         name_status: phoneJson?.name_status ?? '',
         new_display_name: phoneJson?.new_display_name ?? null,
         new_name_status: phoneJson?.new_name_status ?? null,
@@ -154,7 +163,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const creds = await getAccountWhatsAppCredentials();
+    const creds = await getAccountWhatsAppCredentials(true);
     if ('error' in creds) {
       return NextResponse.json({ error: creds.error }, { status: creds.status });
     }
@@ -349,3 +358,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
