@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { ScheduledAgreementRow } from "@/lib/dashboard/operational-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,9 @@ interface ScheduledAgreementsTabProps {
 
 export function ScheduledAgreementsTab({
   scheduled,
+  loading = false,
 }: ScheduledAgreementsTabProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -74,57 +77,80 @@ export function ScheduledAgreementsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {filtered.map((item) => (
-                <tr key={item.id} className="transition-colors hover:bg-muted/30">
-                  <td className="py-3 pl-6 pr-3 font-medium text-foreground">
-                    {item.campaignName}
-                  </td>
-
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1.5 font-mono text-foreground">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span>{item.scheduledDate}</span>
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-3">
-                    <span className="font-medium text-foreground">{item.clientName}</span>
-                  </td>
-
-                  <td className="px-3 py-3 font-mono text-muted-foreground">
-                    {item.contactPhone}
-                  </td>
-
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
-                          {item.operatorInitials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-foreground">{item.operatorName}</span>
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-3">
-                    <Badge variant="outline" className="border-border text-muted-foreground font-mono text-[10px]">
-                      {item.tabulation}
-                    </Badge>
-                  </td>
-
-                  <td className="px-3 py-3 max-w-xs">
-                    <p className="text-[11px] text-muted-foreground truncate" title={item.observation}>
-                      {item.observation}
-                    </p>
-                  </td>
-
-                  <td className="py-3 pl-3 pr-6 text-right">
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-primary">
-                      Abrir
-                    </Button>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                    Carregando agendamentos...
                   </td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                    Nenhum retorno agendado no momento.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((item) => (
+                  <tr key={item.id} className="transition-colors hover:bg-muted/30">
+                    <td className="py-3 pl-6 pr-3 font-medium text-foreground">
+                      {item.campaignName}
+                    </td>
+
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5 font-mono text-foreground">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>{item.scheduledDate}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-3 py-3">
+                      <span className="font-medium text-foreground">{item.clientName}</span>
+                    </td>
+
+                    <td className="px-3 py-3 font-mono text-muted-foreground">
+                      {item.contactPhone}
+                    </td>
+
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
+                            {item.operatorInitials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-foreground">{item.operatorName}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-3 py-3">
+                      <Badge variant="outline" className="border-border text-muted-foreground font-mono text-[10px]">
+                        {item.tabulation}
+                      </Badge>
+                    </td>
+
+                    <td className="px-3 py-3 max-w-xs">
+                      <p className="text-[11px] text-muted-foreground truncate" title={item.observation}>
+                        {item.observation}
+                      </p>
+                    </td>
+
+                    <td className="py-3 pl-3 pr-6 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          router.push(
+                            item.conversationId ? `/inbox?c=${item.conversationId}` : "/inbox"
+                          )
+                        }
+                        className="h-7 text-xs text-primary cursor-pointer"
+                      >
+                        Abrir
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

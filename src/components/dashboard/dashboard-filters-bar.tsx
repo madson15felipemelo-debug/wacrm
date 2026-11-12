@@ -7,7 +7,6 @@ import {
   Calendar as CalendarIcon,
   RefreshCw,
   Building2,
-  GitBranch,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -34,28 +33,8 @@ interface DashboardFiltersBarProps {
   onRefresh: () => void;
   isRefreshing?: boolean;
   lastUpdated?: string;
+  campaigns?: { id: string; name: string }[];
 }
-
-const CAMPAIGNS = [
-  { id: "all", label: "Todas as carteiras" },
-  { id: "colombo", label: "Assessoria Colombo" },
-  { id: "berlanda", label: "Assessoria Berlanda" },
-  { id: "facil", label: "Fácil Resultado" },
-  { id: "condor", label: "Condor Recuperação" },
-  { id: "pg", label: "PG Negócios" },
-  { id: "nexus", label: "Nexus Cobrança" },
-  { id: "koerich", label: "Koerich_2631" },
-  { id: "ambiental", label: "Ambiental" },
-];
-
-const FLOWS = [
-  { id: "all", label: "Todos os fluxos" },
-  { id: "triage", label: "Triagem CPF" },
-  { id: "cpc", label: "Negociação CPC" },
-  { id: "preventive", label: "Preventiva" },
-  { id: "critical", label: "Atraso > 90d" },
-  { id: "renegotiation", label: "Reacordo" },
-];
 
 export function DashboardFiltersBar({
   filters,
@@ -63,6 +42,7 @@ export function DashboardFiltersBar({
   onRefresh,
   isRefreshing = false,
   lastUpdated = "agora",
+  campaigns = [],
 }: DashboardFiltersBarProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -97,37 +77,24 @@ export function DashboardFiltersBar({
           </PopoverContent>
         </Popover>
 
-        {/* Carteira */}
-        <div className="relative">
-          <select
-            value={filters.campaign}
-            onChange={(e) => onFilterChange({ ...filters, campaign: e.target.value })}
-            className="h-8 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer appearance-none pr-7"
-          >
-            {CAMPAIGNS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <Building2 className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-
-        {/* Fluxo */}
-        <div className="relative">
-          <select
-            value={filters.flow}
-            onChange={(e) => onFilterChange({ ...filters, flow: e.target.value })}
-            className="h-8 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer appearance-none pr-7"
-          >
-            {FLOWS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-          <GitBranch className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-        </div>
+        {/* Carteira (dinâmica conforme carteiras cadastradas) */}
+        {campaigns.length > 0 && (
+          <div className="relative">
+            <select
+              value={filters.campaign}
+              onChange={(e) => onFilterChange({ ...filters, campaign: e.target.value })}
+              className="h-8 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer appearance-none pr-7"
+            >
+              <option value="all">Todas as carteiras</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <Building2 className="pointer-events-none absolute right-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+        )}
 
         {/* Canal */}
         <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5 text-xs">

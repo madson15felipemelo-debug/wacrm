@@ -73,9 +73,11 @@ export function CampaignsProductivityTable({
                             </Badge>
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Contratante: {camp.clientName || "Ambiental"}
-                        </p>
+                        {camp.clientName && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Contratante: {camp.clientName}
+                          </p>
+                        )}
                       </div>
                     </td>
 

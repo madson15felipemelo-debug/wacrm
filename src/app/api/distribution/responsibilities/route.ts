@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     assigned_agent_id = null,
     contract_ref = null,
     debtor_name = null,
-    creditor_name = 'Ambiental',
+    creditor_name = null,
   } = body;
 
   const cleanCpf = sanitizeCpf(cpf);
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       assigned_agent_id,
       contract_ref: contract_ref ? String(contract_ref).trim() : null,
       debtor_name: debtor_name ? String(debtor_name).trim() : null,
-      creditor_name: creditor_name ? String(creditor_name).trim() : 'Ambiental',
+      creditor_name: creditor_name && String(creditor_name).trim() ? String(creditor_name).trim() : null,
       updated_at: new Date().toISOString(),
     })
     .select()

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS distribution_campaigns (
   account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   code TEXT,
-  client_name TEXT DEFAULT 'Ambiental',
+  client_name TEXT,
   distribution_strategy TEXT NOT NULL DEFAULT 'least_busy'
     CHECK (distribution_strategy IN ('least_busy', 'round_robin', 'smart')),
   contingency_strategy TEXT NOT NULL DEFAULT 'queue'
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS cpf_responsibilities (
   assigned_agent_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   contract_ref TEXT,
   debtor_name TEXT,
-  creditor_name TEXT DEFAULT 'Ambiental',
+  creditor_name TEXT,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

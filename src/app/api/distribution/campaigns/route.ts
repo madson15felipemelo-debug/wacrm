@@ -114,7 +114,7 @@ export async function POST(request: Request) {
   const {
     name,
     code,
-    client_name = 'Ambiental',
+    client_name = null,
     distribution_strategy = 'least_busy',
     contingency_strategy = 'queue',
     max_concurrent_chats = 10,
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
       account_id: profile.account_id,
       name: name.trim(),
       code: code ? code.trim() : null,
-      client_name: client_name.trim(),
+      client_name: client_name && typeof client_name === 'string' && client_name.trim() ? client_name.trim() : null,
       distribution_strategy,
       contingency_strategy,
       max_concurrent_chats: Number(max_concurrent_chats) || 10,

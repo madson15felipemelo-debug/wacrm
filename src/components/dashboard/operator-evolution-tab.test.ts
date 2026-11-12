@@ -10,7 +10,7 @@ describe("Matriz de Risco Operacional & Evolução Histórica", () => {
     {
       operatorId: "op-1",
       name: "Gabriel Souza",
-      campaignName: "PG Negócios",
+      campaignName: "Carteira A",
       trajectory: "degrading",
       riskLevel: "critical",
       riskScore: 82,
@@ -18,7 +18,7 @@ describe("Matriz de Risco Operacional & Evolução Histórica", () => {
     {
       operatorId: "op-2",
       name: "Thiago Alves",
-      campaignName: "Nexus Cobrança",
+      campaignName: "Carteira B",
       trajectory: "rapid_improving",
       riskLevel: "warning",
       riskScore: 54,
@@ -26,7 +26,7 @@ describe("Matriz de Risco Operacional & Evolução Histórica", () => {
     {
       operatorId: "op-3",
       name: "Ana Gomes",
-      campaignName: "Condor Recuperação",
+      campaignName: "Carteira C",
       trajectory: "stagnant",
       riskLevel: "warning",
       riskScore: 58,
@@ -34,7 +34,7 @@ describe("Matriz de Risco Operacional & Evolução Histórica", () => {
     {
       operatorId: "op-4",
       name: "Carlos Alves",
-      campaignName: "Koerich_2631",
+      campaignName: "Carteira D",
       trajectory: "rapid_improving",
       riskLevel: "stellar",
       riskScore: 22,

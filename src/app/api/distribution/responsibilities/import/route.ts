@@ -93,20 +93,20 @@ export async function POST(request: Request) {
   }
 
   for (const newCampName of Array.from(campaignsToCreate)) {
-    const { data: created } = await supabase
-      .from('distribution_campaigns')
-      .insert({
-        account_id: accountId,
-        name: newCampName,
-        code: newCampName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase(),
-        client_name: 'Ambiental',
-        distribution_strategy: 'least_busy',
-        contingency_strategy: 'queue',
-        max_concurrent_chats: 15,
-        is_active: true,
-      })
-      .select('id, name, code')
-      .single();
+      const { data: created } = await supabase
+        .from('distribution_campaigns')
+        .insert({
+          account_id: accountId,
+          name: newCampName,
+          code: newCampName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase(),
+          client_name: null,
+          distribution_strategy: 'least_busy',
+          contingency_strategy: 'queue',
+          max_concurrent_chats: 15,
+          is_active: true,
+        })
+        .select('id, name, code')
+        .single();
 
     if (created) {
       campaignMap.set(created.name.trim().toLowerCase(), created.id);
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       campaign_id: targetCampaignId,
       debtor_name: row.debtorName || null,
       contract_ref: row.contractRef || null,
-      creditor_name: 'Ambiental',
+      creditor_name: null,
       updated_at: new Date().toISOString(),
     });
   }

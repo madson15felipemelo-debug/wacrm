@@ -87,7 +87,7 @@ export default function DistributionPage() {
   // New Campaign Form
   const [newCampName, setNewCampName] = useState("");
   const [newCampCode, setNewCampCode] = useState("");
-  const [newCampClient, setNewCampClient] = useState("Ambiental");
+  const [newCampClient, setNewCampClient] = useState("");
   const [newCampStrategy, setNewCampStrategy] = useState<"least_busy" | "round_robin" | "smart">("least_busy");
   const [newCampContingency, setNewCampContingency] = useState<"queue" | "substitute" | "supervisor">("queue");
   const [newCampMaxChats, setNewCampMaxChats] = useState("10");
@@ -269,7 +269,7 @@ export default function DistributionPage() {
         body: JSON.stringify({
           name: newCampName.trim(),
           code: newCampCode.trim() || null,
-          client_name: newCampClient.trim() || "Ambiental",
+          client_name: newCampClient.trim() || null,
           distribution_strategy: newCampStrategy,
           contingency_strategy: newCampContingency,
           max_concurrent_chats: Number(newCampMaxChats) || 10,
@@ -336,7 +336,7 @@ export default function DistributionPage() {
         { method: "DELETE" }
       );
       if (res.ok) {
-        toast.success("Operador removido da assessoria.");
+        toast.success("Operador removido da carteira.");
         handleOpenCampaignDetails(selectedCampaign);
         loadCampaigns();
       } else {
@@ -344,6 +344,25 @@ export default function DistributionPage() {
       }
     } catch {
       toast.error("Erro de conexão.");
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    try {
+      const res = await fetch(`/api/distribution/campaigns/${campaignId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Carteira excluída com sucesso.");
+        setSelectedCampaign(null);
+        loadCampaigns();
+        loadStats();
+        loadResponsibilities();
+      } else {
+        toast.error("Erro ao excluir carteira.");
+      }
+    } catch {
+      toast.error("Erro de conexão ao excluir carteira.");
     }
   };
 
@@ -478,7 +497,7 @@ export default function DistributionPage() {
 
   const downloadSampleCsv = () => {
     const csvContent =
-      "cpf,cliente,nome,contrato\n12345678901,Colombo,João da Silva,CTR-1001\n98765432100,Fácil Resultado,Maria Santos,CTR-1002\n11122233344,Berlanda,Carlos Souza,CTR-1003";
+      "cpf,carteira,nome,contrato\n12345678901,Carteira Principal,João da Silva,CTR-1001\n98765432100,Carteira Secundária,Maria Santos,CTR-1002";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -663,10 +682,10 @@ export default function DistributionPage() {
             <Card className="border border-border/80 lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base font-semibold">
-                  Distribuição por Campanha / Assessoria
+                  Distribuição por Carteira / Campanha
                 </CardTitle>
                 <CardDescription>
-                  Volume acumulado de atendimentos entregues a cada assessoria (Colombo, Berlanda, Condor, Fácil, PG, Nexus...)
+                  Volume acumulado de atendimentos direcionados para cada carteira ativa
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -760,10 +779,10 @@ export default function DistributionPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                Campanhas / Assessorias de Cobrança
+                Carteiras e Equipes de Atendimento
               </h2>
               <p className="text-xs text-muted-foreground">
-                Equipes exclusivas por carteira (Berlanda, Colombo, Condor, Fácil, PG, Nexus...)
+                Gerencie as carteiras ativas, regras de distribuição e operadores vinculados
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -825,7 +844,13 @@ export default function DistributionPage() {
                         {camp.name}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Contratante: <span className="font-medium text-foreground">{camp.client_name || "Ambiental"}</span>
+                        {camp.client_name ? (
+                          <>
+                            Contratante: <span className="font-medium text-foreground">{camp.client_name}</span>
+                          </>
+                        ) : (
+                          "Carteira ativa"
+                        )}
                         {camp.code && ` · Código: ${camp.code}`}
                       </CardDescription>
                     </div>
@@ -920,7 +945,7 @@ export default function DistributionPage() {
                               {r.campaign?.name || "Triagem Geral"}
                             </Badge>
                           </td>
-                          <td className="p-3 text-muted-foreground">{r.creditor_name || "Ambiental"}</td>
+                          <td className="p-3 text-muted-foreground">{r.creditor_name || "—"}</td>
                         </tr>
                       ))
                     )}
@@ -962,7 +987,7 @@ export default function DistributionPage() {
                     Modalidade 02 — Distribuição por Responsabilidade de CPF / Assessoria (Recomendado)
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Identifica o CPF do devedor (no cadastro ou pelo fluxo de triagem), consulta qual assessoria (ex: Fácil, Berlanda, Colombo) é dona do contrato e encaminha exclusivamente para a equipe autorizada.
+                    Identifica o CPF do cliente (no cadastro ou pelo fluxo de triagem), consulta qual carteira é responsável pelo contrato e encaminha exclusivamente para a equipe habilitada.
                   </p>
                 </div>
               </div>
@@ -1066,14 +1091,14 @@ export default function DistributionPage() {
                 Integração com API Externa de Identificação de Carteira
               </CardTitle>
               <CardDescription>
-                Se a contratante (ex: Ambiental) possuir uma API REST para consulta de CPF em tempo real.
+                Se sua operação possuir uma API REST para consulta de CPF em tempo real.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <label className="text-xs font-medium text-foreground">Endpoint URL da API</label>
                 <Input
-                  placeholder="https://api.ambiental.com.br/v1/contratos/identificar-carteira"
+                  placeholder="https://api.suaempresa.com.br/v1/contratos/identificar-carteira"
                   value={rules.external_api_url || ""}
                   onChange={(e) => setRules({ ...rules, external_api_url: e.target.value })}
                   className="mt-1 text-xs"
@@ -1266,18 +1291,18 @@ export default function DistributionPage() {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleCreateCampaign}>
             <DialogHeader>
-              <DialogTitle>Nova Campanha / Assessoria</DialogTitle>
+              <DialogTitle>Nova Carteira / Campanha</DialogTitle>
               <DialogDescription>
-                Cadastre uma nova assessoria de cobrança (ex: Assessoria Colombo, Berlanda, Fácil Resultado) para receber atendimentos.
+                Cadastre uma nova carteira para organizar o direcionamento de conversas e operadores.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4 text-xs">
               <div>
-                <label className="font-medium text-foreground">Nome da Assessoria / Campanha</label>
+                <label className="font-medium text-foreground">Nome da Carteira / Campanha</label>
                 <Input
                   required
-                  placeholder="Ex: Assessoria Colombo"
+                  placeholder="Ex: Carteira Principal"
                   value={newCampName}
                   onChange={(e) => setNewCampName(e.target.value)}
                   className="mt-1 text-xs"
@@ -1288,16 +1313,16 @@ export default function DistributionPage() {
                 <div>
                   <label className="font-medium text-foreground">Código de Identificação</label>
                   <Input
-                    placeholder="Ex: COLOMBO"
+                    placeholder="Ex: CART01"
                     value={newCampCode}
                     onChange={(e) => setNewCampCode(e.target.value)}
                     className="mt-1 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="font-medium text-foreground">Cliente Contratante</label>
+                  <label className="font-medium text-foreground">Empresa / Contratante (Opcional)</label>
                   <Input
-                    placeholder="Ex: Ambiental"
+                    placeholder="Ex: Matriz"
                     value={newCampClient}
                     onChange={(e) => setNewCampClient(e.target.value)}
                     className="mt-1 text-xs"
@@ -1354,7 +1379,7 @@ export default function DistributionPage() {
                   {selectedCampaign?.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Contratante: {selectedCampaign?.client_name || "Ambiental"} · Estratégia: {selectedCampaign?.distribution_strategy}
+                  {selectedCampaign?.client_name ? `Contratante: ${selectedCampaign.client_name} · ` : ""}Estratégia: {selectedCampaign?.distribution_strategy}
                 </DialogDescription>
               </div>
               <Button size="sm" onClick={() => setIsAddOperatorOpen(true)} className="gap-1.5 text-xs">
@@ -1426,7 +1451,15 @@ export default function DistributionPage() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => selectedCampaign && handleDeleteCampaign(selectedCampaign.id)}
+              className="border-rose-500/30 text-rose-500 hover:bg-rose-500/10"
+            >
+              Excluir Carteira
+            </Button>
             <Button variant="outline" onClick={() => setSelectedCampaign(null)}>
               Fechar
             </Button>
@@ -1556,7 +1589,7 @@ export default function DistributionPage() {
                   <option value="">Selecione a assessoria...</option>
                   {campaigns.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} ({c.client_name || "Ambiental"})
+                      {c.name}{c.client_name ? ` (${c.client_name})` : ""}
                     </option>
                   ))}
                 </select>
@@ -1625,7 +1658,7 @@ export default function DistributionPage() {
                 <label className="font-medium text-foreground">Motivo da Transferência (Obrigatório para Auditoria)</label>
                 <textarea
                   required
-                  placeholder="Ex: Transferido a pedido do contratante Ambiental para a assessoria Colombo."
+                  placeholder="Ex: Transferido por solicitação da supervisão para balanceamento de fila."
                   value={reassignReason}
                   onChange={(e) => setReassignReason(e.target.value)}
                   className="mt-1 w-full rounded-md border border-border bg-muted p-2 text-xs text-foreground"
@@ -1708,9 +1741,9 @@ export default function DistributionPage() {
                       <p className="text-muted-foreground text-[10px]">98765432100</p>
                     </div>
                     <div className="rounded bg-muted/60 p-1.5">
-                      <span className="font-bold text-foreground">cliente</span>
-                      <p className="text-muted-foreground text-[10px]">Colombo</p>
-                      <p className="text-muted-foreground text-[10px]">Fácil Resultado</p>
+                      <span className="font-bold text-foreground">carteira</span>
+                      <p className="text-muted-foreground text-[10px]">Carteira Principal</p>
+                      <p className="text-muted-foreground text-[10px]">Carteira Secundária</p>
                     </div>
                   </div>
                 </div>

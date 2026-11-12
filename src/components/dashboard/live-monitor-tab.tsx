@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type {
   RealtimeCounters,
   LiveQueueItem,
@@ -34,7 +35,9 @@ export function LiveMonitorTab({
   realtime,
   liveQueue,
   liveHuman,
+  loading = false,
 }: LiveMonitorTabProps) {
+  const router = useRouter();
   const [activeSubView, setActiveSubView] = useState<"queue" | "human">("queue");
 
   const getSlaBadge = (status: "good" | "warning" | "critical") => {
@@ -266,52 +269,73 @@ export function LiveMonitorTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {liveQueue.map((item) => (
-                    <tr key={item.id} className="transition-colors hover:bg-muted/30">
-                      <td className="py-3 pl-6 pr-3">{getSlaBadge(item.slaStatus)}</td>
-
-                      <td className="px-3 py-3 font-medium text-foreground">
-                        {item.campaignName}
-                      </td>
-
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-foreground">{item.clientName}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            ({item.cpf || "Sem CPF"})
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-3 py-3 font-mono text-muted-foreground">{item.contactPhone}</td>
-
-                      <td className="px-3 py-3 text-center font-mono font-medium text-foreground">
-                        {item.waitingTime}
-                      </td>
-
-                      <td className="px-3 py-3 text-center">
-                        <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
-                          {item.currentChannel === "queue"
-                            ? "Fila"
-                            : item.currentChannel === "robot"
-                            ? "Triagem"
-                            : "Automático"}
-                        </Badge>
-                      </td>
-
-                      <td className="px-3 py-3 text-center">
-                        <Badge variant="secondary" className="text-[10px] font-normal">
-                          {item.priority}
-                        </Badge>
-                      </td>
-
-                      <td className="py-3 pl-3 pr-6 text-right">
-                        <Button size="sm" variant="outline" className="h-7 text-xs">
-                          Assumir
-                        </Button>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                        Carregando fila...
                       </td>
                     </tr>
-                  ))}
+                  ) : liveQueue.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                        Nenhuma conversa aguardando na fila no momento.
+                      </td>
+                    </tr>
+                  ) : (
+                    liveQueue.map((item) => (
+                      <tr key={item.id} className="transition-colors hover:bg-muted/30">
+                        <td className="py-3 pl-6 pr-3">{getSlaBadge(item.slaStatus)}</td>
+
+                        <td className="px-3 py-3 font-medium text-foreground">
+                          {item.campaignName}
+                        </td>
+
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-foreground">{item.clientName}</span>
+                            {item.cpf && (
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                ({item.cpf})
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3 font-mono text-muted-foreground">{item.contactPhone}</td>
+
+                        <td className="px-3 py-3 text-center font-mono font-medium text-foreground">
+                          {item.waitingTime}
+                        </td>
+
+                        <td className="px-3 py-3 text-center">
+                          <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
+                            {item.currentChannel === "queue"
+                              ? "Fila"
+                              : item.currentChannel === "robot"
+                              ? "Triagem"
+                              : "Automático"}
+                          </Badge>
+                        </td>
+
+                        <td className="px-3 py-3 text-center">
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {item.priority}
+                          </Badge>
+                        </td>
+
+                        <td className="py-3 pl-3 pr-6 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/inbox?c=${item.conversationId || item.id}`)}
+                            className="h-7 text-xs cursor-pointer"
+                          >
+                            Assumir
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -331,53 +355,72 @@ export function LiveMonitorTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {liveHuman.map((att) => (
-                    <tr key={att.id} className="transition-colors hover:bg-muted/30">
-                      <td className="py-3 pl-6 pr-3">{getSlaBadge(att.slaStatus)}</td>
-
-                      <td className="px-3 py-3 font-medium text-foreground">{att.campaignName}</td>
-
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            {att.agentAvatar && <AvatarImage src={att.agentAvatar} />}
-                            <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
-                              {att.agentInitials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium text-foreground">{att.agentName}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-3 py-3 font-medium text-foreground">
-                        {att.clientName}
-                        <p className="text-[10px] font-mono text-muted-foreground">{att.contactPhone}</p>
-                      </td>
-
-                      <td className="px-3 py-3 text-center font-mono text-muted-foreground">
-                        {att.startedAt}
-                      </td>
-
-                      <td className="px-3 py-3 text-center">
-                        <span className="font-mono text-[11px] text-muted-foreground">
-                          {att.lastInteraction === "client" ? "Cliente " : "Operador "}
-                          ({att.lastMessageTime})
-                        </span>
-                      </td>
-
-                      <td className="px-3 py-3">
-                        <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                          {att.statusTabulation}
-                        </Badge>
-                      </td>
-
-                      <td className="py-3 pl-3 pr-6 text-right">
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-primary">
-                          Abrir
-                        </Button>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                        Carregando atendimentos...
                       </td>
                     </tr>
-                  ))}
+                  ) : liveHuman.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
+                        Nenhum atendimento humano em andamento no momento.
+                      </td>
+                    </tr>
+                  ) : (
+                    liveHuman.map((att) => (
+                      <tr key={att.id} className="transition-colors hover:bg-muted/30">
+                        <td className="py-3 pl-6 pr-3">{getSlaBadge(att.slaStatus)}</td>
+
+                        <td className="px-3 py-3 font-medium text-foreground">{att.campaignName}</td>
+
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              {att.agentAvatar && <AvatarImage src={att.agentAvatar} />}
+                              <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
+                                {att.agentInitials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-foreground">{att.agentName}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3 font-medium text-foreground">
+                          {att.clientName}
+                          <p className="text-[10px] font-mono text-muted-foreground">{att.contactPhone}</p>
+                        </td>
+
+                        <td className="px-3 py-3 text-center font-mono text-muted-foreground">
+                          {att.startedAt}
+                        </td>
+
+                        <td className="px-3 py-3 text-center">
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {att.lastInteraction === "client" ? "Cliente " : "Operador "}
+                            ({att.lastMessageTime})
+                          </span>
+                        </td>
+
+                        <td className="px-3 py-3">
+                          <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                            {att.statusTabulation}
+                          </Badge>
+                        </td>
+
+                        <td className="py-3 pl-3 pr-6 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => router.push(`/inbox?c=${att.conversationId || att.id}`)}
+                            className="h-7 text-xs text-primary cursor-pointer"
+                          >
+                            Abrir
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

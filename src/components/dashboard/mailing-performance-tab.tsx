@@ -23,6 +23,7 @@ interface MailingPerformanceTabProps {
 
 export function MailingPerformanceTab({
   mailings,
+  loading = false,
 }: MailingPerformanceTabProps) {
   const [search, setSearch] = useState("");
 
@@ -62,6 +63,45 @@ export function MailingPerformanceTab({
       overallConversion,
     };
   }, [mailings]);
+
+  const handleExportCsv = () => {
+    if (filtered.length === 0) return;
+    const headers = [
+      "Lote",
+      "Modelo/Carteira",
+      "Data",
+      "Enviadas",
+      "Invalidos",
+      "Entregues",
+      "Respostas",
+      "Transbordo",
+      "Acordos",
+      "Status",
+      "Conversao (%)",
+    ];
+    const rows = filtered.map((m) => [
+      `"${m.name.replace(/"/g, '""')}"`,
+      `"${m.campaignName.replace(/"/g, '""')}"`,
+      m.date,
+      m.sentCount,
+      m.invalidCount,
+      m.deliveredCount,
+      m.repliedCount,
+      m.transferredToHumanCount,
+      m.agreementsCount,
+      m.status,
+      m.conversionRate,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "relatorio_disparos.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const getStatusBadge = (status: MailingPerformanceRow["status"]) => {
     switch (status) {
@@ -179,14 +219,20 @@ export function MailingPerformanceTab({
               <div className="relative w-full sm:w-60">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar lote ou carteira..."
+                  placeholder="Buscar lote..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-8 pl-8 text-xs"
                 />
               </div>
 
-              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCsv}
+                disabled={filtered.length === 0}
+                className="h-8 gap-1.5 text-xs cursor-pointer"
+              >
                 <Download className="h-3.5 w-3.5" />
                 Exportar
               </Button>
@@ -200,7 +246,7 @@ export function MailingPerformanceTab({
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <th className="py-2.5 pl-6 pr-3">Lote</th>
-                  <th className="px-3 py-2.5">Carteira</th>
+                  <th className="px-3 py-2.5">Template</th>
                   <th className="px-3 py-2.5 text-center">Data</th>
                   <th className="px-3 py-2.5 text-center">Enviadas</th>
                   <th className="px-3 py-2.5 text-center">Inválidos</th>
@@ -212,50 +258,64 @@ export function MailingPerformanceTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {filtered.map((m) => (
-                  <tr key={m.id} className="transition-colors hover:bg-muted/30">
-                    <td className="py-3 pl-6 pr-3">
-                      <div className="font-medium text-foreground font-mono">{m.name}</div>
-                    </td>
-
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {m.campaignName}
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono text-muted-foreground">
-                      {m.date}
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono font-medium text-foreground">
-                      {m.sentCount}
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono text-muted-foreground">
-                      {m.invalidCount}{" "}
-                      <span className="text-[10px]">({m.invalidRate}%)</span>
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono text-foreground">
-                      {m.repliedCount}{" "}
-                      <span className="text-[10px] text-muted-foreground">({m.responseRate}%)</span>
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono text-foreground">
-                      {m.transferredToHumanCount}{" "}
-                      <span className="text-[10px] text-muted-foreground">({m.transferredRate}%)</span>
-                    </td>
-
-                    <td className="px-3 py-3 text-center font-mono font-semibold text-emerald-500">
-                      {m.agreementsCount}
-                    </td>
-
-                    <td className="px-3 py-3 text-center">{getStatusBadge(m.status)}</td>
-
-                    <td className="py-3 pl-3 pr-6 text-right font-mono font-medium text-foreground">
-                      {m.conversionRate}%
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
+                      Carregando lotes de disparo...
                     </td>
                   </tr>
-                ))}
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
+                      Nenhum lote de disparo registrado no período.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((m) => (
+                    <tr key={m.id} className="transition-colors hover:bg-muted/30">
+                      <td className="py-3 pl-6 pr-3">
+                        <div className="font-medium text-foreground font-mono">{m.name}</div>
+                      </td>
+
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {m.campaignName}
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono text-muted-foreground">
+                        {m.date}
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono font-medium text-foreground">
+                        {m.sentCount}
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono text-muted-foreground">
+                        {m.invalidCount}{" "}
+                        <span className="text-[10px]">({m.invalidRate}%)</span>
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono text-foreground">
+                        {m.repliedCount}{" "}
+                        <span className="text-[10px] text-muted-foreground">({m.responseRate}%)</span>
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono text-foreground">
+                        {m.transferredToHumanCount}{" "}
+                        <span className="text-[10px] text-muted-foreground">({m.transferredRate}%)</span>
+                      </td>
+
+                      <td className="px-3 py-3 text-center font-mono font-semibold text-emerald-500">
+                        {m.agreementsCount}
+                      </td>
+
+                      <td className="px-3 py-3 text-center">{getStatusBadge(m.status)}</td>
+
+                      <td className="py-3 pl-3 pr-6 text-right font-mono font-medium text-foreground">
+                        {m.conversionRate}%
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

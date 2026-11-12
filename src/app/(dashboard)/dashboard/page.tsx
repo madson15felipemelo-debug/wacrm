@@ -31,6 +31,7 @@ import {
 } from '@/lib/dashboard/queries'
 import {
   loadOperationalDashboardData,
+  formatSeconds,
   type OperationalDashboardData,
 } from '@/lib/dashboard/operational-queries'
 import type {
@@ -238,6 +239,14 @@ export default function DashboardPage() {
     )
   }, [operationalData, filters.campaign])
 
+  const filteredAttendances = useMemo(() => {
+    if (!operationalData) return []
+    if (filters.campaign === 'all') return operationalData.attendances
+    return operationalData.attendances.filter((a) =>
+      a.campaignName.toLowerCase().includes(filters.campaign.toLowerCase())
+    )
+  }, [operationalData, filters.campaign])
+
   return (
     <div className="space-y-6">
       {/* Header with View Switcher */}
@@ -293,6 +302,10 @@ export default function DashboardPage() {
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
             lastUpdated={lastUpdated}
+            campaigns={(operationalData?.campaigns ?? []).map((c) => ({
+              id: c.campaignId,
+              name: c.name,
+            }))}
           />
 
           {/* Sub-Abas Operacionais */}
@@ -415,7 +428,7 @@ export default function DashboardPage() {
                     />
                     <MetricCard
                       title="Tempo Médio Atendimento (TMA)"
-                      value="4m 05s"
+                      value={formatSeconds(operationalData.kpis.avgTmaSeconds)}
                       icon={Clock}
                       subtitle="Velocidade média de tratativa humana"
                     />
@@ -464,7 +477,7 @@ export default function DashboardPage() {
 
           {operationalSubTab === 'attendances' && (
             <AttendancesManagementTab
-              attendances={operationalData?.attendances ?? []}
+              attendances={filteredAttendances}
               operators={operationalData?.operators ?? []}
               loading={operationalLoading}
             />
@@ -473,18 +486,18 @@ export default function DashboardPage() {
           {operationalSubTab === 'live' && (
             <LiveMonitorTab
               realtime={operationalData?.realtime ?? {
-                operatorsOnline: 14,
-                operatorsAvailable: 11,
-                operatorsInBreak: 2,
-                operatorsDisconnected: 1,
-                waitingResponses: 8,
-                tmrOperator: '00:01:18',
-                tmrClient: '00:02:45',
-                tmf: '00:04:12',
-                inRobot: 42,
-                inQueue: 6,
-                inHuman: 18,
-                inAi: 12,
+                operatorsOnline: 0,
+                operatorsAvailable: 0,
+                operatorsInBreak: 0,
+                operatorsDisconnected: 0,
+                waitingResponses: 0,
+                tmrOperator: '00:00:00',
+                tmrClient: '00:00:00',
+                tmf: '00:00:00',
+                inRobot: 0,
+                inQueue: 0,
+                inHuman: 0,
+                inAi: 0,
               }}
               liveQueue={filteredLiveQueue}
               liveHuman={filteredLiveHuman}

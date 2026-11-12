@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { AttendanceDetailRow, OperatorProductivityRow } from "@/lib/dashboard/operational-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +84,7 @@ export function AttendancesManagementTab({
   operators = [],
   loading = false,
 }: AttendancesManagementTabProps) {
+  const router = useRouter();
   const [attendancesList, setAttendancesList] = useState<AttendanceDetailRow[]>(initialAttendances);
 
   useEffect(() => {
@@ -176,8 +178,12 @@ export function AttendancesManagementTab({
 
   const eligibleOperators = useMemo(() => {
     if (!transferItem || !operators || operators.length === 0) return [];
+    const hasSpecificPortfolio =
+      transferItem.campaignName && transferItem.campaignName !== "Sem carteira";
     return operators.filter((op) => {
-      const sameCamp = isSameCampaign(op.campaignName, transferItem.campaignName);
+      const sameCamp = hasSpecificPortfolio
+        ? isSameCampaign(op.campaignName, transferItem.campaignName)
+        : true;
       const isNotCurrent =
         op.name.trim().toLowerCase() !== (transferItem.operatorName ?? "").trim().toLowerCase();
       return sameCamp && isNotCurrent;
@@ -189,11 +195,17 @@ export function AttendancesManagementTab({
     setTransferReason(TRANSFER_REASONS[0]);
     setTransferNote("");
 
-    const peers = operators.filter(
-      (op) =>
-        isSameCampaign(op.campaignName, item.campaignName) &&
+    const hasSpecificPortfolio =
+      item.campaignName && item.campaignName !== "Sem carteira";
+    const peers = operators.filter((op) => {
+      const sameCamp = hasSpecificPortfolio
+        ? isSameCampaign(op.campaignName, item.campaignName)
+        : true;
+      return (
+        sameCamp &&
         op.name.trim().toLowerCase() !== (item.operatorName ?? "").trim().toLowerCase()
-    );
+      );
+    });
 
     if (peers.length > 0) {
       setSelectedTargetId(peers[0].userId);
@@ -210,6 +222,8 @@ export function AttendancesManagementTab({
     let targetName = "";
     let targetInitials = "OP";
     let targetAssignedType: AttendanceDetailRow["assignedType"] = "human";
+    const hasSpecificPortfolio =
+      transferItem.campaignName && transferItem.campaignName !== "Sem carteira";
 
     if (selectedTargetId === "queue") {
       targetName = `Fila ${transferItem.campaignName}`;
@@ -217,7 +231,10 @@ export function AttendancesManagementTab({
       targetAssignedType = "robot";
     } else {
       const targetOp = eligibleOperators.find((o) => o.userId === selectedTargetId);
-      if (!targetOp || !isSameCampaign(targetOp.campaignName, transferItem.campaignName)) {
+      if (
+        !targetOp ||
+        (hasSpecificPortfolio && !isSameCampaign(targetOp.campaignName, transferItem.campaignName))
+      ) {
         alert("Operador inválido para esta carteira.");
         return;
       }
@@ -227,7 +244,19 @@ export function AttendancesManagementTab({
     }
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      await fetch("/api/distribution/reassign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationIds: [transferItem.conversationId],
+          targetAgentId: selectedTargetId === "queue" ? null : selectedTargetId,
+          reason: `${transferReason}${transferNote ? ` — ${transferNote}` : ""}`,
+        }),
+      });
+    } catch {
+      // Fall through to local update if offline/demo
+    }
 
     setAttendancesList((prev) =>
       prev.map((att) => {
@@ -597,6 +626,7 @@ export function AttendancesManagementTab({
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => router.push(`/inbox?c=${item.conversationId || item.id}`)}
                             className="h-7 text-xs text-primary gap-1 cursor-pointer"
                           >
                             Abrir
