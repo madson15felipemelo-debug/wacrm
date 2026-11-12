@@ -247,43 +247,40 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {viewMode === 'operational'
-              ? 'Centro de Operações & Distribuição Inteligente'
+              ? 'Operações'
               : t('title')}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {viewMode === 'operational'
-              ? 'Controle executivo de filas ao vivo, canais, performance de mailings e produtividade operacional'
+              ? 'Acompanhamento de filas, atendimento, campanhas e produtividade'
               : t('description')}
           </p>
         </div>
 
         {/* View Mode Switcher */}
-        <div className="inline-flex items-center rounded-lg border border-border/80 bg-muted/40 p-1 shadow-xs">
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
           <button
             type="button"
             onClick={() => setViewMode('operational')}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all',
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
               viewMode === 'operational'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-background text-foreground shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <Zap className="h-3.5 w-3.5 text-amber-500" />
             Operações & Cobrança
-            <span className="ml-1 flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </button>
           <button
             type="button"
             onClick={() => setViewMode('pipeline')}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all',
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
               viewMode === 'pipeline'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-background text-foreground shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
             Pipeline & Vendas
           </button>
         </div>
@@ -292,7 +289,6 @@ export default function DashboardPage() {
       {viewMode === 'operational' ? (
         /* ================= OPERATIONAL & COBRANÇA VIEW ================= */
         <div className="space-y-6">
-          {/* Barra de Filtros Premium (Data/Calendário, Campanha, Fluxo, Tipo, Atualizar) */}
           <DashboardFiltersBar
             filters={filters}
             onFilterChange={handleFilterChange}
@@ -301,116 +297,99 @@ export default function DashboardPage() {
             lastUpdated={lastUpdated}
           />
 
-          {/* Sub-Abas Estratégicas Operacionais */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
-            <div className="inline-flex items-center rounded-lg border border-border/80 bg-muted/30 p-1 text-xs">
-              {/* 1. Visão Geral & Produtividade */}
+          {/* Sub-Abas Operacionais */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="inline-flex flex-wrap items-center rounded-lg border border-border bg-muted/30 p-1 text-xs">
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('overview')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'overview'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-                Visão Geral & Produtividade
+                Visão Geral
               </button>
 
-              {/* 2. Visão por Atendimento */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('attendances')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'attendances'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <MessageSquare className="h-3.5 w-3.5 text-primary" />
-                Visão por Atendimento
+                Atendimentos
                 {operationalData && operationalData.attendances.length > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-primary/15 text-primary font-mono">
+                  <span className="font-mono text-[10px] text-muted-foreground">
                     {operationalData.attendances.length}
-                  </Badge>
+                  </span>
                 )}
               </button>
 
-              {/* 3. Raio-X de Risco & Evolução Histórica */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('evolution')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all cursor-pointer',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'evolution'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Activity className="h-3.5 w-3.5 text-amber-500" />
-                Matriz de Risco & Evolução
-                {operationalData && operationalData.evolution.summary.criticalOperatorsCount > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-rose-500/15 text-rose-400 font-mono">
-                    {operationalData.evolution.summary.criticalOperatorsCount} críticos
-                  </Badge>
-                )}
+                Desempenho & Evolução
               </button>
 
-              {/* 4. Monitor Ao Vivo & Fila */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('live')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'live'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Radio className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-                Monitor Ao Vivo & Fila
+                Tempo Real
                 {filteredLiveQueue.length > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-amber-500/15 text-amber-400">
+                  <span className="font-mono text-[10px] text-muted-foreground">
                     {filteredLiveQueue.length}
-                  </Badge>
+                  </span>
                 )}
               </button>
 
-              {/* 3. Performance de Mailings & Disparos */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('mailings')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'mailings'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Flame className="h-3.5 w-3.5 text-primary" />
-                Performance de Mailings
+                Disparos
               </button>
 
-              {/* 4. Agendamentos & Promessas */}
               <button
                 type="button"
                 onClick={() => setOperationalSubTab('scheduled')}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-3.5 py-1.5 font-semibold transition-all',
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
                   operationalSubTab === 'scheduled'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <CalendarCheck className="h-3.5 w-3.5 text-amber-500" />
-                Agendamentos & Promessas
+                Agendamentos
                 {filteredScheduled.length > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-primary/15 text-primary">
+                  <span className="font-mono text-[10px] text-muted-foreground">
                     {filteredScheduled.length}
-                  </Badge>
+                  </span>
                 )}
               </button>
             </div>

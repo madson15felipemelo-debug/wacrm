@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Loader2, MessageCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, Copy, Loader2, MessageCircle } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -185,7 +185,7 @@ export function InviteMemberDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-popover-foreground">
-                <Sparkles className="size-4 text-primary" />
+                <CheckCircle2 className="size-4 text-emerald-500" />
                 {t('inviteCreated')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">

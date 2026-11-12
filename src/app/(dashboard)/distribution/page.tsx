@@ -494,19 +494,12 @@ export default function DistributionPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                Central de Distribuição
-              </h1>
-              <p className="text-xs text-muted-foreground sm:text-sm">
-                Roteamento por responsabilidade de CPF, assessorias e balanceamento inteligente de operadores.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            Distribuição
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            Roteamento de conversas por CPF, carteira e carga de operadores.
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -530,7 +523,7 @@ export default function DistributionPage() {
             className="gap-2 bg-primary text-primary-foreground shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            Nova Campanha / Assessoria
+            Nova Carteira
           </Button>
         </div>
       </div>
@@ -558,7 +551,7 @@ export default function DistributionPage() {
           }`}
         >
           <Building2 className="h-4 w-4" />
-          Campanhas e Responsabilidades ({campaigns.length})
+          Carteiras e CPFs ({campaigns.length})
         </button>
 
         <button
@@ -570,7 +563,7 @@ export default function DistributionPage() {
           }`}
         >
           <Sliders className="h-4 w-4" />
-          Regras de Distribuição
+          Regras
         </button>
 
         <button
@@ -582,7 +575,7 @@ export default function DistributionPage() {
           }`}
         >
           <Shield className="h-4 w-4" />
-          Histórico e Auditoria ({auditLogs.length})
+          Auditoria ({auditLogs.length})
         </button>
       </div>
 
@@ -597,39 +590,39 @@ export default function DistributionPage() {
         <div className="mt-6 space-y-6">
           {/* KPI Cards Grid */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border border-border/80 bg-card/60 backdrop-blur">
+            <Card className="border border-border bg-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Total Recebidas
                 </CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{kpis?.totalReceived ?? 0}</div>
+                <div className="text-2xl font-semibold font-mono">{kpis?.totalReceived ?? 0}</div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Conversas direcionadas pelo motor
+                  Conversas direcionadas
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border border-border/80 bg-card/60 backdrop-blur">
+            <Card className="border border-border bg-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Por Responsabilidade CPF
+                  Identificadas por CPF
                 </CardTitle>
-                <Sparkles className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-500">
+                <div className="text-2xl font-semibold font-mono text-foreground">
                   {kpis?.distributedByCpf ?? 0}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Identificadas pela assessoria dona
+                  Vinculadas à carteira responsável
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border border-border/80 bg-card/60 backdrop-blur">
+            <Card className="border border-border bg-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Operadores Online
@@ -637,20 +630,17 @@ export default function DistributionPage() {
                 <Users className="h-4 w-4 text-sky-500" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-2 text-2xl font-bold text-sky-500">
-                  <span className="relative flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75"></span>
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-sky-500"></span>
-                  </span>
+                <div className="flex items-center gap-2 text-2xl font-semibold font-mono text-foreground">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   {kpis?.onlineOperators ?? 0}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Negociadores ativos no momento
+                  Ativos no momento
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="border border-border/80 bg-card/60 backdrop-blur">
+            <Card className="border border-border bg-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Fila & Triagem
@@ -658,11 +648,11 @@ export default function DistributionPage() {
                 <Clock className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-amber-500">
+                <div className="text-2xl font-semibold font-mono text-foreground">
                   {(kpis?.awaitingQueue ?? 0) + (kpis?.inTriage ?? 0)}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {kpis?.inTriage ?? 0} aguardando CPF / {kpis?.awaitingQueue ?? 0} em fila
+                  {kpis?.inTriage ?? 0} em triagem · {kpis?.awaitingQueue ?? 0} em fila
                 </p>
               </CardContent>
             </Card>

@@ -7,15 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  CalendarDays,
-  Search,
-  MessageSquare,
-  Clock,
-  CheckCircle2,
-  PhoneCall,
-  CalendarCheck,
-} from "lucide-react";
+import { Search, Clock } from "lucide-react";
 
 interface ScheduledAgreementsTabProps {
   scheduled: ScheduledAgreementRow[];
@@ -24,7 +16,6 @@ interface ScheduledAgreementsTabProps {
 
 export function ScheduledAgreementsTab({
   scheduled,
-  loading = false,
 }: ScheduledAgreementsTabProps) {
   const [search, setSearch] = useState("");
 
@@ -41,16 +32,15 @@ export function ScheduledAgreementsTab({
   }, [scheduled, search]);
 
   return (
-    <Card className="border border-border/80 shadow-xs">
+    <Card className="border border-border shadow-xs">
       <CardHeader className="pb-3 border-b border-border/60">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-              <CalendarCheck className="h-4 w-4 text-primary" />
-              Agendamentos & Promessas de Pagamento (Previsão Futura)
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Agendamentos e Promessas de Pagamento
             </CardTitle>
             <CardDescription className="text-xs">
-              Devedores que agendaram pagamento ou retorno programado com os operadores
+              Retornos programados e compromissos registrados pela equipe
             </CardDescription>
           </div>
 
@@ -58,7 +48,7 @@ export function ScheduledAgreementsTab({
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Buscar cliente, operador ou observação..."
+                placeholder="Buscar cliente, operador ou nota..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-xs"
@@ -72,13 +62,13 @@ export function ScheduledAgreementsTab({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-border/80 bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-2.5 pl-6 pr-3">Campanha</th>
-                <th className="px-3 py-2.5">Data Agendada</th>
+              <tr className="border-b border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="py-2.5 pl-6 pr-3">Carteira</th>
+                <th className="px-3 py-2.5">Data Prevista</th>
                 <th className="px-3 py-2.5">Cliente</th>
-                <th className="px-3 py-2.5">Número</th>
+                <th className="px-3 py-2.5">Telefone</th>
                 <th className="px-3 py-2.5">Operador</th>
-                <th className="px-3 py-2.5">Tabulação</th>
+                <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Observação</th>
                 <th className="py-2.5 pl-3 pr-6 text-right">Ação</th>
               </tr>
@@ -86,34 +76,29 @@ export function ScheduledAgreementsTab({
             <tbody className="divide-y divide-border/60">
               {filtered.map((item) => (
                 <tr key={item.id} className="transition-colors hover:bg-muted/30">
-                  {/* Campanha */}
-                  <td className="py-3 pl-6 pr-3 font-semibold text-foreground">
+                  <td className="py-3 pl-6 pr-3 font-medium text-foreground">
                     {item.campaignName}
                   </td>
 
-                  {/* Data Agendada */}
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-1.5 font-medium text-amber-400">
-                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <div className="flex items-center gap-1.5 font-mono text-foreground">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>{item.scheduledDate}</span>
                     </div>
                   </td>
 
-                  {/* Cliente */}
                   <td className="px-3 py-3">
-                    <span className="font-semibold text-foreground">{item.clientName}</span>
+                    <span className="font-medium text-foreground">{item.clientName}</span>
                   </td>
 
-                  {/* Número */}
                   <td className="px-3 py-3 font-mono text-muted-foreground">
                     {item.contactPhone}
                   </td>
 
-                  {/* Operador */}
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px] bg-primary/20 text-primary font-bold">
+                        <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
                           {item.operatorInitials}
                         </AvatarFallback>
                       </Avatar>
@@ -121,28 +106,21 @@ export function ScheduledAgreementsTab({
                     </div>
                   </td>
 
-                  {/* Tabulação */}
                   <td className="px-3 py-3">
-                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 font-mono text-[10px]">
+                    <Badge variant="outline" className="border-border text-muted-foreground font-mono text-[10px]">
                       {item.tabulation}
                     </Badge>
                   </td>
 
-                  {/* Observação */}
                   <td className="px-3 py-3 max-w-xs">
                     <p className="text-[11px] text-muted-foreground truncate" title={item.observation}>
                       {item.observation}
                     </p>
                   </td>
 
-                  {/* Ação */}
                   <td className="py-3 pl-3 pr-6 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                    >
-                      Ver Promessa
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-primary">
+                      Abrir
                     </Button>
                   </td>
                 </tr>

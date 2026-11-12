@@ -3,7 +3,6 @@
 import type { CampaignProductivityRow } from "@/lib/dashboard/operational-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CheckCircle2, Users } from "lucide-react";
 
 interface CampaignsProductivityTableProps {
   campaigns: CampaignProductivityRow[];
@@ -21,15 +20,14 @@ export function CampaignsProductivityTable({
   };
 
   return (
-    <Card className="border border-border/80 shadow-xs">
+    <Card className="border border-border shadow-xs">
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-1">
-          <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-            <Building2 className="h-4 w-4 text-primary" />
-            Detalhamento de Produtividade por Assessoria / Campanha
+        <div className="flex flex-col gap-0.5">
+          <CardTitle className="text-sm font-semibold text-foreground">
+            Produtividade por Carteira / Assessoria
           </CardTitle>
           <CardDescription className="text-xs">
-            Comparativo de entrega, conversão e tempo de resposta entre equipes de cobrança (Colombo, Berlanda, Fácil...)
+            Volume recebido, conversão em acordos e tempo médio por assessoria
           </CardDescription>
         </div>
       </CardHeader>
@@ -38,22 +36,22 @@ export function CampaignsProductivityTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-y border-border/80 bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-2.5 pl-6 pr-3">Assessoria / Campanha</th>
+              <tr className="border-y border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="py-2.5 pl-6 pr-3">Carteira / Assessoria</th>
                 <th className="px-3 py-2.5 text-center">Operadores Online</th>
                 <th className="px-3 py-2.5 text-center">CPFs Recebidos</th>
                 <th className="px-3 py-2.5 text-center">Finalizados</th>
-                <th className="px-3 py-2.5 text-center font-bold text-foreground">Acordos</th>
-                <th className="px-3 py-2.5 text-center font-bold text-emerald-500">Conversão</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-foreground">Acordos</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-emerald-500">Conversão</th>
                 <th className="px-3 py-2.5 text-center">TMA</th>
-                <th className="py-2.5 pl-3 pr-6 text-right">Ocupação da Equipe</th>
+                <th className="py-2.5 pl-3 pr-6 text-right">Ocupação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
-                    Carregando dados das assessorias...
+                    Carregando dados das carteiras...
                   </td>
                 </tr>
               ) : campaigns.length === 0 ? (
@@ -65,68 +63,60 @@ export function CampaignsProductivityTable({
               ) : (
                 campaigns.map((camp) => (
                   <tr key={camp.campaignId} className="transition-colors hover:bg-muted/30">
-                    {/* Assessoria Nome + Contratante */}
                     <td className="py-3 pl-6 pr-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">{camp.name}</span>
+                          <span className="font-medium text-foreground">{camp.name}</span>
                           {camp.code && (
-                            <Badge variant="outline" className="font-mono text-[9px]">
+                            <Badge variant="outline" className="font-mono text-[9px] text-muted-foreground">
                               {camp.code}
                             </Badge>
                           )}
                         </div>
                         <p className="text-[11px] text-muted-foreground">
-                          Contratante: <span className="font-medium text-foreground">{camp.clientName || "Ambiental"}</span>
+                          Contratante: {camp.clientName || "Ambiental"}
                         </p>
                       </div>
                     </td>
 
-                    {/* Operadores Online */}
                     <td className="px-3 py-3 text-center">
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-500 font-mono text-[11px] font-medium">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {camp.onlineOperators}/{camp.totalOperators} online
-                      </div>
+                      <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {camp.onlineOperators}/{camp.totalOperators}
+                      </span>
                     </td>
 
-                    {/* CPFs Recebidos */}
                     <td className="px-3 py-3 text-center font-mono text-muted-foreground">
                       {camp.cpfsReceived}
                     </td>
 
-                    {/* Finalizados */}
                     <td className="px-3 py-3 text-center font-mono text-muted-foreground">
                       {camp.cpfsCompleted}
                     </td>
 
-                    {/* Acordos Fechados (Destaque) */}
-                    <td className="px-3 py-3 text-center font-mono font-bold text-foreground">
+                    <td className="px-3 py-3 text-center font-mono font-semibold text-foreground">
                       {camp.agreementsCount}
                     </td>
 
-                    {/* Conversão % (Verde) */}
                     <td className="px-3 py-3 text-center font-mono font-semibold text-emerald-500">
                       {camp.conversionRate.toFixed(1)}%
                     </td>
 
-                    {/* TMA */}
                     <td className="px-3 py-3 text-center font-mono text-muted-foreground">
                       {camp.avgTmaString}
                     </td>
 
-                    {/* Ocupação da Equipe */}
                     <td className="py-3 pl-3 pr-6 text-right">
                       <div className="flex items-center justify-end gap-2.5">
-                        <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${getProgressColor(
+                            className={`h-full rounded-full transition-all duration-300 ${getProgressColor(
                               camp.occupancyPercent
                             )}`}
                             style={{ width: `${Math.min(100, Math.max(5, camp.occupancyPercent))}%` }}
                           />
                         </div>
-                        <span className="w-8 font-mono text-[11px] font-medium text-foreground">
+                        <span className="w-8 font-mono text-[11px] text-muted-foreground">
                           {camp.occupancyPercent}%
                         </span>
                       </div>

@@ -2,60 +2,56 @@
 
 import type { ChannelBreakdown } from "@/lib/dashboard/operational-queries";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Bot, Sparkles, UserCheck, Zap } from "lucide-react";
+import { Bot, UserCheck, Workflow } from "lucide-react";
 
 interface ChannelBreakdownCardProps {
   channels: ChannelBreakdown;
   loading?: boolean;
 }
 
-export function ChannelBreakdownCard({ channels, loading = false }: ChannelBreakdownCardProps) {
+export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
   const { robot, ai, human } = channels;
 
   return (
-    <Card className="h-full border border-border/80 shadow-xs">
+    <Card className="h-full border border-border shadow-xs">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-              <Zap className="h-4 w-4 text-primary" />
-              Robô vs IA vs Humano
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Divisão de carga de atendimento e eficiência operacional por canal
-            </CardDescription>
-          </div>
+        <div>
+          <CardTitle className="text-sm font-semibold text-foreground">
+            Canais de Atendimento
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Distribuição de volume entre triagem, automação e equipe humana
+          </CardDescription>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* 3-way Visual Stacked Bar */}
         <div className="space-y-1.5">
-          <div className="h-3 w-full overflow-hidden rounded-full bg-muted flex">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted flex">
             <div
-              className="h-full bg-sky-500 transition-all duration-500"
+              className="h-full bg-sky-500 transition-all duration-300"
               style={{ width: `${robot.percentage}%` }}
-              title={`Robô: ${robot.percentage}%`}
+              title={`Triagem: ${robot.percentage}%`}
             />
             <div
-              className="h-full bg-purple-500 transition-all duration-500"
+              className="h-full bg-primary transition-all duration-300"
               style={{ width: `${ai.percentage}%` }}
-              title={`IA: ${ai.percentage}%`}
+              title={`Automático: ${ai.percentage}%`}
             />
             <div
-              className="h-full bg-emerald-500 transition-all duration-500"
+              className="h-full bg-emerald-500 transition-all duration-300"
               style={{ width: `${human.percentage}%` }}
               title={`Humano: ${human.percentage}%`}
             />
           </div>
-          <div className="flex justify-between text-[11px] text-muted-foreground font-medium px-0.5">
+          <div className="flex justify-between text-[11px] text-muted-foreground px-0.5">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-sky-500" />
-              Robô {robot.percentage}%
+              Triagem {robot.percentage}%
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-purple-500" />
-              IA {ai.percentage}%
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              Automático {ai.percentage}%
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -64,59 +60,55 @@ export function ChannelBreakdownCard({ channels, loading = false }: ChannelBreak
           </div>
         </div>
 
-        {/* 3 Comparative Cards */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          {/* Robô */}
-          <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-sky-500 flex items-center gap-1">
-                <Bot className="h-3.5 w-3.5" />
-                Robô (Triagem)
+          <div className="rounded-lg border border-border bg-muted/15 p-3">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                <Workflow className="h-3.5 w-3.5 text-sky-500" />
+                Triagem
               </span>
-              <span className="text-[10px] text-muted-foreground">Velocidade &lt; 2s</span>
+              <span className="text-[10px] font-mono">&lt; 2s</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xl font-bold text-foreground font-mono">{robot.count}</span>
-              <span className="text-xs font-semibold text-sky-500">{robot.percentage}%</span>
+              <span className="text-lg font-semibold text-foreground font-mono">{robot.count}</span>
+              <span className="text-xs font-mono text-muted-foreground">{robot.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Qualificação automática e coleta de CPF sem intervenção
+              Identificação e coleta de CPF
             </p>
           </div>
 
-          {/* IA */}
-          <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-purple-500 flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                IA (Agentes)
+          <div className="rounded-lg border border-border bg-muted/15 p-3">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                <Bot className="h-3.5 w-3.5 text-primary" />
+                Automático
               </span>
-              <span className="text-[10px] text-muted-foreground">Tempo ~6s</span>
+              <span className="text-[10px] font-mono">~6s</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xl font-bold text-foreground font-mono">{ai.count}</span>
-              <span className="text-xs font-semibold text-purple-500">{ai.percentage}%</span>
+              <span className="text-lg font-semibold text-foreground font-mono">{ai.count}</span>
+              <span className="text-xs font-mono text-muted-foreground">{ai.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Respostas contextuais com base na base de conhecimento
+              Atendimento sem transbordo
             </p>
           </div>
 
-          {/* Humano */}
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
-                <UserCheck className="h-3.5 w-3.5" />
-                Humano (Equipes)
+          <div className="rounded-lg border border-border bg-muted/15 p-3">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                Humano
               </span>
-              <span className="text-[10px] text-emerald-500 font-semibold">{human.agreementRate}% acordos</span>
+              <span className="text-[10px] font-mono text-emerald-500">{human.agreementRate}% conv.</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xl font-bold text-foreground font-mono">{human.count}</span>
-              <span className="text-xs font-semibold text-emerald-500">{human.percentage}%</span>
+              <span className="text-lg font-semibold text-foreground font-mono">{human.count}</span>
+              <span className="text-xs font-mono text-muted-foreground">{human.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Negociação ativa de valores e fechamento de contratos
+              Negociação e fechamento
             </p>
           </div>
         </div>
