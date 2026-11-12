@@ -57,8 +57,6 @@ import { AttendancesManagementTab } from '@/components/dashboard/attendances-man
 import { LiveMonitorTab } from '@/components/dashboard/live-monitor-tab'
 import { MailingPerformanceTab } from '@/components/dashboard/mailing-performance-tab'
 import { ScheduledAgreementsTab } from '@/components/dashboard/scheduled-agreements-tab'
-import { OperatorEvolutionTab } from '@/components/dashboard/operator-evolution-tab'
-import { Badge } from '@/components/ui/badge'
 
 import { useTranslations } from 'next-intl'
 
@@ -71,8 +69,8 @@ export default function DashboardPage() {
   // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas & Pipeline)
   const [viewMode, setViewMode] = useState<'operational' | 'pipeline'>('operational')
 
-  // Operational Sub-tabs: 'overview' | 'attendances' | 'evolution' | 'live' | 'mailings' | 'scheduled'
-  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'evolution' | 'live' | 'mailings' | 'scheduled'>('overview')
+  // Operational Sub-tabs: 'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'
+  const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'>('overview')
 
   // Global Filters State
   const [filters, setFilters] = useState<FilterState>({
@@ -333,19 +331,6 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => setOperationalSubTab('evolution')}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
-                  operationalSubTab === 'evolution'
-                    ? 'bg-background text-foreground shadow-xs font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Desempenho & Evolução
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setOperationalSubTab('live')}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
@@ -481,15 +466,6 @@ export default function DashboardPage() {
             <AttendancesManagementTab
               attendances={operationalData?.attendances ?? []}
               operators={operationalData?.operators ?? []}
-              loading={operationalLoading}
-            />
-          )}
-
-          {operationalSubTab === 'evolution' && operationalData && (
-            <OperatorEvolutionTab
-              analyst={operationalData.evolution.analyst}
-              summary={operationalData.evolution.summary}
-              operators={operationalData.evolution.operators}
               loading={operationalLoading}
             />
           )}
