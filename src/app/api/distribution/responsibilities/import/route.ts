@@ -93,20 +93,20 @@ export async function POST(request: Request) {
   }
 
   for (const newCampName of Array.from(campaignsToCreate)) {
-      const { data: created } = await supabase
-        .from('distribution_campaigns')
-        .insert({
-          account_id: accountId,
-          name: newCampName,
-          code: newCampName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase(),
-          client_name: null,
-          distribution_strategy: 'least_busy',
-          contingency_strategy: 'queue',
-          max_concurrent_chats: 15,
-          is_active: true,
-        })
-        .select('id, name, code')
-        .single();
+    const { data: created } = await supabase
+      .from('distribution_campaigns')
+      .insert({
+        account_id: accountId,
+        name: newCampName,
+        code: newCampName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase(),
+        client_name: null,
+        distribution_strategy: 'least_busy',
+        contingency_strategy: 'queue',
+        max_concurrent_chats: 15,
+        is_active: true,
+      })
+      .select('id, name, code')
+      .single();
 
     if (created) {
       campaignMap.set(created.name.trim().toLowerCase(), created.id);

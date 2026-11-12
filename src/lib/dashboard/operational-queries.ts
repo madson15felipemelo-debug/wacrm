@@ -867,12 +867,14 @@ export async function loadOperationalDashboardData(
 
   // 11. Mailings / Broadcasts (100% real from broadcasts table)
   const mailingsData: MailingPerformanceRow[] = broadcastRows.map((b) => {
-    const sent = b.sent_count ?? b.total_recipients ?? 0;
+    const total = b.total_recipients ?? b.sent_count ?? 0;
+    const sent = b.sent_count ?? 0;
     const failed = b.failed_count ?? 0;
-    const delivered = b.delivered_count ?? Math.max(0, sent - failed);
+    const delivered = b.delivered_count ?? 0;
     const replied = b.replied_count ?? 0;
-    const invalidRate = sent > 0 ? Math.round((failed / sent) * 1000) / 10 : 0;
-    const respRate = delivered > 0 ? Math.round((replied / delivered) * 1000) / 10 : 0;
+    const baseTotal = Math.max(total, sent + failed);
+    const invalidRate = baseTotal > 0 ? Math.min(100, Math.round((failed / baseTotal) * 1000) / 10) : 0;
+    const respRate = delivered > 0 ? Math.min(100, Math.round((replied / delivered) * 1000) / 10) : 0;
 
     let mappedStatus: MailingPerformanceRow['status'] = 'completed';
     if (b.status === 'sending') mappedStatus = 'in_progress';
