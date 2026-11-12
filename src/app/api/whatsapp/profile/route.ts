@@ -95,9 +95,9 @@ export async function GET() {
       return NextResponse.json({ error: creds.error }, { status: creds.status });
     }
 
-    const { phoneNumberId, accessToken } = creds;
+    const { phoneNumberId, wabaId, accessToken } = creds;
 
-    const [profileRes, phoneRes] = await Promise.all([
+    const [profileRes, phoneRes, wabaPhonesRes] = await Promise.all([
       fetch(
         `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`,
         {
@@ -106,16 +106,28 @@ export async function GET() {
         },
       ),
       fetch(
-        `${META_API_BASE}/${phoneNumberId}?fields=verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
+        `${META_API_BASE}/${phoneNumberId}?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },
           cache: 'no-store',
         },
       ),
+      wabaId
+        ? fetch(
+            `${META_API_BASE}/${wabaId}/phone_numbers?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              cache: 'no-store',
+            },
+          )
+        : Promise.resolve(null),
     ]);
 
     const profileJson = await profileRes.json().catch(() => ({}));
     const phoneJson = await phoneRes.json().catch(() => ({}));
+    const wabaPhonesJson = wabaPhonesRes
+      ? await wabaPhonesRes.json().catch(() => ({}))
+      : null;
 
     if (!profileRes.ok) {
       const msg =
@@ -129,6 +141,75 @@ export async function GET() {
       ? profileJson.data[0] ?? {}
       : {};
 
+    const primaryPhone = {
+      id: phoneJson?.id ?? phoneNumberId,
+      verified_name: phoneJson?.verified_name ?? '',
+      display_phone_number: phoneJson?.display_phone_number ?? '',
+      quality_rating: phoneJson?.quality_rating ?? '',
+      status: phoneJson?.status ?? 'CONNECTED',
+      messaging_limit_tier: phoneJson?.messaging_limit_tier ?? '',
+      name_status: phoneJson?.name_status ?? '',
+      new_display_name: phoneJson?.new_display_name ?? null,
+      new_name_status: phoneJson?.new_name_status ?? null,
+      profile_picture_url: businessProfile.profile_picture_url ?? null,
+      is_primary: true,
+    };
+
+    // Build full list of numbers in the WABA (if multiple exist)
+    const rawWabaList: Record<string, unknown>[] = Array.isArray(
+      wabaPhonesJson?.data,
+    )
+      ? wabaPhonesJson.data
+      : [];
+
+    let phones = [primaryPhone];
+    if (rawWabaList.length > 0) {
+      phones = await Promise.all(
+        rawWabaList.map(async (item) => {
+          const itemId = String(item.id ?? '');
+          const isPrimary = itemId === phoneNumberId;
+          let picUrl: string | null = isPrimary
+            ? (businessProfile.profile_picture_url ?? null)
+            : null;
+
+          if (!isPrimary && itemId) {
+            try {
+              const pRes = await fetch(
+                `${META_API_BASE}/${itemId}/whatsapp_business_profile?fields=profile_picture_url`,
+                {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                  cache: 'no-store',
+                },
+              );
+              const pJson = await pRes.json().catch(() => ({}));
+              picUrl =
+                Array.isArray(pJson?.data) && pJson.data[0]?.profile_picture_url
+                  ? pJson.data[0].profile_picture_url
+                  : null;
+            } catch {
+              picUrl = null;
+            }
+          }
+
+          return {
+            id: itemId,
+            verified_name: String(item.verified_name ?? ''),
+            display_phone_number: String(item.display_phone_number ?? ''),
+            quality_rating: String(item.quality_rating ?? ''),
+            status: String(item.status ?? 'CONNECTED'),
+            messaging_limit_tier: String(item.messaging_limit_tier ?? ''),
+            name_status: String(item.name_status ?? ''),
+            new_display_name: (item.new_display_name as string | null) ?? null,
+            new_name_status: (item.new_name_status as string | null) ?? null,
+            profile_picture_url: picUrl,
+            is_primary: isPrimary,
+          };
+        }),
+      );
+      // Sort so primary number appears first
+      phones.sort((a, b) => (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1));
+    }
+
     return NextResponse.json({
       profile: {
         about: businessProfile.about ?? '',
@@ -141,16 +222,8 @@ export async function GET() {
           : [],
         vertical: businessProfile.vertical ?? '',
       },
-      phone: {
-        verified_name: phoneJson?.verified_name ?? '',
-        display_phone_number: phoneJson?.display_phone_number ?? '',
-        quality_rating: phoneJson?.quality_rating ?? '',
-        status: phoneJson?.status ?? 'CONNECTED',
-        messaging_limit_tier: phoneJson?.messaging_limit_tier ?? '',
-        name_status: phoneJson?.name_status ?? '',
-        new_display_name: phoneJson?.new_display_name ?? null,
-        new_name_status: phoneJson?.new_name_status ?? null,
-      },
+      phone: primaryPhone,
+      phones,
     });
   } catch (err) {
     console.error('[GET /api/whatsapp/profile] error:', err);
