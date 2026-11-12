@@ -25,11 +25,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
+  Link2,
   Loader2,
   Mail,
   MailX,
-  Plus,
   Trash2,
+  UserPlus,
   UsersRound,
 } from 'lucide-react';
 
@@ -72,6 +73,7 @@ import {
   PRESENCE_DOT_CLASS,
   PresenceDot,
 } from '@/components/presence/presence-dot';
+import { CreateMemberDialog } from './create-member-dialog';
 import { InviteMemberDialog } from './invite-member-dialog';
 import { SettingsPanelHead } from './settings-panel-head';
 import { ROLE_META } from './role-meta';
@@ -134,6 +136,7 @@ export function MembersTab() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [createOpen, setCreateOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [removingMember, setRemovingMember] = useState<Member | null>(null);
   const [pendingMemberAction, setPendingMemberAction] = useState<string | null>(
@@ -287,10 +290,16 @@ export function MembersTab() {
         description={t('description')}
         action={
           <RequireRole min="admin">
-            <Button onClick={() => setInviteOpen(true)}>
-              <Plus className="size-4" />
-              {t('inviteMember')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" onClick={() => setInviteOpen(true)}>
+                <Link2 className="size-4" />
+                {t('inviteMember')}
+              </Button>
+              <Button onClick={() => setCreateOpen(true)}>
+                <UserPlus className="size-4" />
+                Criar acesso
+              </Button>
+            </div>
           </RequireRole>
         }
       />
@@ -559,6 +568,12 @@ export function MembersTab() {
           )}
         </div>
       </RequireRole>
+
+      <CreateMemberDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={loadEverything}
+      />
 
       <InviteMemberDialog
         open={inviteOpen}

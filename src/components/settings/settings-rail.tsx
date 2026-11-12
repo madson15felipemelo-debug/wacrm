@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import {
   RAIL_GROUPS,
@@ -32,6 +33,7 @@ export function SettingsRail({
   hints?: Partial<Record<SettingsSection, ReactNode>>;
 }) {
   const t = useTranslations('Settings');
+  const { isOwner } = useAuth();
   const activeRef = useRef<HTMLButtonElement>(null);
 
   // When horizontal (mobile), keep the active chip in view. On desktop
@@ -55,7 +57,9 @@ export function SettingsRail({
         'lg:sticky lg:top-0 lg:flex-col lg:overflow-visible lg:border-b-0 lg:pb-0',
       )}
     >
-      {RAIL_GROUPS.map(({ label, group }) => {
+      {RAIL_GROUPS.filter(
+        ({ group }) => group !== 'workspace' || isOwner,
+      ).map(({ label, group }) => {
         const items = SETTINGS_SECTIONS.filter(
           (s) => SECTION_META[s].group === group,
         );

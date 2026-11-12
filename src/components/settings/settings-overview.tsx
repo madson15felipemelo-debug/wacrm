@@ -36,8 +36,15 @@ export function SettingsOverview({
 }: {
   onSelect: (section: SettingsSection) => void;
 }) {
-  const { user, profile, accountId, accountRole, defaultCurrency, canManageMembers } =
-    useAuth();
+  const {
+    user,
+    profile,
+    accountId,
+    accountRole,
+    defaultCurrency,
+    canManageMembers,
+    isOwner,
+  } = useAuth();
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
   const tRoles = useTranslations('Settings.roles');
@@ -53,7 +60,11 @@ export function SettingsOverview({
   const [whatsappLoading, setWhatsappLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !accountId) return;
+    if (!user || !accountId || !isOwner) {
+      setCountsLoading(false);
+      setWhatsappLoading(false);
+      return;
+    }
     let cancelled = false;
     const supabase = createClient();
     const userId = user.id;
@@ -139,7 +150,7 @@ export function SettingsOverview({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, accountId, canManageMembers]);
+  }, [user?.id, accountId, canManageMembers, isOwner]);
 
   const displayName = profile?.full_name || profile?.email || t('yourAccount');
   const initial = (profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase();
@@ -157,67 +168,85 @@ export function SettingsOverview({
     section: SettingsSection;
     loading: boolean;
     subtitle: ReactNode;
-  }[] = [
-    {
-      section: 'whatsapp',
-      loading: whatsappLoading,
-      subtitle: !whatsapp?.configured ? (
-        t('notSetup')
-      ) : whatsapp.connected ? (
-        <>
-          <StatusDot tone="ok" /> {t('connected')}
-        </>
-      ) : (
-        <>
-          <StatusDot tone="muted" /> {t('needsReconnecting')}
-        </>
-      ),
-    },
-    {
-      section: 'members',
-      loading: countsLoading,
-      subtitle:
-        counts?.members == null
-          ? t('viewTeamMembers')
-          : `${t('membersCount', { count: counts.members })}${
-              counts.pendingInvites
-                ? ` · ${t('pendingInvites', { count: counts.pendingInvites })}`
-                : ''
-            }`,
-    },
-    {
-      section: 'templates',
-      loading: countsLoading,
-      subtitle:
-        counts?.templates == null
-          ? t('manageTemplates')
-          : `${t('templatesCount', { count: counts.templates })}${
-              counts.templatesPending
-                ? ` · ${t('pendingReview', { count: counts.templatesPending })}`
-                : ''
-            }`,
-    },
-    {
-      section: 'deals',
-      loading: false,
-      subtitle: `${defaultCurrency} — ${currencyLabel}`,
-    },
-    {
-      section: 'fields',
-      loading: countsLoading,
-      subtitle:
-        counts?.tags == null && counts?.customFields == null
-          ? t('tagsAndFields')
-          : `${t('tagsCount', { count: counts?.tags ?? 0 })} · ${t('fieldsCount', {
-              count: counts?.customFields ?? 0,
-            })}`,
-    },
-    {
-      section: 'appearance',
-      loading: false,
-      subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
-    },
-  ];
+  }[] = isOwner
+    ? [
+        {
+          section: 'whatsapp',
+          loading: whatsappLoading,
+          subtitle: !whatsapp?.configured ? (
+            t('notSetup')
+          ) : whatsapp.connected ? (
+            <>
+              <StatusDot tone="ok" /> {t('connected')}
+            </>
+          ) : (
+            <>
+              <StatusDot tone="muted" /> {t('needsReconnecting')}
+            </>
+          ),
+        },
+        {
+          section: 'members',
+          loading: countsLoading,
+          subtitle:
+            counts?.members == null
+              ? t('viewTeamMembers')
+              : `${t('membersCount', { count: counts.members })}${
+                  counts.pendingInvites
+                    ? ` · ${t('pendingInvites', { count: counts.pendingInvites })}`
+                    : ''
+                }`,
+        },
+        {
+          section: 'templates',
+          loading: countsLoading,
+          subtitle:
+            counts?.templates == null
+              ? t('manageTemplates')
+              : `${t('templatesCount', { count: counts.templates })}${
+                  counts.templatesPending
+                    ? ` · ${t('pendingReview', { count: counts.templatesPending })}`
+                    : ''
+                }`,
+        },
+        {
+          section: 'deals',
+          loading: false,
+          subtitle: `${defaultCurrency} — ${currencyLabel}`,
+        },
+        {
+          section: 'fields',
+          loading: countsLoading,
+          subtitle:
+            counts?.tags == null && counts?.customFields == null
+              ? t('tagsAndFields')
+              : `${t('tagsCount', { count: counts?.tags ?? 0 })} · ${t('fieldsCount', {
+                  count: counts?.customFields ?? 0,
+                })}`,
+        },
+        {
+          section: 'appearance',
+          loading: false,
+          subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
+        },
+      ]
+    : [
+        {
+          section: 'profile',
+          loading: false,
+          subtitle: profile?.email || displayName,
+        },
+        {
+          section: 'security',
+          loading: false,
+          subtitle: 'Senha e sessões ativas',
+        },
+        {
+          section: 'appearance',
+          loading: false,
+          subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
+        },
+      ];
 
   return (
     <section className="animate-in fade-in-50 duration-200">

@@ -20,7 +20,9 @@ import { DealsSettings } from '@/components/settings/deals-settings';
 import { MembersTab } from '@/components/settings/members-tab';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import {
+  DEFAULT_SECTION,
   resolveSection,
+  SECTION_META,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
 
@@ -43,7 +45,7 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency } = useAuth();
+  const { defaultCurrency, isOwner, profileLoading } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
@@ -51,7 +53,13 @@ function SettingsPageInner() {
   // section — deep-linkable, and it keeps the existing links in the
   // app sidebar/header working. Legacy tab values (tags, custom-fields)
   // resolve onto their new home; unknown/empty → the Overview landing.
-  const section = resolveSection(searchParams.get('tab'));
+  const rawSection = resolveSection(searchParams.get('tab'));
+  const section: SettingsSection =
+    !profileLoading &&
+    !isOwner &&
+    SECTION_META[rawSection].group === 'workspace'
+      ? DEFAULT_SECTION
+      : rawSection;
 
   const go = (next: SettingsSection) => {
     const params = new URLSearchParams(searchParams.toString());

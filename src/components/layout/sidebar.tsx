@@ -150,7 +150,14 @@ export function Sidebar({
 }: SidebarProps) {
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
-  const { profile, profileLoading, account, accountRole, signOut } = useAuth();
+  const {
+    profile,
+    profileLoading,
+    account,
+    accountRole,
+    isOwner,
+    signOut,
+  } = useAuth();
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
   // Only surface the account-name strip when it actually carries
@@ -493,7 +500,7 @@ export function Sidebar({
               <DropdownMenuItem
                 render={
                   <Link
-                    href="/settings?tab=whatsapp"
+                    href={isOwner ? "/settings?tab=whatsapp" : "/settings"}
                     onClick={onClose}
                     className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
                   />
