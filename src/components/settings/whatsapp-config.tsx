@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SettingsPanelHead } from './settings-panel-head';
+import { WhatsAppBusinessProfileCard } from './whatsapp-business-profile-card';
 import {
   Accordion,
   AccordionItem,
@@ -552,6 +553,11 @@ export function WhatsAppConfig() {
               </div>
             )}
           </Alert>
+        )}
+
+        {/* Business Profile Editor (Photo, Display Name request, About, Description) */}
+        {config && connectionStatus === 'connected' && (
+          <WhatsAppBusinessProfileCard />
         )}
 
         {/* API Credentials */}
