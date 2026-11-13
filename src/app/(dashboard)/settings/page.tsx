@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useMemo, type ReactNode } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -26,14 +26,6 @@ import {
   type SettingsSection,
 } from '@/components/settings/settings-sections';
 
-// `useSearchParams` opts this page out of static prerendering unless it
-// sits under a Suspense boundary. Without one, the production build hits
-// the "missing Suspense with CSR bailout" error and the whole page bails
-// to client-side rendering — shipping a settings screen whose rail never
-// wires up its click handlers. You land on the section the URL carried
-// (the account-menu Settings link points at `?tab=whatsapp`) and can't
-// navigate away. Mirror the login/signup split: a thin wrapper supplies
-// the boundary; the inner component reads the query string.
 export default function SettingsPage() {
   return (
     <Suspense fallback={null}>
@@ -43,33 +35,44 @@ export default function SettingsPage() {
 }
 
 function SettingsPageInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { defaultCurrency, isOwner, profileLoading } = useAuth();
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
-  // The URL (`?tab=`) is the single source of truth for the active
-  // section — deep-linkable, and it keeps the existing links in the
-  // app sidebar/header working. Legacy tab values (tags, custom-fields)
-  // resolve onto their new home; unknown/empty → the Overview landing.
-  const rawSection = resolveSection(searchParams.get('tab'));
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<SettingsSection>(() =>
+    resolveSection(tabParam),
+  );
+
+  // Sync if the URL query param changes externally (e.g. clicking a link in Header/Sidebar)
+  useEffect(() => {
+    setActiveTab(resolveSection(tabParam));
+  }, [tabParam]);
+
   const section: SettingsSection =
     !profileLoading &&
     !isOwner &&
-    SECTION_META[rawSection].group === 'workspace'
+    SECTION_META[activeTab].group === 'workspace'
       ? DEFAULT_SECTION
-      : rawSection;
+      : activeTab;
 
+  // Switch sections immediately on the client without triggering a
+  // server RSC round-trip via router.replace (which could hang if the
+  // tab was idle and the auth token was mid-refresh).
   const go = (next: SettingsSection) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', next);
-    router.replace(`/settings?${params.toString()}`, { scroll: false });
+    setActiveTab(next);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', next);
+      window.history.replaceState(
+        null,
+        '',
+        `/settings?${params.toString()}`,
+      );
+    }
   };
 
-  // Cheap, fetch-free rail hints. The Overview landing carries the
-  // full live status/counts; the rail just surfaces the two that are
-  // already in context.
   const hints: Partial<Record<SettingsSection, ReactNode>> = useMemo(
     () => ({
       appearance: mode.charAt(0).toUpperCase() + mode.slice(1),

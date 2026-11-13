@@ -274,16 +274,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       const currentUser = session?.user ?? null;
-      setUser(currentUser);
 
       if (currentUser) {
+        setUser(currentUser);
         if (currentUser.id !== lastFetchedUserIdRef.current) {
           fetchProfile(currentUser.id);
         }
-      } else {
+      } else if (event === "SIGNED_OUT") {
+        // Only wipe user/profile state on an explicit SIGNED_OUT event,
+        // avoiding false logouts caused by transient network hiccups
+        // when waking a tab after long idle periods.
+        setUser(null);
         lastFetchedUserIdRef.current = null;
         setProfile(null);
         setAccount(null);
@@ -293,9 +297,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
+    // Proactive session keep-alive:
+    // Refresh the access token on the client BEFORE it expires (within
+    // 15 minutes of expiry) and when returning to the tab after idle time.
+    // Keeping the cookie fresh on the client prevents server middleware
+    // and API routes from racing to rotate an expired refresh token.
+    let refreshingSession = false;
+    const ensureFreshSession = async () => {
+      if (!mounted || refreshingSession) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      refreshingSession = true;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session || !mounted) return;
+
+        const expiresAtMs = (session.expires_at ?? 0) * 1000;
+        const fifteenMinutesMs = 15 * 60 * 1000;
+        if (expiresAtMs - Date.now() < fifteenMinutesMs) {
+          await supabase.auth.refreshSession();
+        }
+      } catch {
+        // Ignore transient network errors on wake
+      } finally {
+        refreshingSession = false;
+      }
+    };
+
+    const keepAliveTimer = setInterval(
+      () => void ensureFreshSession(),
+      5 * 60 * 1000, // Check every 5 minutes while tab is visible
+    );
+
+    const onTabWake = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        void ensureFreshSession();
+      }
+    };
+    document.addEventListener("visibilitychange", onTabWake);
+    window.addEventListener("focus", onTabWake);
+
     return () => {
       mounted = false;
       clearTimeout(safetyTimer);
+      clearInterval(keepAliveTimer);
+      document.removeEventListener("visibilitychange", onTabWake);
+      window.removeEventListener("focus", onTabWake);
       subscription.unsubscribe();
     };
   }, [fetchProfile]);

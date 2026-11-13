@@ -23,12 +23,13 @@ export function useTotalUnread(): number {
     const supabase = createClient();
     let cancelled = false;
 
-    // Initial load. RLS scopes this to the signed-in user automatically —
-    // no explicit user_id filter needed here.
+    // Initial load. Only fetch conversations that actually have unread
+    // messages so we don't scan/download thousands of archived chats on mount.
     (async () => {
       const { data, error } = await supabase
         .from("conversations")
-        .select("id, unread_count");
+        .select("id, unread_count")
+        .gt("unread_count", 0);
       if (cancelled || error || !data) return;
 
       const map = new Map<string, number>();
