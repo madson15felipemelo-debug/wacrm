@@ -6,16 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { HEARTBEAT_MS, IDLE_AFTER_MS, type StoredPresence } from "@/lib/presence";
 
-/**
- * PresenceHeartbeat — headless. Mount ONCE per signed-in dashboard tab
- * (in the dashboard shell, below the auth gate). Reports this tab's
- * presence to the `member_presence` table via the `touch_presence` RPC
- * roughly every HEARTBEAT_MS while the tab is visible.
- *
- * When the tab is hidden (`document.hidden`), we send a single 'away'
- * beat and pause the periodic timer until the user returns, preventing
- * background RPC overload and auth-token lock contention.
- */
+// Stop sending background RPCs only after 30 minutes of total inactivity
+// in a hidden tab (e.g. user went to lunch or left the tab open overnight).
+// During normal work (switching tabs for a few minutes to check an ERP or
+// generate a boleto), the operator stays 'online' for IDLE_AFTER_MS (5 min)
+// so the distribution engine doesn't drop them from the queue!
+const STOP_BACKGROUND_BEATS_AFTER_MS = 30 * 60_000;
+
 export function PresenceHeartbeat() {
   const { accountId } = useAuth();
 
@@ -35,56 +32,65 @@ export function PresenceHeartbeat() {
     };
 
     const currentStatus = (): StoredPresence => {
-      if (typeof document !== "undefined" && document.hidden) return "away";
+      // Keep the operator 'online' for up to IDLE_AFTER_MS (5 minutes)
+      // after their last interaction, even if they briefly switch to
+      // another browser tab (e.g. ERP / boleto system).
       if (Date.now() - lastActivityRef.current > IDLE_AFTER_MS) return "away";
       return "online";
     };
 
-    const beat = async (forceStatus?: StoredPresence) => {
+    const beat = async () => {
       if (cancelled) return;
       const t = Date.now();
       if (t - lastBeatAt < 2_000) return;
       lastBeatAt = t;
-      const status = forceStatus ?? currentStatus();
       const { error } = await supabase.rpc("touch_presence", {
-        p_status: status,
+        p_status: currentStatus(),
       });
       if (error && !cancelled) {
         console.error("[PresenceHeartbeat] touch_presence failed:", error.message);
       }
     };
 
+    // Passive listeners — markActive only writes a timestamp to a ref in RAM
+    // (zero layout/network cost) and prevents operators who are reading or
+    // scrolling a conversation from being marked idle after 5 minutes.
     const activityEvents: (keyof DocumentEventMap)[] = [
+      "mousemove",
       "keydown",
       "pointerdown",
+      "scroll",
     ];
     activityEvents.forEach((e) =>
       document.addEventListener(e, markActive, { passive: true }),
     );
 
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        if (wakeTimer) {
-          clearTimeout(wakeTimer);
-          wakeTimer = null;
-        }
-        void beat("away");
-      } else {
+    const onReturn = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
         markActive();
-        // Delay slightly on wake so AuthProvider finishes refreshing
-        // any expired access token first without lock contention.
+        // Wait 1.5s on wake so AuthProvider finishes refreshing any
+        // expired session token first without lock contention.
         if (wakeTimer) clearTimeout(wakeTimer);
         wakeTimer = setTimeout(() => {
-          void beat("online");
+          void beat();
         }, 1_500);
       }
     };
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
 
     void beat();
     const interval = setInterval(() => {
-      // Do not spam RPC calls while the tab is hidden in the background
-      if (typeof document !== "undefined" && document.hidden) return;
+      const idleDuration = Date.now() - lastActivityRef.current;
+      // Only pause database RPCs when the tab has been hidden AND completely
+      // inactive for over 30 minutes (e.g., PC left open overnight).
+      if (
+        typeof document !== "undefined" &&
+        document.hidden &&
+        idleDuration > STOP_BACKGROUND_BEATS_AFTER_MS
+      ) {
+        return;
+      }
       void beat();
     }, HEARTBEAT_MS);
 
@@ -95,7 +101,8 @@ export function PresenceHeartbeat() {
       activityEvents.forEach((e) =>
         document.removeEventListener(e, markActive),
       );
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
     };
   }, [accountId]);
 

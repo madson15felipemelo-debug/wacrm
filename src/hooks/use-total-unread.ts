@@ -6,26 +6,18 @@ import type { Conversation } from "@/types";
 
 /**
  * Count of conversations with at least one unread inbound message for
- * the current user. Used by the sidebar to surface a green dot on the
+ * the current user. Used by the sidebar to surface a dot on the
  * Inbox nav entry when the user is elsewhere in the app.
- *
- * Lives on its own realtime channel (distinct from the inbox page's
- * "inbox-realtime") so both can coexist without sharing state.
  */
 export function useTotalUnread(): number {
   const [total, setTotal] = useState(0);
-
-  // Keep a live local mirror of {id: unread_count} so INSERT/UPDATE/DELETE
-  // events can adjust the total in O(1) without refetching.
   const countsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const supabase = createClient();
     let cancelled = false;
 
-    // Initial load. Only fetch conversations that actually have unread
-    // messages so we don't scan/download thousands of archived chats on mount.
-    (async () => {
+    const loadSnapshot = async () => {
       const { data, error } = await supabase
         .from("conversations")
         .select("id, unread_count")
@@ -36,12 +28,16 @@ export function useTotalUnread(): number {
       let sum = 0;
       for (const row of data as { id: string; unread_count: number }[]) {
         const n = row.unread_count ?? 0;
-        map.set(row.id, n);
-        if (n > 0) sum += 1;
+        if (n > 0) {
+          map.set(row.id, n);
+          sum += 1;
+        }
       }
       countsRef.current = map;
       setTotal(sum);
-    })();
+    };
+
+    void loadSnapshot();
 
     const channel = supabase
       .channel("total-unread-realtime")
@@ -55,18 +51,30 @@ export function useTotalUnread(): number {
             if (oldRow.id) map.delete(oldRow.id);
           } else {
             const row = payload.new as Conversation;
-            map.set(row.id, row.unread_count ?? 0);
+            const n = row.unread_count ?? 0;
+            if (n > 0) {
+              map.set(row.id, n);
+            } else {
+              map.delete(row.id);
+            }
           }
-          // Recompute — cheap, conversations per user stay small.
-          let sum = 0;
-          for (const n of map.values()) if (n > 0) sum += 1;
-          setTotal(sum);
+          setTotal(map.size);
         },
       )
       .subscribe();
 
+    // Re-sync snapshot when returning to the tab after idle/sleep so
+    // any realtime events missed while disconnected are recovered.
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        void loadSnapshot();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       supabase.removeChannel(channel);
     };
   }, []);
