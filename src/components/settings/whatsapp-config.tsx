@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SettingsPanelHead } from './settings-panel-head';
 import { WhatsAppBusinessProfileCard } from './whatsapp-business-profile-card';
+import { WhatsAppFinanceCard } from './whatsapp-finance-card';
 import {
   Accordion,
   AccordionItem,
@@ -559,6 +560,9 @@ export function WhatsAppConfig() {
         {config && connectionStatus === 'connected' && (
           <WhatsAppBusinessProfileCard />
         )}
+
+        {/* Finance & API Consumption Summary Card */}
+        <WhatsAppFinanceCard />
 
         {/* API Credentials */}
         <Card>
