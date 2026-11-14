@@ -51,9 +51,12 @@ export function OptOutButtonsSettings() {
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
-        const list = Array.isArray(data?.opt_out_buttons)
+        const raw = Array.isArray(data?.opt_out_buttons)
           ? (data.opt_out_buttons as string[])
           : DEFAULT_OPT_OUT_BUTTONS;
+        const list = raw.filter(
+          (item) => typeof item === "string" && !item.startsWith("__close_"),
+        );
         const joined = list.join("\n");
         setSaved(joined);
         setText(joined);
@@ -72,9 +75,19 @@ export function OptOutButtonsSettings() {
     if (!accountId || !dirty) return;
     setSaving(true);
     const list = toList(text);
+    const { data: currentRow } = await supabase
+      .from("accounts")
+      .select("opt_out_buttons")
+      .eq("id", accountId)
+      .maybeSingle();
+    const preservedCloseMeta = Array.isArray(currentRow?.opt_out_buttons)
+      ? (currentRow.opt_out_buttons as string[]).filter(
+          (item) => typeof item === "string" && item.startsWith("__close_"),
+        )
+      : [];
     const { error } = await supabase
       .from("accounts")
-      .update({ opt_out_buttons: list })
+      .update({ opt_out_buttons: [...list, ...preservedCloseMeta] })
       .eq("id", accountId);
     setSaving(false);
     if (error) {

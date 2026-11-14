@@ -421,9 +421,9 @@ function SendListForm({
       sections: sections.map((s, i) =>
         i === sIdx
           ? {
-              ...s,
-              rows: s.rows.map((r, j) => (j === rIdx ? { ...r, ...patch } : r)),
-            }
+            ...s,
+            rows: s.rows.map((r, j) => (j === rIdx ? { ...r, ...patch } : r)),
+          }
           : s,
       ),
     });
@@ -433,16 +433,16 @@ function SendListForm({
       sections: sections.map((s, i) =>
         i === sIdx
           ? {
-              ...s,
-              rows: [
-                ...s.rows,
-                {
-                  reply_id: `row_${totalRows + 1}`,
-                  title: `Option ${totalRows + 1}`,
-                  next_node_key: "",
-                },
-              ],
-            }
+            ...s,
+            rows: [
+              ...s.rows,
+              {
+                reply_id: `row_${totalRows + 1}`,
+                title: `Option ${totalRows + 1}`,
+                next_node_key: "",
+              },
+            ],
+          }
           : s,
       ),
     });

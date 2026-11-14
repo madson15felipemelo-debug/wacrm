@@ -5,6 +5,11 @@ import { getMediaUrl, downloadMedia } from '@/lib/whatsapp/meta-api'
 import { normalizePhone } from '@/lib/whatsapp/phone-utils'
 import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { isOptOutButton, loadOptOutButtons, setOptOut } from '@/lib/contacts/opt-out'
+import {
+  isCloseAttendanceMessage,
+  loadCloseAttendanceConfig,
+} from '@/lib/contacts/close-attendance'
+import { engineSendText } from '@/lib/flows/meta-send'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
@@ -747,6 +752,59 @@ async function processMessage(
     if (optOutErr) console.error('[webhook] opt-out update failed:', optOutErr.message)
   }
 
+  const inboundText = contentText ?? message.text?.body ?? ''
+
+  // Finalização de Atendimento pelo Cliente/Devedor (ex: "Sair", "Finalizar atendimento"):
+  // Encerra qualquer execução ativa de fluxo do robô, envia a mensagem automática de
+  // encerramento configurada (se houver) e finaliza a conversa (`status = 'resolved'`).
+  const closeConfig = await loadCloseAttendanceConfig(supabaseAdmin(), accountId)
+  if (isCloseAttendanceMessage(inboundText, closeConfig.words)) {
+    const nowIso = new Date().toISOString()
+    await supabaseAdmin()
+      .from('flow_runs')
+      .update({
+        status: 'completed',
+        ended_at: nowIso,
+        end_reason: 'customer_closed_attendance',
+      })
+      .eq('account_id', accountId)
+      .eq('contact_id', contactRecord.id)
+      .eq('status', 'active')
+
+    if (closeConfig.closeMessage && closeConfig.closeMessage.trim()) {
+      try {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId: conversation.id,
+          contactId: contactRecord.id,
+          text: closeConfig.closeMessage.trim(),
+        })
+      } catch (err) {
+        console.error('[webhook] close attendance message failed:', err)
+      }
+    }
+
+    await supabaseAdmin()
+      .from('conversations')
+      .update({
+        status: 'resolved',
+        unread_count: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', conversation.id)
+
+    await dispatchWebhookEvent(supabaseAdmin(), accountId, 'message.received', {
+      conversation_id: conversation.id,
+      contact_id: contactRecord.id,
+      whatsapp_message_id: message.id,
+      content_type: contentType,
+      text: contentText,
+    })
+
+    return
+  }
+
   // ============================================================
   // Flow runner dispatch.
   //
@@ -793,7 +851,6 @@ async function processMessage(
   // message all exist before any step — including send_message — runs.
   // Fire-and-forget: a slow or failing automation must not block the
   // webhook's 200 OK response to Meta.
-  const inboundText = contentText ?? message.text?.body ?? ''
   const automationTriggers: (
     | 'new_contact_created'
     | 'first_inbound_message'

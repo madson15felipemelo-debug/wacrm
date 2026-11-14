@@ -281,10 +281,16 @@ function TriggerPanel({
 
   return (
     <section className="border-border bg-card rounded-xl border p-5 shadow-2xs">
-      <div className="mb-3.5 flex items-center justify-between">
+      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-foreground text-sm font-semibold tracking-tight">
           {t('triggerTitle')}
         </h2>
+        <a
+          href="/settings?tab=templates#close-attendance-words"
+          className="text-muted-foreground hover:text-primary text-[11px] font-medium transition-colors"
+        >
+          Palavras para finalizar atendimento (&quot;Sair&quot;, &quot;Finalizar atendimento&quot;) → Configurar
+        </a>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         <div
