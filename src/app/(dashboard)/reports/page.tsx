@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import {
@@ -12,24 +13,27 @@ import {
   type AnalyticalReportResult,
 } from "@/lib/reports/analytical-reports"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { MiniCalendarPicker } from "@/components/dashboard/mini-calendar-picker"
+import {
   FileSpreadsheet,
-  Calendar,
+  Calendar as CalendarIcon,
   Download,
   RefreshCw,
   Search,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Layers,
+  ChevronDown,
   BarChart3,
   Clock,
   FileText,
   Users,
   Briefcase,
-  Bot,
 } from "lucide-react"
-
-type DatePreset = "today" | "yesterday" | "7d" | "15d" | "30d" | "this_month" | "single_day" | "custom"
 
 function toLocalYmd(d: Date): string {
   const y = d.getFullYear()
@@ -38,33 +42,10 @@ function toLocalYmd(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-function getPresetDates(preset: DatePreset): { start: string; end: string } {
-  const now = new Date()
-  const today = toLocalYmd(now)
-
-  if (preset === "today" || preset === "single_day") {
-    return { start: today, end: today }
-  }
-  if (preset === "yesterday") {
-    const y = new Date(now.getTime() - 86400000)
-    const ymd = toLocalYmd(y)
-    return { start: ymd, end: ymd }
-  }
-  if (preset === "7d") {
-    const s = new Date(now.getTime() - 6 * 86400000)
-    return { start: toLocalYmd(s), end: today }
-  }
-  if (preset === "15d") {
-    const s = new Date(now.getTime() - 14 * 86400000)
-    return { start: toLocalYmd(s), end: today }
-  }
-  if (preset === "this_month") {
-    const first = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { start: toLocalYmd(first), end: today }
-  }
-  // Default 30d
-  const s = new Date(now.getTime() - 29 * 86400000)
-  return { start: toLocalYmd(s), end: today }
+function formatYmdBr(ymd: string): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd
+  const [y, m, d] = ymd.split("-")
+  return `${d}/${m}/${y}`
 }
 
 const BADGE_TONE_CLASSES: Record<string, string> = {
@@ -96,10 +77,21 @@ export default function ReportsPage() {
 
   // Report Selection & Filters
   const [selectedReportId, setSelectedReportId] = useState<AnalyticalReportId>("atendimentos_detalhado")
-  const [datePreset, setDatePreset] = useState<DatePreset>("30d")
-  const initialRange = useMemo(() => getPresetDates("30d"), [])
-  const [startDate, setStartDate] = useState<string>(initialRange.start)
-  const [endDate, setEndDate] = useState<string>(initialRange.end)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+
+  const initialDates = useMemo(() => {
+    const end = new Date()
+    const start = new Date(end.getTime() - 29 * 86400000)
+    return {
+      start: toLocalYmd(start),
+      end: toLocalYmd(end),
+      label: "Últimos 30 dias",
+    }
+  }, [])
+
+  const [startDate, setStartDate] = useState<string>(initialDates.start)
+  const [endDate, setEndDate] = useState<string>(initialDates.end)
+  const [dateLabel, setDateLabel] = useState<string>(initialDates.label)
   const [campaignId, setCampaignId] = useState<string>("all")
   const [operatorId, setOperatorId] = useState<string>("all")
   const [channelFilter, setChannelFilter] = useState<"all" | "human" | "bot" | "ai">("all")
@@ -171,7 +163,6 @@ export default function ReportsPage() {
         now.toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
-          second: "2-digit",
         })
       )
     } catch (err) {
@@ -184,33 +175,6 @@ export default function ReportsPage() {
   useEffect(() => {
     void fetchReport()
   }, [fetchReport])
-
-  const handlePresetSelect = (preset: DatePreset) => {
-    setDatePreset(preset)
-    if (preset !== "custom") {
-      const { start, end } = getPresetDates(preset)
-      setStartDate(start)
-      setEndDate(end)
-    }
-  }
-
-  const handleStartDateChange = (val: string) => {
-    if (!val) return
-    setStartDate(val)
-    if (datePreset === "single_day") {
-      setEndDate(val)
-    } else {
-      if (val > endDate) setEndDate(val)
-      setDatePreset("custom")
-    }
-  }
-
-  const handleEndDateChange = (val: string) => {
-    if (!val) return
-    setEndDate(val)
-    if (val < startDate) setStartDate(val)
-    setDatePreset("custom")
-  }
 
   // Client-side search across all cells of the active report
   const filteredRows = useMemo(() => {
@@ -270,35 +234,23 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* ================= TOP HEADER & 2-PART SWITCHER ================= */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-primary uppercase">
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Central de Inteligência LM Core
-            </span>
-            {lastUpdated && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                Atualizado às {lastUpdated}
-              </span>
-            )}
-          </div>
-          <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Relatórios da Operação
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Auditoria real de TME, TMR do operador, atuação Humano/Robô/IA, quem encerrou e tabulação final
+          <p className="mt-1 text-sm text-muted-foreground">
+            Auditoria analítica de tempos (TME e TMR), canais (Humano, Robô e IA), encerramentos e tabulações
           </p>
         </div>
 
-        {/* 2-Part Switcher */}
-        <div className="inline-flex items-center rounded-xl border border-border bg-muted/40 p-1 shadow-xs">
+        {/* 2-Part Switcher (Same proportion as Dashboard switcher) */}
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
           <button
             type="button"
             onClick={() => setActivePart("part1_analytical")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all cursor-pointer",
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
               activePart === "part1_analytical"
                 ? "bg-background text-foreground shadow-xs font-semibold"
                 : "text-muted-foreground hover:text-foreground"
@@ -306,16 +258,13 @@ export default function ReportsPage() {
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
             <span>Parte 1 · Relatórios Analíticos</span>
-            <span className="rounded-full bg-primary/15 px-1.5 py-0.2 text-[10px] font-bold text-primary">
-              {ANALYTICAL_REPORT_DEFINITIONS.length}
-            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActivePart("part2_executive")}
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all cursor-pointer",
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
               activePart === "part2_executive"
                 ? "bg-background text-foreground shadow-xs font-semibold"
                 : "text-muted-foreground hover:text-foreground"
@@ -330,24 +279,24 @@ export default function ReportsPage() {
       {activePart === "part1_analytical" ? (
         /* ================= PARTE 1: RELATÓRIOS ANALÍTICOS ================= */
         <div className="space-y-5">
-          {/* LUMA CONTROL PANEL: REPORT SELECTOR + DATE PICKER + FILTERS */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-xs sm:p-5">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-              {/* 1. Analytical Report Selector Dropdown */}
-              <div className="lg:col-span-4">
+          {/* LUMA ALIGNED 12-COLUMN CONTROL BAR (5 | 4 | 3 on Row 1, 3+2 | 4 | 3 on Row 2) */}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+            {/* ROW 1: Report Type (5 cols) | Date Range Popover (4 cols) | Actions (3 cols) */}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+              {/* Col 1..5: Tipo de Relatório */}
+              <div className="lg:col-span-5">
                 <label
                   htmlFor="analytical-report-select"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                  className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
                 >
-                  <Layers className="h-3.5 w-3.5 text-primary" />
-                  Tipo de Relatório Analítico
+                  Modelo de Relatório Analítico
                 </label>
                 <div className="relative">
                   <select
                     id="analytical-report-select"
                     value={selectedReportId}
                     onChange={(e) => setSelectedReportId(e.target.value as AnalyticalReportId)}
-                    className="h-10 w-full rounded-xl border border-border bg-background px-3.5 pr-9 text-sm font-semibold text-foreground shadow-2xs transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none cursor-pointer"
+                    className="h-9 w-full appearance-none rounded-lg border border-border bg-background pr-8 pl-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none cursor-pointer"
                   >
                     {groupedDefinitions.map((grp) => (
                       <optgroup key={grp.category} label={grp.categoryLabel}>
@@ -359,210 +308,190 @@ export default function ReportsPage() {
                       </optgroup>
                     ))}
                   </select>
+                  <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
 
-              {/* 2. Date Selector (Specific Date or Range) */}
-              <div className="lg:col-span-5">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    <Calendar className="h-3.5 w-3.5 text-primary" />
-                    Data / Período do Relatório
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {(
-                      [
-                        { id: "today", label: "Hoje" },
-                        { id: "yesterday", label: "Ontem" },
-                        { id: "single_day", label: "Dia único" },
-                        { id: "7d", label: "7D" },
-                        { id: "30d", label: "30D" },
-                        { id: "this_month", label: "Mês" },
-                      ] as { id: DatePreset; label: string }[]
-                    ).map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handlePresetSelect(p.id)}
-                        className={cn(
-                          "rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
-                          datePreset === p.id
-                            ? "bg-primary text-primary-foreground font-semibold"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {datePreset === "single_day" ? (
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => handleStartDateChange(e.target.value)}
-                        aria-label="Data do relatório"
-                        className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground shadow-2xs focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePresetSelect("custom")}
-                      className="h-10 shrink-0 rounded-xl border border-border bg-muted/40 px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-                    >
-                      Intervalo de datas
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[11px] font-medium text-muted-foreground">
-                        De
-                      </span>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => handleStartDateChange(e.target.value)}
-                        aria-label="Data inicial"
-                        className="h-10 w-full rounded-xl border border-border bg-background pr-2.5 pl-9 text-xs font-medium text-foreground shadow-2xs focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
-                      />
-                    </div>
-                    <div className="relative">
-                      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[11px] font-medium text-muted-foreground">
-                        Até
-                      </span>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => handleEndDateChange(e.target.value)}
-                        aria-label="Data final"
-                        className="h-10 w-full rounded-xl border border-border bg-background pr-2.5 pl-10 text-xs font-medium text-foreground shadow-2xs focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Action Buttons (Refresh + CSV Export) */}
-              <div className="flex items-end gap-2 lg:col-span-3">
-                <button
-                  type="button"
-                  onClick={() => void fetchReport()}
-                  disabled={loading}
-                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
-                  title="Atualizar dados do relatório"
-                >
-                  <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                  <span className="hidden sm:inline">Atualizar</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportCsv}
-                  disabled={loading || filteredRows.length === 0}
-                  className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-xs transition-all hover:opacity-95 disabled:opacity-50 cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Exportar Excel (CSV)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Category Pills */}
-            <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-4">
-              {ANALYTICAL_REPORT_DEFINITIONS.map((def) => {
-                const active = def.id === selectedReportId
-                return (
-                  <button
-                    key={def.id}
-                    type="button"
-                    onClick={() => setSelectedReportId(def.id)}
-                    className={cn(
-                      "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
-                      active
-                        ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
-                        : "border-border/70 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground"
-                    )}
+              {/* Col 6..9: Período / Data do Relatório */}
+              <div className="lg:col-span-4">
+                <span className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  Período / Data do Relatório
+                </span>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 cursor-pointer"
                   >
-                    {def.label}
+                    <span className="flex min-w-0 items-center gap-2 truncate">
+                      <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="font-semibold text-foreground">{dateLabel}</span>
+                      <span className="truncate font-mono text-[11px] text-muted-foreground">
+                        ({startDate === endDate
+                          ? formatYmdBr(startDate)
+                          : `${formatYmdBr(startDate)} — ${formatYmdBr(endDate)}`})
+                      </span>
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto border border-border bg-card p-3 shadow-xl"
+                    align="start"
+                  >
+                    <MiniCalendarPicker
+                      initialStart={startDate ? new Date(`${startDate}T12:00:00`) : null}
+                      initialEnd={endDate ? new Date(`${endDate}T12:00:00`) : null}
+                      onApply={(start, end, label) => {
+                        setStartDate(format(start, "yyyy-MM-dd"))
+                        setEndDate(format(end, "yyyy-MM-dd"))
+                        setDateLabel(label)
+                        setCalendarOpen(false)
+                      }}
+                      onCancel={() => setCalendarOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Col 10..12: Ações (Atualizar + Exportar CSV) */}
+              <div className="lg:col-span-3">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  <span>Ações</span>
+                  {lastUpdated && (
+                    <span className="font-mono text-[10px] font-normal lowercase">
+                      às {lastUpdated}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void fetchReport()}
+                    disabled={loading}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
+                    title="Atualizar dados"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                    <span>Atualizar</span>
                   </button>
-                )
-              })}
+
+                  <button
+                    type="button"
+                    onClick={handleExportCsv}
+                    disabled={loading || filteredRows.length === 0}
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-2xs transition-opacity hover:opacity-95 disabled:opacity-40 cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Exportar CSV</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Secondary Filter Bar: Carteira, Operador, Canal (Humano/Robô/IA), Search */}
-            <div className="mt-4 grid grid-cols-1 gap-3 border-t border-border/70 pt-4 sm:grid-cols-12">
-              <div className="sm:col-span-3">
+            {/* ROW 2: Carteira (3 cols) + Operador (2 cols) [=5] | Canal Segmented (4 cols) | Busca (3 cols) */}
+            <div className="mt-3 grid grid-cols-1 gap-3 border-t border-border/60 pt-3 lg:grid-cols-12">
+              {/* Col 1..3: Carteira */}
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="report-campaign-filter"
+                  className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  Carteira
+                </label>
                 <div className="relative">
-                  <Briefcase className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Briefcase className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <select
+                    id="report-campaign-filter"
                     value={campaignId}
                     onChange={(e) => setCampaignId(e.target.value)}
-                    aria-label="Filtrar por carteira"
-                    className="h-9 w-full rounded-lg border border-border bg-background pr-7 pl-8 text-xs font-medium text-foreground focus:border-primary focus:outline-none cursor-pointer"
+                    className="h-9 w-full appearance-none rounded-lg border border-border bg-background pr-7 pl-8 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none cursor-pointer"
                   >
-                    <option value="all">Todas as Carteiras</option>
+                    <option value="all">Todas as carteiras</option>
                     {campaigns.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
+                  <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
 
-              <div className="sm:col-span-3">
+              {/* Col 4..5: Operador */}
+              <div className="lg:col-span-2">
+                <label
+                  htmlFor="report-operator-filter"
+                  className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  Operador
+                </label>
                 <div className="relative">
-                  <Users className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Users className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <select
+                    id="report-operator-filter"
                     value={operatorId}
                     onChange={(e) => setOperatorId(e.target.value)}
-                    aria-label="Filtrar por operador"
-                    className="h-9 w-full rounded-lg border border-border bg-background pr-7 pl-8 text-xs font-medium text-foreground focus:border-primary focus:outline-none cursor-pointer"
+                    className="h-9 w-full appearance-none rounded-lg border border-border bg-background pr-7 pl-8 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none cursor-pointer"
                   >
-                    <option value="all">Todos os Operadores</option>
+                    <option value="all">Todos</option>
                     {operators.map((op) => (
                       <option key={op.id} value={op.id}>
                         {op.name}
                       </option>
                     ))}
                   </select>
+                  <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 </div>
               </div>
 
-              <div className="sm:col-span-2">
-                <div className="relative">
-                  <Bot className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <select
-                    value={channelFilter}
-                    onChange={(e) =>
-                      setChannelFilter(e.target.value as "all" | "human" | "bot" | "ai")
-                    }
-                    aria-label="Filtrar por canal de atendimento"
-                    className="h-9 w-full rounded-lg border border-border bg-background pr-6 pl-8 text-xs font-medium text-foreground focus:border-primary focus:outline-none cursor-pointer"
-                  >
-                    <option value="all">Todos os Canais</option>
-                    <option value="human">Com Agente Humano</option>
-                    <option value="bot">Com Robô (Fluxo)</option>
-                    <option value="ai">Com Agente de IA</option>
-                  </select>
+              {/* Col 6..9: Canal de Atuação (Segmented Control identical to Dashboard) */}
+              <div className="lg:col-span-4">
+                <span className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  Canal de Atuação
+                </span>
+                <div className="grid h-9 grid-cols-4 items-center rounded-lg border border-border bg-muted/30 p-0.5 text-xs">
+                  {(
+                    [
+                      { id: "all", label: "Todos" },
+                      { id: "human", label: "Humano" },
+                      { id: "bot", label: "Robô" },
+                      { id: "ai", label: "Agente IA" },
+                    ] as const
+                  ).map((ch) => (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => setChannelFilter(ch.id)}
+                      className={cn(
+                        "h-full rounded-md font-medium transition-all cursor-pointer",
+                        channelFilter === ch.id
+                          ? "bg-background text-foreground shadow-2xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {ch.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="sm:col-span-4">
+              {/* Col 10..12: Busca Rápida */}
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="report-table-search"
+                  className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  Busca Rápida
+                </label>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
+                    id="report-table-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value)
                       setCurrentPage(1)
                     }}
-                    placeholder="Buscar por devedor, telefone, CPF, tabulação, operador..."
+                    placeholder="Devedor, telefone, CPF, tabulação..."
                     className="h-9 w-full rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -570,39 +499,46 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* ACTIVE REPORT HEADER BANNER + SUMMARY KPI STRIP */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(reportData?.summary ?? []).map((item, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  "flex flex-col justify-between rounded-xl border p-4 shadow-2xs",
-                  SUMMARY_TONE_CLASSES[item.tone || "default"]
-                )}
-              >
-                <span className="text-xs font-medium text-muted-foreground">
-                  {item.label}
-                </span>
-                <div className="mt-1.5 flex items-baseline justify-between gap-2">
-                  <span className="text-2xl font-bold tracking-tight text-foreground">
-                    {loading ? "—" : item.value}
-                  </span>
-                  {item.sublabel && !loading && (
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {item.sublabel}
-                    </span>
+          {/* ACTIVE REPORT SUMMARY KPI STRIP */}
+          {reportData && reportData.summary.length > 0 && (
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                reportData.summary.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"
+              )}
+            >
+              {reportData.summary.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "flex flex-col justify-between rounded-xl border p-4 shadow-2xs",
+                    SUMMARY_TONE_CLASSES[item.tone || "default"]
                   )}
+                >
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {item.label}
+                  </span>
+                  <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                    <span className="text-2xl font-bold tracking-tight text-foreground">
+                      {loading ? "—" : item.value}
+                    </span>
+                    {item.sublabel && !loading && (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {item.sublabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* ANALYTICAL DATA TABLE CARD */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {/* Table Header Strip */}
             <div className="flex flex-col gap-2 border-b border-border bg-muted/20 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-bold text-foreground">
                     {activeDefinition.label}
                   </h2>
@@ -615,9 +551,9 @@ export default function ReportsPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
                 <span>
-                  Registros encontrados:{" "}
+                  Registros:{" "}
                   <strong className="font-semibold text-foreground">
                     {loading ? "..." : filteredRows.length}
                   </strong>
@@ -629,7 +565,7 @@ export default function ReportsPage() {
                     setCurrentPage(1)
                   }}
                   aria-label="Registros por página"
-                  className="h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                  className="h-8 rounded-md border border-border bg-background px-2 text-xs font-medium text-foreground cursor-pointer"
                 >
                   <option value={25}>25 / pág</option>
                   <option value={50}>50 / pág</option>
@@ -691,7 +627,7 @@ export default function ReportsPage() {
                             Nenhum registro encontrado neste período
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Altere o intervalo de datas acima ou selecione outro relatório analítico para consultar os registros salvos no banco.
+                            Altere o período no calendário acima ou selecione outro modelo de relatório analítico.
                           </p>
                         </div>
                       </td>
@@ -827,8 +763,8 @@ export default function ReportsPage() {
         </div>
       ) : (
         /* ================= PARTE 2: VISÃO GERENCIAL (ESTRUTURA PRONTA P/ ETAPA 2) ================= */
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-xs">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
+        <div className="rounded-xl border border-border bg-card p-8 text-center shadow-xs">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
             <BarChart3 className="h-6 w-6" />
           </div>
           <h2 className="mt-4 text-lg font-bold text-foreground">
@@ -841,7 +777,7 @@ export default function ReportsPage() {
             <button
               type="button"
               onClick={() => setActivePart("part1_analytical")}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-opacity hover:opacity-95 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-opacity hover:opacity-95 cursor-pointer"
             >
               <FileSpreadsheet className="h-4 w-4" />
               Voltar para Parte 1 · Relatórios Analíticos
