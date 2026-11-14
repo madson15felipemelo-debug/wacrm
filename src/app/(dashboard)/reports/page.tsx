@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { MiniCalendarPicker } from "@/components/dashboard/mini-calendar-picker"
+import { ExecutiveReportsView } from "@/components/reports/executive-reports-view"
 import {
   FileSpreadsheet,
   Calendar as CalendarIcon,
@@ -762,28 +763,20 @@ export default function ReportsPage() {
           </div>
         </div>
       ) : (
-        /* ================= PARTE 2: VISÃO GERENCIAL (ESTRUTURA PRONTA P/ ETAPA 2) ================= */
-        <div className="rounded-xl border border-border bg-card p-8 text-center shadow-xs">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
-            <BarChart3 className="h-6 w-6" />
-          </div>
-          <h2 className="mt-4 text-lg font-bold text-foreground">
-            Parte 2 · Relatórios Gerenciais & Consolidados
-          </h2>
-          <p className="mx-auto mt-1.5 max-w-lg text-sm text-muted-foreground">
-            A estrutura da Parte 2 já está reservada aqui no módulo de Relatórios para receber a segunda etapa conforme a sua definição.
-          </p>
-          <div className="mt-5">
-            <button
-              type="button"
-              onClick={() => setActivePart("part1_analytical")}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-opacity hover:opacity-95 cursor-pointer"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Voltar para Parte 1 · Relatórios Analíticos
-            </button>
-          </div>
-        </div>
+        /* ================= PARTE 2: VISÃO GERENCIAL & ESTRATÉGICA ================= */
+        <ExecutiveReportsView
+          startDate={startDate}
+          endDate={endDate}
+          dateLabel={dateLabel}
+          onDateChange={(s, e, lbl) => {
+            setStartDate(s)
+            setEndDate(e)
+            setDateLabel(lbl)
+          }}
+          campaignId={campaignId}
+          onCampaignChange={setCampaignId}
+          campaigns={campaigns}
+        />
       )}
     </div>
   )
