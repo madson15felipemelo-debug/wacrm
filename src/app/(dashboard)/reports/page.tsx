@@ -258,7 +258,7 @@ export default function ReportsPage() {
             )}
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
-            <span>Parte 1 · Relatórios Analíticos</span>
+            <span>Relatórios Analíticos</span>
           </button>
 
           <button
@@ -272,7 +272,7 @@ export default function ReportsPage() {
             )}
           >
             <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Parte 2 · Relatórios Gerenciais</span>
+            <span>Relatórios Gerenciais</span>
           </button>
         </div>
       </div>
