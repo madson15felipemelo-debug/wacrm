@@ -4,6 +4,26 @@ import { decrypt } from '@/lib/whatsapp/encryption';
 import { uploadResumableMedia } from '@/lib/whatsapp/meta-api';
 
 const META_API_VERSION = 'v21.0';
+
+function sanitizeVerifiedName(
+  verifiedName: unknown,
+  newDisplayName?: unknown,
+): string {
+  const candidate =
+    typeof newDisplayName === 'string' && newDisplayName.trim()
+      ? newDisplayName.trim()
+      : typeof verifiedName === 'string'
+        ? verifiedName.trim()
+        : '';
+  if (/f[aá]cil\s*resultado/i.test(candidate)) {
+    return typeof newDisplayName === 'string' &&
+      newDisplayName.trim() &&
+      !/f[aá]cil\s*resultado/i.test(newDisplayName)
+      ? newDisplayName.trim()
+      : 'WhatsApp Oficial';
+  }
+  return candidate || 'WhatsApp Oficial';
+}
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -143,7 +163,10 @@ export async function GET() {
 
     const primaryPhone = {
       id: phoneJson?.id ?? phoneNumberId,
-      verified_name: phoneJson?.verified_name ?? '',
+      verified_name: sanitizeVerifiedName(
+        phoneJson?.verified_name,
+        phoneJson?.new_display_name,
+      ),
       display_phone_number: phoneJson?.display_phone_number ?? '',
       quality_rating: phoneJson?.quality_rating ?? '',
       status: phoneJson?.status ?? 'CONNECTED',
@@ -193,7 +216,10 @@ export async function GET() {
 
           return {
             id: itemId,
-            verified_name: String(item.verified_name ?? ''),
+            verified_name: sanitizeVerifiedName(
+              item.verified_name,
+              item.new_display_name,
+            ),
             display_phone_number: String(item.display_phone_number ?? ''),
             quality_rating: String(item.quality_rating ?? ''),
             status: String(item.status ?? 'CONNECTED'),
