@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatCurrency } from '@/lib/currency'
@@ -20,6 +21,7 @@ import {
   Flame,
   CalendarCheck,
   Activity,
+  FileSpreadsheet,
 } from 'lucide-react'
 
 import {
@@ -265,32 +267,42 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
-          <button
-            type="button"
-            onClick={() => setViewMode('operational')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
-              viewMode === 'operational'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+        {/* View Mode Switcher & Reports Link */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/reports"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary shadow-2xs transition-colors hover:bg-primary/20"
           >
-            Operações & Cobrança
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('pipeline')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
-              viewMode === 'pipeline'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Pipeline & Vendas
-          </button>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Relatórios Analíticos
+          </Link>
+
+          <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('operational')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
+                viewMode === 'operational'
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Operações & Cobrança
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('pipeline')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
+                viewMode === 'pipeline'
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Pipeline & Vendas
+            </button>
+          </div>
         </div>
       </div>
 

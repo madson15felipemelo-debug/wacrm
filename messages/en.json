@@ -17,6 +17,7 @@
   "Sidebar": {
     "title": "LM Core",
     "dashboard": "Dashboard",
+    "reports": "Reports",
     "inbox": "Inbox",
     "notifications": "Notifications",
     "contacts": "Contacts",
@@ -45,6 +46,7 @@
   },
   "Header": {
     "dashboard": "Dashboard",
+    "reports": "Reports",
     "inbox": "Inbox",
     "notifications": "Notifications",
     "contacts": "Contacts",
