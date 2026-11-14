@@ -5,6 +5,20 @@ import { decrypt } from '@/lib/whatsapp/encryption'
 const META_API_VERSION = 'v21.0'
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
 
+export interface MetaCategoryBreakdown {
+  marketingCost: number
+  marketingCount: number
+  utilityCost: number
+  utilityCount: number
+  authenticationCost: number
+  authenticationCount: number
+  serviceCost: number
+  serviceCount: number
+  freeTierCount: number
+  totalOfficialCost: number
+  totalOfficialConversations: number
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -43,7 +57,6 @@ export async function GET(request: NextRequest) {
       recipsRes,
       messagesRes,
       convsRes,
-      templatesRes,
       profileRes,
     ] = await Promise.all([
       supabase
@@ -66,7 +79,6 @@ export async function GET(request: NextRequest) {
         .select('id, created_at, updated_at')
         .gte('updated_at', startIso)
         .lte('updated_at', endIso),
-      supabase.from('message_templates').select('name, category'),
       supabase
         .from('profiles')
         .select('account_id')
@@ -78,7 +90,6 @@ export async function GET(request: NextRequest) {
     const recips = (recipsRes.data ?? []) as any[]
     const msgs = (messagesRes.data ?? []) as any[]
     const convs = (convsRes.data ?? []) as any[]
-    void templatesRes
 
     // 1. Disparos em massa (Broadcasts entregues/enviados)
     const broadcastSentFromBatches = broadcasts.reduce(
@@ -122,9 +133,23 @@ export async function GET(request: NextRequest) {
     const totalInteractionsCount = humanInteractionMsgs + botAndAiInteractionMsgs
     const activeConversationsCount = convs.length
 
-    // Optional: try fetching official Meta WABA conversation_analytics if waba_id is configured
-    let metaOfficialCostUsd: number | null = null
-    let metaOfficialConversations: number | null = null
+    // 4. Query Official Meta WABA Billing (`currency` + `conversation_analytics` with category dimensions)
+    let metaConnected = false
+    let metaCurrency = 'BRL'
+    let metaError: string | null = null
+    const metaBreakdown: MetaCategoryBreakdown = {
+      marketingCost: 0,
+      marketingCount: 0,
+      utilityCost: 0,
+      utilityCount: 0,
+      authenticationCost: 0,
+      authenticationCount: 0,
+      serviceCost: 0,
+      serviceCount: 0,
+      freeTierCount: 0,
+      totalOfficialCost: 0,
+      totalOfficialConversations: 0,
+    }
 
     if (profileRes.data?.account_id) {
       const { data: waConfig } = await supabase
@@ -138,29 +163,65 @@ export async function GET(request: NextRequest) {
           const token = decrypt(waConfig.access_token)
           const startUnix = Math.floor(startDate.getTime() / 1000)
           const endUnix = Math.floor(now.getTime() / 1000)
-          const url = `${META_API_BASE}/${waConfig.waba_id}?fields=conversation_analytics.start(${startUnix}).end(${endUnix}).granularity(DAILY)`
+
+          const fields = encodeURIComponent(
+            `currency,conversation_analytics.start(${startUnix}).end(${endUnix}).granularity(DAILY).dimensions(["CONVERSATION_CATEGORY","CONVERSATION_TYPE"])`
+          )
+          const url = `${META_API_BASE}/${waConfig.waba_id}?fields=${fields}`
+
           const metaRes = await fetch(url, {
             headers: { Authorization: `Bearer ${token}` },
             cache: 'no-store',
           })
+
+          const metaJson = await metaRes.json().catch(() => ({}))
+
           if (metaRes.ok) {
-            const metaJson = await metaRes.json()
+            metaConnected = true
+            if (typeof metaJson?.currency === 'string' && metaJson.currency) {
+              metaCurrency = metaJson.currency.toUpperCase()
+            }
+
             const points: any[] =
               metaJson?.conversation_analytics?.data?.[0]?.data_points ?? []
-            if (points.length > 0) {
-              metaOfficialCostUsd = points.reduce(
-                (acc, p) => acc + Number(p.cost || 0),
-                0
-              )
-              metaOfficialConversations = points.reduce(
-                (acc, p) => acc + Number(p.conversation || 0),
-                0
-              )
+
+            for (const pt of points) {
+              const cost = Number(pt.cost || 0)
+              const count = Number(pt.conversation || 0)
+              const cat = String(pt.conversation_category || '').toUpperCase()
+              const cType = String(pt.conversation_type || '').toUpperCase()
+
+              metaBreakdown.totalOfficialCost += cost
+              metaBreakdown.totalOfficialConversations += count
+
+              if (cType === 'FREE_TIER' || cType === 'FREE_ENTRY_POINT') {
+                metaBreakdown.freeTierCount += count
+              }
+
+              if (cat === 'MARKETING') {
+                metaBreakdown.marketingCost += cost
+                metaBreakdown.marketingCount += count
+              } else if (cat === 'UTILITY') {
+                metaBreakdown.utilityCost += cost
+                metaBreakdown.utilityCount += count
+              } else if (cat === 'AUTHENTICATION') {
+                metaBreakdown.authenticationCost += cost
+                metaBreakdown.authenticationCount += count
+              } else if (cat === 'SERVICE') {
+                metaBreakdown.serviceCost += cost
+                metaBreakdown.serviceCount += count
+              }
             }
+          } else {
+            metaError =
+              metaJson?.error?.message ||
+              'Token sem permissão de leitura financeira (whatsapp_business_management) ou WABA sem dados no período.'
           }
-        } catch {
-          // Ignore if token lacks billing analytics scope; fallback to DB telemetry
+        } catch (e) {
+          metaError = e instanceof Error ? e.message : 'Erro ao consultar faturamento na Meta'
         }
+      } else {
+        metaError = 'Preencha o WABA ID nas credenciais abaixo para sincronizar os custos direto da Meta.'
       }
     }
 
@@ -180,8 +241,10 @@ export async function GET(request: NextRequest) {
         failedNotBilled: failedCount,
       },
       metaOfficial: {
-        costUsd: metaOfficialCostUsd,
-        conversationsCount: metaOfficialConversations,
+        connected: metaConnected,
+        currency: metaCurrency,
+        error: metaError,
+        breakdown: metaBreakdown,
       },
     })
   } catch (err) {

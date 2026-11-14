@@ -7,11 +7,28 @@ import {
   MessageSquare,
   SlidersHorizontal,
   RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 type FinancePeriod = 'today' | '7d' | 'month' | '30d'
+type CostSourceMode = 'meta' | 'local'
+
+interface MetaCategoryBreakdown {
+  marketingCost: number
+  marketingCount: number
+  utilityCost: number
+  utilityCount: number
+  authenticationCost: number
+  authenticationCount: number
+  serviceCost: number
+  serviceCount: number
+  freeTierCount: number
+  totalOfficialCost: number
+  totalOfficialConversations: number
+}
 
 interface FinanceApiPayload {
   period: FinancePeriod
@@ -29,18 +46,27 @@ interface FinanceApiPayload {
     failedNotBilled: number
   }
   metaOfficial?: {
-    costUsd: number | null
-    conversationsCount: number | null
+    connected: boolean
+    currency: string
+    error: string | null
+    breakdown: MetaCategoryBreakdown
   }
 }
 
 const STORAGE_RATES_KEY = 'luma_wa_finance_rates_v1'
 
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value || 0)
+function formatCurrency(value: number, currency = 'BRL'): string {
+  try {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: currency || 'BRL',
+    }).format(value || 0)
+  } catch {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value || 0)
+  }
 }
 
 function formatInt(value: number): string {
@@ -52,8 +78,9 @@ export function WhatsAppFinanceCard() {
   const [data, setData] = useState<FinanceApiPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRatesEditor, setShowRatesEditor] = useState(false)
+  const [sourceMode, setSourceMode] = useState<CostSourceMode>('meta')
 
-  // Editable unit rates (BRL) persisted locally so the user can match their exact Meta tier/invoice
+  // Editable unit rates (BRL) for the local simulator / fallback
   const [disparoRate, setDisparoRate] = useState<number>(0.25)
   const [interactionRate, setInteractionRate] = useState<number>(0.05)
 
@@ -97,6 +124,11 @@ export function WhatsAppFinanceCard() {
       if (res.ok) {
         const json = (await res.json()) as FinanceApiPayload
         setData(json)
+        if (json.metaOfficial?.connected) {
+          setSourceMode('meta')
+        } else {
+          setSourceMode('local')
+        }
       }
     } catch (err) {
       console.error('[whatsapp-finance-card] fetch error:', err)
@@ -108,6 +140,12 @@ export function WhatsAppFinanceCard() {
   useEffect(() => {
     void fetchFinance(period)
   }, [period, fetchFinance])
+
+  const metaConnected = Boolean(data?.metaOfficial?.connected)
+  const activeCurrency =
+    sourceMode === 'meta' && metaConnected
+      ? data?.metaOfficial?.currency || 'BRL'
+      : 'BRL'
 
   const breakdown = useMemo(() => {
     const counts = data?.counts ?? {
@@ -122,6 +160,99 @@ export function WhatsAppFinanceCard() {
       failedNotBilled: 0,
     }
 
+    const meta = data?.metaOfficial?.breakdown
+
+    // Official Meta WABA mode
+    if (sourceMode === 'meta' && metaConnected && meta) {
+      const totalDisparosCost =
+        meta.utilityCost + meta.marketingCost + meta.authenticationCost
+      const totalDisparosQty =
+        meta.utilityCount + meta.marketingCount + meta.authenticationCount
+
+      const totalInteractionsCost = meta.serviceCost
+      const totalInteractionsQty = meta.serviceCount
+
+      const totalCost = meta.totalOfficialCost
+      const totalBillableQty = meta.totalOfficialConversations
+
+      const pct = (val: number) =>
+        totalCost > 0 ? Math.round((val / totalCost) * 1000) / 10 : 0
+
+      const rows = [
+        {
+          id: 'meta_utility',
+          label: 'Disparos de Utilidade / Cobrança (Meta UTILITY)',
+          sublabel: `CRM registrou ${formatInt(counts.broadcastDisparos)} em lote + ${formatInt(counts.individualTemplates)} individuais`,
+          categoryBadge: 'Disparo',
+          badgeClass: 'border-primary/30 bg-primary/10 text-primary',
+          qty: meta.utilityCount,
+          unitRate: meta.utilityCount > 0 ? meta.utilityCost / meta.utilityCount : null,
+          cost: meta.utilityCost,
+        },
+        {
+          id: 'meta_marketing',
+          label: 'Disparos de Marketing / Campanhas (Meta MARKETING)',
+          sublabel: 'Abertura ativa de conversas promocionais ou reengajamento',
+          categoryBadge: 'Disparo',
+          badgeClass: 'border-primary/30 bg-primary/10 text-primary',
+          qty: meta.marketingCount,
+          unitRate:
+            meta.marketingCount > 0 ? meta.marketingCost / meta.marketingCount : null,
+          cost: meta.marketingCost,
+        },
+        ...(meta.authenticationCount > 0 || meta.authenticationCost > 0
+          ? [
+              {
+                id: 'meta_auth',
+                label: 'Templates de Autenticação (Meta AUTHENTICATION)',
+                sublabel: 'Códigos e validações de segurança',
+                categoryBadge: 'Disparo',
+                badgeClass: 'border-primary/30 bg-primary/10 text-primary',
+                qty: meta.authenticationCount,
+                unitRate:
+                  meta.authenticationCount > 0
+                    ? meta.authenticationCost / meta.authenticationCount
+                    : null,
+                cost: meta.authenticationCost,
+              },
+            ]
+          : []),
+        {
+          id: 'meta_service',
+          label: 'Interações de Atendimento / Serviço (Meta SERVICE)',
+          sublabel: `CRM: ${formatInt(counts.humanInteractions)} msgs humano + ${formatInt(counts.botAiInteractions)} msgs Robô/IA`,
+          categoryBadge: 'Interação',
+          badgeClass: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+          qty: meta.serviceCount,
+          unitRate: meta.serviceCount > 0 ? meta.serviceCost / meta.serviceCount : null,
+          cost: meta.serviceCost,
+        },
+        {
+          id: 'meta_free_tier',
+          label: 'Janela Gratuita 24h / Mensagens Isentas (FREE TIER)',
+          sublabel: `${formatInt(counts.failedNotBilled)} falhas não cobradas no período`,
+          categoryBadge: 'Isento',
+          badgeClass: 'border-border bg-muted/60 text-muted-foreground',
+          qty: meta.freeTierCount,
+          unitRate: 0,
+          cost: 0,
+        },
+      ]
+
+      return {
+        totalCost,
+        totalDisparosCost,
+        totalInteractionsCost,
+        totalDisparosQty,
+        totalInteractionsQty,
+        totalBillableQty,
+        disparosSharePct: pct(totalDisparosCost),
+        interactionsSharePct: pct(totalInteractionsCost),
+        rows,
+      }
+    }
+
+    // Local CRM tariff calculation mode
     const broadcastCost = counts.broadcastDisparos * disparoRate
     const templateIndCost = counts.individualTemplates * disparoRate
     const totalDisparosCost = broadcastCost + templateIndCost
@@ -138,52 +269,52 @@ export function WhatsAppFinanceCard() {
       {
         id: 'broadcast',
         label: 'Disparos em Massa (Broadcasts entregues)',
+        sublabel: 'Campanhas disparadas no módulo de Disparos',
         categoryBadge: 'Disparo',
         badgeClass: 'border-primary/30 bg-primary/10 text-primary',
         qty: counts.broadcastDisparos,
-        unitRate: disparoRate,
+        unitRate: disparoRate as number | null,
         cost: broadcastCost,
-        sharePct: pct(broadcastCost),
       },
       {
         id: 'individual_template',
         label: 'Templates Individuais (Abertura de conversa)',
+        sublabel: 'Templates enviados individualmente pelos operadores',
         categoryBadge: 'Disparo',
         badgeClass: 'border-primary/30 bg-primary/10 text-primary',
         qty: counts.individualTemplates,
-        unitRate: disparoRate,
+        unitRate: disparoRate as number | null,
         cost: templateIndCost,
-        sharePct: pct(templateIndCost),
       },
       {
         id: 'human_interaction',
         label: 'Interações de Operador Humano',
+        sublabel: 'Mensagens enviadas pela equipe na Inbox',
         categoryBadge: 'Interação',
         badgeClass: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
         qty: counts.humanInteractions,
-        unitRate: interactionRate,
+        unitRate: interactionRate as number | null,
         cost: humanIntCost,
-        sharePct: pct(humanIntCost),
       },
       {
         id: 'bot_ai_interaction',
         label: 'Interações de Robô (Fluxo) e Agente de IA',
+        sublabel: 'Respostas automáticas de triagem e negociação IA',
         categoryBadge: 'Interação',
         badgeClass: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
         qty: counts.botAiInteractions,
-        unitRate: interactionRate,
+        unitRate: interactionRate as number | null,
         cost: botAiIntCost,
-        sharePct: pct(botAiIntCost),
       },
       {
         id: 'failed_exempt',
         label: 'Falhas / Não Entregues (Isentos de cobrança)',
+        sublabel: 'Erros de entrega não faturados pela Meta',
         categoryBadge: 'Isento',
         badgeClass: 'border-border bg-muted/60 text-muted-foreground',
         qty: counts.failedNotBilled,
-        unitRate: 0,
+        unitRate: 0 as number | null,
         cost: 0,
-        sharePct: 0,
       },
     ]
 
@@ -198,25 +329,74 @@ export function WhatsAppFinanceCard() {
       interactionsSharePct: pct(totalInteractionsCost),
       rows,
     }
-  }, [data, disparoRate, interactionRate])
+  }, [data, sourceMode, metaConnected, disparoRate, interactionRate])
 
   return (
     <Card className="border-border bg-card shadow-xs">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base text-foreground">
-              <span className="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">
-                <DollarSign className="h-3.5 w-3.5" />
-              </span>
-              Finanças & Consumo do WhatsApp
-            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">
+                  <DollarSign className="h-3.5 w-3.5" />
+                </span>
+                Finanças & Consumo do WhatsApp
+              </CardTitle>
+
+              {!loading &&
+                (metaConnected ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Oficial Meta API ({data?.metaOfficial?.currency || 'BRL'})
+                  </span>
+                ) : (
+                  <span
+                    title={data?.metaOfficial?.error || 'Usando cálculo por tarifa local'}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                  >
+                    <AlertCircle className="h-3 w-3" />
+                    Estimativa por Tarifa Local
+                  </span>
+                ))}
+            </div>
             <CardDescription className="mt-0.5 text-xs text-muted-foreground">
-              Controle de gastos separado entre disparos de templates e interações de atendimento.
+              {metaConnected && sourceMode === 'meta'
+                ? 'Valores oficiais faturados pela Meta (WABA conversation_analytics) separados entre disparos e interações.'
+                : 'Controle de gastos separado entre disparos de templates e interações de atendimento.'}
             </CardDescription>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            {metaConnected && (
+              <div className="inline-flex items-center rounded-lg border border-border bg-muted/30 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setSourceMode('meta')}
+                  className={cn(
+                    'rounded-md px-2 py-1 font-medium transition-all cursor-pointer',
+                    sourceMode === 'meta'
+                      ? 'bg-background text-foreground shadow-2xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Meta Oficial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceMode('local')}
+                  className={cn(
+                    'rounded-md px-2 py-1 font-medium transition-all cursor-pointer',
+                    sourceMode === 'local'
+                      ? 'bg-background text-foreground shadow-2xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Simulador CRM
+                </button>
+              </div>
+            )}
+
             <div className="inline-flex items-center rounded-lg border border-border bg-muted/30 p-0.5 text-[11px]">
               {(
                 [
@@ -244,8 +424,11 @@ export function WhatsAppFinanceCard() {
 
             <button
               type="button"
-              onClick={() => setShowRatesEditor((v) => !v)}
-              title="Ajustar tarifas unitárias"
+              onClick={() => {
+                setShowRatesEditor((v) => !v)
+                if (!showRatesEditor) setSourceMode('local')
+              }}
+              title="Ajustar tarifas unitárias do simulador"
               className={cn(
                 'inline-flex h-7 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-medium transition-colors cursor-pointer',
                 showRatesEditor
@@ -324,10 +507,12 @@ export function WhatsAppFinanceCard() {
               Gasto Total no Período
             </span>
             <p className="mt-1 font-mono text-lg font-bold tracking-tight text-foreground">
-              {loading ? '—' : formatBRL(breakdown.totalCost)}
+              {loading ? '—' : formatCurrency(breakdown.totalCost, activeCurrency)}
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {loading ? '...' : `${formatInt(breakdown.totalBillableQty)} envios contabilizados`}
+              {loading
+                ? '...'
+                : `${formatInt(breakdown.totalBillableQty)} conversas/envios contabilizados`}
             </p>
           </div>
 
@@ -340,7 +525,7 @@ export function WhatsAppFinanceCard() {
               <Send className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="mt-1 font-mono text-lg font-bold tracking-tight text-foreground">
-              {loading ? '—' : formatBRL(breakdown.totalDisparosCost)}
+              {loading ? '—' : formatCurrency(breakdown.totalDisparosCost, activeCurrency)}
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {loading
@@ -358,7 +543,9 @@ export function WhatsAppFinanceCard() {
               <MessageSquare className="h-3.5 w-3.5 text-sky-500" />
             </div>
             <p className="mt-1 font-mono text-lg font-bold tracking-tight text-foreground">
-              {loading ? '—' : formatBRL(breakdown.totalInteractionsCost)}
+              {loading
+                ? '—'
+                : formatCurrency(breakdown.totalInteractionsCost, activeCurrency)}
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {loading
@@ -384,8 +571,11 @@ export function WhatsAppFinanceCard() {
               <tbody className="divide-y divide-border/60">
                 {breakdown.rows.map((r) => (
                   <tr key={r.id} className="hover:bg-muted/20">
-                    <td className="px-3.5 py-2.5 font-medium text-foreground">
-                      {r.label}
+                    <td className="px-3.5 py-2.5">
+                      <div className="font-medium text-foreground">{r.label}</div>
+                      {r.sublabel && (
+                        <div className="text-[10px] text-muted-foreground">{r.sublabel}</div>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <span
@@ -401,10 +591,14 @@ export function WhatsAppFinanceCard() {
                       {loading ? '—' : formatInt(r.qty)}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono text-[11px] text-muted-foreground">
-                      {r.unitRate > 0 ? formatBRL(r.unitRate) : 'Isento'}
+                      {r.unitRate === null
+                        ? '—'
+                        : r.unitRate > 0
+                          ? formatCurrency(r.unitRate, activeCurrency)
+                          : 'Isento'}
                     </td>
                     <td className="px-3.5 py-2.5 text-right font-mono text-xs font-bold text-foreground">
-                      {loading ? '—' : formatBRL(r.cost)}
+                      {loading ? '—' : formatCurrency(r.cost, activeCurrency)}
                     </td>
                   </tr>
                 ))}
@@ -421,7 +615,7 @@ export function WhatsAppFinanceCard() {
                     100%
                   </td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs font-bold text-primary">
-                    {loading ? '—' : formatBRL(breakdown.totalCost)}
+                    {loading ? '—' : formatCurrency(breakdown.totalCost, activeCurrency)}
                   </td>
                 </tr>
               </tfoot>
