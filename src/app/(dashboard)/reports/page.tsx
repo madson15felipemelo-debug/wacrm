@@ -18,18 +18,15 @@ import {
   RefreshCw,
   Search,
   ExternalLink,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Layers,
   BarChart3,
-  CheckCircle2,
-  AlertTriangle,
   Clock,
   FileText,
-  Sparkles,
   Users,
   Briefcase,
+  Bot,
 } from "lucide-react"
 
 type DatePreset = "today" | "yesterday" | "7d" | "15d" | "30d" | "this_month" | "single_day" | "custom"
@@ -98,13 +95,14 @@ export default function ReportsPage() {
   const [activePart, setActivePart] = useState<"part1_analytical" | "part2_executive">("part1_analytical")
 
   // Report Selection & Filters
-  const [selectedReportId, setSelectedReportId] = useState<AnalyticalReportId>("envios_analiticos")
+  const [selectedReportId, setSelectedReportId] = useState<AnalyticalReportId>("atendimentos_detalhado")
   const [datePreset, setDatePreset] = useState<DatePreset>("30d")
   const initialRange = useMemo(() => getPresetDates("30d"), [])
   const [startDate, setStartDate] = useState<string>(initialRange.start)
   const [endDate, setEndDate] = useState<string>(initialRange.end)
   const [campaignId, setCampaignId] = useState<string>("all")
   const [operatorId, setOperatorId] = useState<string>("all")
+  const [channelFilter, setChannelFilter] = useState<"all" | "human" | "bot" | "ai">("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
 
   // Filter Option Lists
@@ -153,7 +151,7 @@ export default function ReportsPage() {
       .catch((err) => console.error("[reports] filter options load error:", err))
   }, [])
 
-  // Fetch analytical report whenever report type, date range, campaign, or operator changes
+  // Fetch analytical report whenever report type, date range, campaign, operator, or channel changes
   const fetchReport = useCallback(async () => {
     setLoading(true)
     try {
@@ -164,6 +162,7 @@ export default function ReportsPage() {
         endDate,
         campaignId,
         operatorId,
+        channelFilter,
       })
       setReportData(res)
       setCurrentPage(1)
@@ -180,7 +179,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedReportId, startDate, endDate, campaignId, operatorId])
+  }, [selectedReportId, startDate, endDate, campaignId, operatorId, channelFilter])
 
   useEffect(() => {
     void fetchReport()
@@ -257,9 +256,9 @@ export default function ReportsPage() {
       categoryLabel: string
       items: typeof ANALYTICAL_REPORT_DEFINITIONS
     }[] = [
-      { category: "disparos", categoryLabel: "Disparos & Entregas", items: [] },
-      { category: "respostas", categoryLabel: "Respostas & Comportamento do Cliente", items: [] },
-      { category: "negociacao", categoryLabel: "Negociação, Funil & Operação", items: [] },
+      { category: "atendimento", categoryLabel: "Atendimento, Tempos (TME/TMR) & Operadores", items: [] },
+      { category: "canais_tabulacao", categoryLabel: "Canais (Robô / IA / Humano) & Tabulações", items: [] },
+      { category: "disparos_higienizacao", categoryLabel: "Disparos em Massa & Higienização de Base", items: [] },
     ]
     for (const def of ANALYTICAL_REPORT_DEFINITIONS) {
       const grp = groups.find((g) => g.category === def.category)
@@ -276,7 +275,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-primary uppercase">
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Central de Inteligência
+              Central de Inteligência LM Core
             </span>
             {lastUpdated && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -289,7 +288,7 @@ export default function ReportsPage() {
             Relatórios da Operação
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Auditoria analítica de envios, respostas, qualificação de carteira, janela 24h e produtividade
+            Auditoria real de TME, TMR do operador, atuação Humano/Robô/IA, quem encerrou e tabulação final
           </p>
         </div>
 
@@ -308,7 +307,7 @@ export default function ReportsPage() {
             <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
             <span>Parte 1 · Relatórios Analíticos</span>
             <span className="rounded-full bg-primary/15 px-1.5 py-0.2 text-[10px] font-bold text-primary">
-              15
+              {ANALYTICAL_REPORT_DEFINITIONS.length}
             </span>
           </button>
 
@@ -472,32 +471,29 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Quick Category Pills + Secondary Filters Row */}
-            <div className="mt-4 flex flex-col gap-3 border-t border-border/70 pt-4 lg:flex-row lg:items-center lg:justify-between">
-              {/* Quick Pills for the 15 reports */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {ANALYTICAL_REPORT_DEFINITIONS.map((def) => {
-                  const active = def.id === selectedReportId
-                  return (
-                    <button
-                      key={def.id}
-                      type="button"
-                      onClick={() => setSelectedReportId(def.id)}
-                      className={cn(
-                        "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
-                        active
-                          ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
-                          : "border-border/70 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground"
-                      )}
-                    >
-                      {def.label}
-                    </button>
-                  )
-                })}
-              </div>
+            {/* Quick Category Pills */}
+            <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-4">
+              {ANALYTICAL_REPORT_DEFINITIONS.map((def) => {
+                const active = def.id === selectedReportId
+                return (
+                  <button
+                    key={def.id}
+                    type="button"
+                    onClick={() => setSelectedReportId(def.id)}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                      active
+                        ? "border-primary bg-primary/10 text-primary font-semibold shadow-2xs"
+                        : "border-border/70 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    {def.label}
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Secondary Filter Bar: Carteira, Operador, Search */}
+            {/* Secondary Filter Bar: Carteira, Operador, Canal (Humano/Robô/IA), Search */}
             <div className="mt-4 grid grid-cols-1 gap-3 border-t border-border/70 pt-4 sm:grid-cols-12">
               <div className="sm:col-span-3">
                 <div className="relative">
@@ -537,7 +533,26 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="sm:col-span-6">
+              <div className="sm:col-span-2">
+                <div className="relative">
+                  <Bot className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    value={channelFilter}
+                    onChange={(e) =>
+                      setChannelFilter(e.target.value as "all" | "human" | "bot" | "ai")
+                    }
+                    aria-label="Filtrar por canal de atendimento"
+                    className="h-9 w-full rounded-lg border border-border bg-background pr-6 pl-8 text-xs font-medium text-foreground focus:border-primary focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">Todos os Canais</option>
+                    <option value="human">Com Agente Humano</option>
+                    <option value="bot">Com Robô (Fluxo)</option>
+                    <option value="ai">Com Agente de IA</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="sm:col-span-4">
                 <div className="relative">
                   <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
@@ -547,7 +562,7 @@ export default function ReportsPage() {
                       setSearchQuery(e.target.value)
                       setCurrentPage(1)
                     }}
-                    placeholder="Filtrar linhas por nome, telefone, CPF, modelo, operador ou mensagem..."
+                    placeholder="Buscar por devedor, telefone, CPF, tabulação, operador..."
                     className="h-9 w-full rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -644,7 +659,7 @@ export default function ReportsPage() {
                       </th>
                     ))}
                     <th className="whitespace-nowrap px-4 py-3 text-right">
-                      Ação
+                      Auditoria
                     </th>
                   </tr>
                 </thead>
@@ -751,7 +766,7 @@ export default function ReportsPage() {
                                 href={`/inbox?conversation=${row.conversationId}`}
                                 className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
                               >
-                                <span>Conversa</span>
+                                <span>Abrir Conversa</span>
                                 <ExternalLink className="h-3 w-3" />
                               </Link>
                             ) : (

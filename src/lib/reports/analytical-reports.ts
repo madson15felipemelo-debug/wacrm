@@ -2,33 +2,28 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatSeconds } from '@/lib/dashboard/operational-queries'
 
 export type AnalyticalReportId =
-  | 'envios_analiticos'
-  | 'envios_periodo'
-  | 'resumo_periodo'
-  | 'respondeu_sim'
-  | 'respondeu_nao'
-  | 'nao_respondeu'
-  | 'nao_reconhece'
-  | 'ameaca_exaustao'
-  | 'comprovante_recebido'
-  | 'funil_boleto'
-  | 'preventivo'
-  | 'promessa_acordo_recusa'
-  | 'janela_24h'
-  | 'producao_operador'
-  | 'nao_entregue'
+  | 'atendimentos_detalhado'
+  | 'tempos_sla_operador'
+  | 'atuacao_robo_ia_humano'
+  | 'tabulacoes_desfechos'
+  | 'auditoria_distribuicao_filas'
+  | 'disparos_analitico'
+  | 'lotes_disparos_periodo'
+  | 'retornos_agendamentos'
+  | 'janela_24h_meta'
+  | 'higienizacao_bloqueios_falhas'
 
 export interface AnalyticalReportDefinition {
   id: AnalyticalReportId
   label: string
-  category: 'disparos' | 'respostas' | 'negociacao'
+  category: 'atendimento' | 'canais_tabulacao' | 'disparos_higienizacao'
   categoryLabel: string
   description: string
   columns: {
     key: string
     label: string
     align?: 'left' | 'center' | 'right'
-    type?: 'text' | 'phone' | 'badge' | 'currency' | 'percent' | 'datetime' | 'link' | 'mono'
+    type?: 'text' | 'phone' | 'badge' | 'currency' | 'percent' | 'datetime' | 'mono'
   }[]
 }
 
@@ -43,12 +38,15 @@ export interface AnalyticalReportRow {
   id: string
   conversationId?: string
   mediaUrl?: string
-  cells: Record<string, {
-    text: string
-    raw?: string | number
-    badgeTone?: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary'
-    subtext?: string
-  }>
+  cells: Record<
+    string,
+    {
+      text: string
+      raw?: string | number
+      badgeTone?: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary'
+      subtext?: string
+    }
+  >
 }
 
 export interface AnalyticalReportResult {
@@ -64,40 +62,188 @@ export interface AnalyticalReportResult {
 export interface AnalyticalReportFilterParams {
   reportId: AnalyticalReportId
   startDate: string // YYYY-MM-DD
-  endDate: string   // YYYY-MM-DD
+  endDate: string // YYYY-MM-DD
   campaignId?: string
   operatorId?: string
+  channelFilter?: 'all' | 'human' | 'bot' | 'ai'
 }
 
 export const ANALYTICAL_REPORT_DEFINITIONS: AnalyticalReportDefinition[] = [
   {
-    id: 'envios_analiticos',
-    label: 'Envios analíticos',
-    category: 'disparos',
-    categoryLabel: 'Disparos & Entregas',
-    description: 'Detalhamento nominal disparo a disparo com status de entrega, leitura, resposta e falhas da Meta.',
+    id: 'atendimentos_detalhado',
+    label: 'Atendimentos detalhado (TME, TMR, Canal e Tabulação)',
+    category: 'atendimento',
+    categoryLabel: 'Atendimento, Tempos & Operadores',
+    description:
+      'Raio-X completo de cada conversa: tempo de espera na fila (TME), tempo médio de resposta do operador (TMR), atuação Humano/Robô/IA, quem encerrou e tabulação final.',
     columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
+      { key: 'startedAt', label: 'Início / Últ. Interação', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
       { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'batchName', label: 'Lote / Origem', type: 'text' },
-      { key: 'templateName', label: 'Modelo (Template)', type: 'mono' },
-      { key: 'status', label: 'Status Entrega', type: 'badge', align: 'center' },
-      { key: 'interactionAt', label: 'Leitura / Resposta', type: 'text' },
-      { key: 'detail', label: 'Detalhe / Retorno Meta', type: 'text' },
+      { key: 'cpfContract', label: 'CPF / Credor', type: 'mono' },
+      { key: 'campaignName', label: 'Carteira', type: 'text' },
+      { key: 'channelJourney', label: 'Atuação (Robô / IA / Humano)', type: 'badge', align: 'center' },
+      { key: 'operatorName', label: 'Operador Humano', type: 'text' },
+      { key: 'waitTimeFirstReply', label: 'Espera 1º Atend. (TME)', type: 'mono', align: 'right' },
+      { key: 'operatorTmr', label: 'TMR Operador', type: 'mono', align: 'right' },
+      { key: 'customerTmr', label: 'TMR Devedor', type: 'mono', align: 'right' },
+      { key: 'totalTma', label: 'Duração (TMA)', type: 'mono', align: 'right' },
+      { key: 'closedBy', label: 'Quem Encerrou / Situação', type: 'badge', align: 'center' },
+      { key: 'tabulation', label: 'Tabulação / Finalização', type: 'badge', align: 'center' },
+      { key: 'tabulationDetail', label: 'Nota / Detalhe Final', type: 'text' },
     ],
   },
   {
-    id: 'envios_periodo',
-    label: 'Envios do período',
-    category: 'disparos',
-    categoryLabel: 'Disparos & Entregas',
-    description: 'Desempenho consolidado por lote de disparo e templates enviados dentro do período selecionado.',
+    id: 'tempos_sla_operador',
+    label: 'Produção e tempos por operador (TME, TMR, TMA e SLA)',
+    category: 'atendimento',
+    categoryLabel: 'Atendimento, Tempos & Operadores',
+    description:
+      'Desempenho individual dos operadores humanos: tempo médio para assumir a fila (TME), tempo médio para responder o devedor (TMR), duração do atendimento (TMA), encerramentos e conversões.',
     columns: [
-      { key: 'datetime', label: 'Data de Criação', type: 'datetime' },
-      { key: 'batchName', label: 'Nome do Disparo', type: 'text' },
-      { key: 'templateName', label: 'Modelo Utilizado', type: 'mono' },
-      { key: 'status', label: 'Status do Lote', type: 'badge', align: 'center' },
+      { key: 'operatorName', label: 'Operador', type: 'text' },
+      { key: 'campaignName', label: 'Carteira Principal', type: 'text' },
+      { key: 'totalConvs', label: 'Total Atend.', type: 'mono', align: 'right' },
+      { key: 'openConvs', label: 'Em Aberto', type: 'mono', align: 'right' },
+      { key: 'closedByOperator', label: 'Encerrados', type: 'mono', align: 'right' },
+      { key: 'avgWaitTme', label: 'Espera 1ª Resp (TME)', type: 'mono', align: 'right' },
+      { key: 'avgOperatorTmr', label: 'TMR ao Devedor', type: 'mono', align: 'right' },
+      { key: 'avgTotalTma', label: 'TMA Total', type: 'mono', align: 'right' },
+      { key: 'slaCompliance', label: 'Dentro do SLA (<5m)', type: 'percent', align: 'right' },
+      { key: 'messagesSent', label: 'Msgs Enviadas', type: 'mono', align: 'right' },
+      { key: 'remindersCreated', label: 'Agendamentos', type: 'mono', align: 'right' },
+      { key: 'wonDeals', label: 'Acordos Ganhos', type: 'mono', align: 'right' },
+    ],
+  },
+  {
+    id: 'atuacao_robo_ia_humano',
+    label: 'Jornada de canais: Robô (Fluxo) vs. IA vs. Humano',
+    category: 'canais_tabulacao',
+    categoryLabel: 'Canais (Robô / IA / Humano) & Tabulações',
+    description:
+      'Auditoria de como cada atendimento percorreu o Robô de Fluxos, o Agente de IA e o Operador Humano, incluindo motivo de transbordo, resumo da IA e quem finalizou.',
+    columns: [
+      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'activeEngine', label: 'Participação nos Canais', type: 'badge', align: 'center' },
+      { key: 'msgBreakdown', label: 'Volume de Msgs (R / IA / H / C)', type: 'mono', align: 'center' },
+      { key: 'flowInfo', label: 'Fluxo / Nó do Robô', type: 'text' },
+      { key: 'aiInfo', label: 'Interações IA / Resumo Handoff', type: 'text' },
+      { key: 'handoffState', label: 'Transbordo p/ Humano', type: 'badge', align: 'center' },
+      { key: 'operatorName', label: 'Operador que Assumiu', type: 'text' },
+      { key: 'closedBy', label: 'Quem Encerrou', type: 'badge', align: 'center' },
+    ],
+  },
+  {
+    id: 'tabulacoes_desfechos',
+    label: 'Tabulações, etiquetas e desfechos de atendimento',
+    category: 'canais_tabulacao',
+    categoryLabel: 'Canais (Robô / IA / Humano) & Tabulações',
+    description:
+      'Relatório analítico das finalizações de atendimento consolidando Etiquetas (Tags), Etapa no Funil (Acordo/Promessa/Perdido), Lembretes e Notas Internas de fechamento.',
+    columns: [
+      { key: 'datetime', label: 'Data Atualização', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'cpf', label: 'CPF', type: 'mono' },
+      { key: 'primaryTabulation', label: 'Tabulação Principal', type: 'badge', align: 'center' },
+      { key: 'tagsList', label: 'Etiquetas (Tags)', type: 'text' },
+      { key: 'funnelStage', label: 'Etapa do Funil / Acordo', type: 'badge', align: 'center' },
+      { key: 'closingNote', label: 'Nota Interna / Observação', type: 'text' },
+      { key: 'campaignName', label: 'Carteira', type: 'text' },
+      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
+      { key: 'convStatus', label: 'Situação da Conversa', type: 'badge', align: 'center' },
+    ],
+  },
+  {
+    id: 'auditoria_distribuicao_filas',
+    label: 'Auditoria de distribuição, triagem de CPF e filas',
+    category: 'atendimento',
+    categoryLabel: 'Atendimento, Tempos & Operadores',
+    description:
+      'Histórico exato do motor de distribuição inteligente: CPFs consultados, carteira identificada, estratégia usada (Responsabilidade CPF, Menos Ocupado, Round-Robin) e tempo de roteamento.',
+    columns: [
+      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'cpf', label: 'CPF Triado', type: 'mono' },
+      { key: 'creditorContract', label: 'Credor / Contrato', type: 'text' },
+      { key: 'campaignName', label: 'Carteira Destino', type: 'text' },
+      { key: 'modeStrategy', label: 'Regra de Distribuição', type: 'badge', align: 'center' },
+      { key: 'routingStatus', label: 'Resultado da Fila', type: 'badge', align: 'center' },
+      { key: 'assignedOperator', label: 'Operador Designado', type: 'text' },
+      { key: 'reason', label: 'Detalhe / Motivo', type: 'text' },
+    ],
+  },
+  {
+    id: 'retornos_agendamentos',
+    label: 'Agendamentos de retorno e promessas (Lembretes)',
+    category: 'canais_tabulacao',
+    categoryLabel: 'Canais (Robô / IA / Humano) & Tabulações',
+    description:
+      'Controle analítico de todos os lembretes e retornos agendados pelos operadores nas conversas, destacando compromissos no prazo, atrasados e concluídos.',
+    columns: [
+      { key: 'remindAt', label: 'Data Programada', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'comment', label: 'Compromisso / Anotação', type: 'text' },
+      { key: 'campaignName', label: 'Carteira', type: 'text' },
+      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
+      { key: 'status', label: 'Status do Retorno', type: 'badge', align: 'center' },
+      { key: 'doneAt', label: 'Concluído em', type: 'datetime' },
+    ],
+  },
+  {
+    id: 'janela_24h_meta',
+    label: 'Controle de janela 24h Meta e quem aguarda resposta',
+    category: 'atendimento',
+    categoryLabel: 'Atendimento, Tempos & Operadores',
+    description:
+      'Monitoramento da janela gratuita de 24h da Meta por conversa, indicando tempo restante para envio livre e se a conversa aguarda resposta do operador ou do devedor.',
+    columns: [
+      { key: 'lastInboundAt', label: 'Última Msg do Devedor', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'windowStatus', label: 'Janela Meta 24h', type: 'badge', align: 'center' },
+      { key: 'remainingTime', label: 'Tempo Restante', type: 'mono', align: 'right' },
+      { key: 'waitingWho', label: 'Quem Aguarda Resposta', type: 'badge', align: 'center' },
+      { key: 'idleTime', label: 'Tempo Sem Interação', type: 'mono', align: 'right' },
+      { key: 'campaignName', label: 'Carteira', type: 'text' },
+      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
+    ],
+  },
+  {
+    id: 'disparos_analitico',
+    label: 'Envios analíticos de disparos (Destinatário a Destinatário)',
+    category: 'disparos_higienizacao',
+    categoryLabel: 'Disparos em Massa & Higienização',
+    description:
+      'Rastreamento individual de cada contato acionado via disparo de template: horário de envio, entrega, leitura, resposta do cliente, tempo até responder e erros da Meta.',
+    columns: [
+      { key: 'sentAt', label: 'Data / Hora Envio', type: 'datetime' },
+      { key: 'contactName', label: 'Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'batchName', label: 'Campanha de Disparo', type: 'text' },
+      { key: 'templateName', label: 'Template Meta', type: 'mono' },
+      { key: 'deliveryStatus', label: 'Status na Meta', type: 'badge', align: 'center' },
+      { key: 'readAt', label: 'Leitura', type: 'datetime' },
+      { key: 'repliedAt', label: 'Resposta / Tempo', type: 'text' },
+      { key: 'errorDetail', label: 'Observação / Erro Meta', type: 'text' },
+    ],
+  },
+  {
+    id: 'lotes_disparos_periodo',
+    label: 'Desempenho consolidado de lotes disparados no período',
+    category: 'disparos_higienizacao',
+    categoryLabel: 'Disparos em Massa & Higienização',
+    description:
+      'Visão analítica por campanha de disparo (Broadcast): base acionada, volume entregue, lido, respondido, taxa de conversão em resposta e falhas.',
+    columns: [
+      { key: 'createdAt', label: 'Data do Lote', type: 'datetime' },
+      { key: 'batchName', label: 'Nome da Campanha', type: 'text' },
+      { key: 'templateName', label: 'Template Utilizado', type: 'mono' },
+      { key: 'status', label: 'Status', type: 'badge', align: 'center' },
       { key: 'totalRecipients', label: 'Base Total', type: 'mono', align: 'right' },
       { key: 'sentCount', label: 'Enviados', type: 'mono', align: 'right' },
       { key: 'deliveredCount', label: 'Entregues', type: 'mono', align: 'right' },
@@ -108,246 +254,27 @@ export const ANALYTICAL_REPORT_DEFINITIONS: AnalyticalReportDefinition[] = [
     ],
   },
   {
-    id: 'resumo_periodo',
-    label: 'Resumo do período',
-    category: 'disparos',
-    categoryLabel: 'Disparos & Entregas',
-    description: 'Balanço diário da operação no período: disparos, mensagens recebidas, atendimentos, promessas e acordos.',
-    columns: [
-      { key: 'date', label: 'Data', type: 'mono' },
-      { key: 'broadcastSent', label: 'Disparos em Massa', type: 'mono', align: 'right' },
-      { key: 'inboundMsgs', label: 'Msgs Recebidas (Cliente)', type: 'mono', align: 'right' },
-      { key: 'outboundMsgs', label: 'Msgs Enviadas (Equipe/Robô)', type: 'mono', align: 'right' },
-      { key: 'activeConvs', label: 'Conversas Movimentadas', type: 'mono', align: 'right' },
-      { key: 'respondedConvs', label: 'Com Resposta do Cliente', type: 'mono', align: 'right' },
-      { key: 'responseRate', label: 'Taxa de Interação', type: 'percent', align: 'right' },
-      { key: 'scheduledCount', label: 'Promessas / Lembretes', type: 'mono', align: 'right' },
-      { key: 'wonDealsCount', label: 'Acordos Fechados', type: 'mono', align: 'right' },
-      { key: 'wonDealsValue', label: 'Valor em Acordos', type: 'currency', align: 'right' },
-    ],
-  },
-  {
-    id: 'respondeu_sim',
-    label: 'Respondeu SIM',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Contatos que responderam afirmativamente, clicaram em botão de confirmação ou engajaram positivamente.',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'replyText', label: 'Resposta do Cliente', type: 'text' },
-      { key: 'matchType', label: 'Classificação', type: 'badge', align: 'center' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-      { key: 'convStatus', label: 'Status Conversa', type: 'badge', align: 'center' },
-    ],
-  },
-  {
-    id: 'respondeu_nao',
-    label: 'Respondeu NÃO',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Contatos que recusaram a abordagem, responderam negativamente ou solicitaram bloqueio (Opt-out).',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'replyText', label: 'Mensagem / Motivo', type: 'text' },
-      { key: 'refusalType', label: 'Tipo de Recusa', type: 'badge', align: 'center' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador', type: 'text' },
-    ],
-  },
-  {
-    id: 'nao_respondeu',
-    label: 'Não respondeu',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Contatos acionados por disparo ou atendimento no período que ainda não enviaram resposta.',
-    columns: [
-      { key: 'datetime', label: 'Data do Acionamento', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'origin', label: 'Lote / Origem', type: 'text' },
-      { key: 'templateName', label: 'Modelo / Mensagem', type: 'text' },
-      { key: 'deliveryStatus', label: 'Último Status Meta', type: 'badge', align: 'center' },
-      { key: 'elapsedTime', label: 'Tempo sem Resposta', type: 'mono', align: 'right' },
-    ],
-  },
-  {
-    id: 'nao_reconhece',
-    label: 'Não reconhece / não sou eu',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Ocorrências em que o destinatário informou desconhecer o titular, dívida ou número de terceiro.',
+    id: 'higienizacao_bloqueios_falhas',
+    label: 'Higienização de base: Opt-outs, falhas Meta e nº de terceiros',
+    category: 'disparos_higienizacao',
+    categoryLabel: 'Disparos em Massa & Higienização',
+    description:
+      'Relatório de saneamento da carteira: contatos que pediram bloqueio (Opt-out), falhas de entrega na Meta (números inexistentes/bloqueados) e relatos de "não sou eu / engano".',
     columns: [
       { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
       { key: 'contactName', label: 'Contato Cadastrado', type: 'text' },
       { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'messageText', label: 'Relato do Destinatário', type: 'text' },
       { key: 'cpf', label: 'CPF Vinculado', type: 'mono' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador', type: 'text' },
-      { key: 'status', label: 'Status', type: 'badge', align: 'center' },
-    ],
-  },
-  {
-    id: 'ameaca_exaustao',
-    label: 'Ameaça e exaustão',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Monitoramento preventivo de risco jurídico, menções a órgãos de defesa (Procon/Bacen) ou exaustão de cobrança.',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'triggerTerm', label: 'Gatilho Identificado', type: 'badge', align: 'center' },
-      { key: 'messageText', label: 'Mensagem Recebida', type: 'text' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador', type: 'text' },
-      { key: 'optOutState', label: 'Bloqueio (Opt-out)', type: 'badge', align: 'center' },
-    ],
-  },
-  {
-    id: 'comprovante_recebido',
-    label: 'Comprovante recebido',
-    category: 'respostas',
-    categoryLabel: 'Respostas & Comportamento',
-    description: 'Arquivos (PDF/Imagens) e confirmações de pagamento enviadas pelos clientes nas conversas do período.',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Cliente', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'mediaType', label: 'Tipo de Comprovante', type: 'badge', align: 'center' },
-      { key: 'caption', label: 'Mensagem / Observação', type: 'text' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-    ],
-  },
-  {
-    id: 'funil_boleto',
-    label: 'Funil de boleto',
-    category: 'negociacao',
-    categoryLabel: 'Negociação & Operação',
-    description: 'Rastreamento analítico de negociações, propostas/boletos emitidos e evolução nas etapas do funil.',
-    columns: [
-      { key: 'datetime', label: 'Data Atualização', type: 'datetime' },
-      { key: 'contactName', label: 'Cliente', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'dealTitle', label: 'Negociação / Título', type: 'text' },
-      { key: 'stageName', label: 'Etapa Atual do Funil', type: 'badge', align: 'center' },
-      { key: 'dealStatus', label: 'Situação', type: 'badge', align: 'center' },
-      { key: 'value', label: 'Valor (R$)', type: 'currency', align: 'right' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-    ],
-  },
-  {
-    id: 'preventivo',
-    label: 'Preventivo',
-    category: 'negociacao',
-    categoryLabel: 'Negociação & Operação',
-    description: 'Controle de lembretes preventivos, retornos agendados e acompanhamentos de vencimento.',
-    columns: [
-      { key: 'remindAt', label: 'Data Programada', type: 'datetime' },
-      { key: 'contactName', label: 'Cliente', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'comment', label: 'Compromisso / Observação', type: 'text' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-      { key: 'status', label: 'Situação do Retorno', type: 'badge', align: 'center' },
-    ],
-  },
-  {
-    id: 'promessa_acordo_recusa',
-    label: 'Promessa, acordo e recusa',
-    category: 'negociacao',
-    categoryLabel: 'Negociação & Operação',
-    description: 'Visão analítica unificada de todos os desfechos comerciais do período: acordos fechados, promessas e recusas.',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Cliente', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'outcome', label: 'Desfecho', type: 'badge', align: 'center' },
-      { key: 'detail', label: 'Detalhe / Etapa', type: 'text' },
-      { key: 'value', label: 'Valor Envolvido', type: 'currency', align: 'right' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-    ],
-  },
-  {
-    id: 'janela_24h',
-    label: 'Janela 24h',
-    category: 'negociacao',
-    categoryLabel: 'Negociação & Operação',
-    description: 'Auditoria da janela gratuita de 24 horas da Meta por conversa, destacando tempo restante para resposta livre.',
-    columns: [
-      { key: 'lastInboundAt', label: 'Última Msg do Cliente', type: 'datetime' },
-      { key: 'contactName', label: 'Cliente', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'windowStatus', label: 'Janela Meta 24h', type: 'badge', align: 'center' },
-      { key: 'remainingTime', label: 'Tempo Restante / Expiração', type: 'mono', align: 'right' },
-      { key: 'campaignName', label: 'Carteira', type: 'text' },
-      { key: 'operatorName', label: 'Operador Responsável', type: 'text' },
-      { key: 'convStatus', label: 'Status Conversa', type: 'badge', align: 'center' },
-    ],
-  },
-  {
-    id: 'producao_operador',
-    label: 'Produção do operador',
-    category: 'negociacao',
-    categoryLabel: 'Negociação & Operação',
-    description: 'Produtividade individual detalhada por operador no período: atendimentos, mensagens, tempos médios e acordos.',
-    columns: [
-      { key: 'operatorName', label: 'Operador', type: 'text' },
-      { key: 'campaignName', label: 'Carteira Principal', type: 'text' },
-      { key: 'totalConvs', label: 'Atendimentos', type: 'mono', align: 'right' },
-      { key: 'openConvs', label: 'Em Aberto', type: 'mono', align: 'right' },
-      { key: 'closedConvs', label: 'Finalizados', type: 'mono', align: 'right' },
-      { key: 'messagesSent', label: 'Msgs Enviadas', type: 'mono', align: 'right' },
-      { key: 'tmr', label: 'TMR (Resposta)', type: 'mono', align: 'right' },
-      { key: 'tma', label: 'TMA (Atendimento)', type: 'mono', align: 'right' },
-      { key: 'promisesCount', label: 'Promessas', type: 'mono', align: 'right' },
-      { key: 'wonDealsCount', label: 'Acordos', type: 'mono', align: 'right' },
-      { key: 'wonDealsValue', label: 'Valor Recuperado', type: 'currency', align: 'right' },
-      { key: 'conversionRate', label: 'Conversão', type: 'percent', align: 'right' },
-    ],
-  },
-  {
-    id: 'nao_entregue',
-    label: 'Não entregue',
-    category: 'disparos',
-    categoryLabel: 'Disparos & Entregas',
-    description: 'Relatório de falhas de entrega reportadas pela API oficial da Meta (números inválidos, bloqueios ou erro de envio).',
-    columns: [
-      { key: 'datetime', label: 'Data / Hora', type: 'datetime' },
-      { key: 'contactName', label: 'Contato', type: 'text' },
-      { key: 'phone', label: 'Telefone', type: 'phone' },
-      { key: 'origin', label: 'Origem do Envio', type: 'badge', align: 'center' },
-      { key: 'templateOrText', label: 'Modelo / Conteúdo', type: 'text' },
-      { key: 'errorReason', label: 'Motivo da Falha (Meta)', type: 'text' },
+      { key: 'occurrenceType', label: 'Tipo de Ocorrência', type: 'badge', align: 'center' },
+      { key: 'reasonDetail', label: 'Motivo / Mensagem / Erro Meta', type: 'text' },
+      { key: 'origin', label: 'Origem', type: 'text' },
+      { key: 'contactState', label: 'Situação na Base', type: 'badge', align: 'center' },
     ],
   },
 ]
-
-const AFFIRMATIVE_REGEX =
-  /\b(sim|s|quero|aceito|confirmo|confirmar|sou eu|pode|ok|certo|combinado|boleto|pix|acordo|negociar|parcelar|quero negociar|1)\b/i
-
-const NEGATIVE_REGEX =
-  /\b(n[aã]o|nao quero|n[aã]o tenho interesse|sair|parar|bloquear|cancelar|recuso|sem condi[cç][oõ]es|nunca|2)\b/i
 
 const UNRECOGNIZED_REGEX =
   /\b(n[aã]o sou eu|n[aã]o conhe[cç]o|n[aã]o reconhe[cç]o|engano|n[uú]mero errado|pessoa errada|desconhe[cç]o|terceiro|outro dono)\b/i
-
-const THREAT_EXHAUSTION_TERMS: { pattern: RegExp; label: string }[] = [
-  { pattern: /\bprocon\b/i, label: 'Menção ao PROCON' },
-  { pattern: /\b(processo|processar|juiz|judicial|justi[cç]a|juizado)\b/i, label: 'Ameaça Judicial / Processo' },
-  { pattern: /\b(advogad[oa]|jur[ií]dico)\b/i, label: 'Acionamento de Advogado' },
-  { pattern: /\b(bacen|banco central|consumidor\.gov|reclame aqui|anatel)\b/i, label: 'Órgão Regulador / Reclamação' },
-  { pattern: /\b(pol[ií]cia|boletim de ocorr[eê]ncia|delegacia)\b/i, label: 'Menção Policial / B.O.' },
-  { pattern: /\b(ass[eé]dio|abuso|abusivo|constrangimento|amea[cç]a)\b/i, label: 'Alegação de Exaustão / Abuso' },
-  { pattern: /\b(parem de mandar|parem de ligar|n[aã]o aguento mais|chega de mensagem|me tirem da lista)\b/i, label: 'Exaustão de Abordagem' },
-]
 
 function formatDateTimeBR(iso?: string | null): string {
   if (!iso) return '—'
@@ -362,32 +289,11 @@ function formatDateTimeBR(iso?: string | null): string {
   })
 }
 
-function formatDateOnlyBR(isoOrDate: string): string {
-  if (!isoOrDate) return '—'
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDate)) {
-    const [y, m, d] = isoOrDate.split('-')
-    return `${d}/${m}/${y}`
-  }
-  const d = new Date(isoOrDate)
-  if (isNaN(d.getTime())) return isoOrDate
-  return d.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
-
-function formatBRL(val: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(val || 0)
-}
-
 function formatElapsedSince(iso?: string | null): string {
   if (!iso) return '—'
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
-  if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))} min`
+  if (diffSec < 60) return `${diffSec}s`
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`
   if (diffSec < 86400) {
     const h = Math.floor(diffSec / 3600)
     const m = Math.floor((diffSec % 3600) / 60)
@@ -398,22 +304,27 @@ function formatElapsedSince(iso?: string | null): string {
   return `${days}d ${remH}h`
 }
 
+function avgSec(arr: number[]): number {
+  if (!arr.length) return 0
+  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+}
+
 export async function generateAnalyticalReport(
   db: SupabaseClient,
   params: AnalyticalReportFilterParams
 ): Promise<AnalyticalReportResult> {
-  const { reportId, startDate, endDate, campaignId, operatorId } = params
+  const { reportId, startDate, endDate, campaignId, operatorId, channelFilter = 'all' } = params
 
-  // Build ISO boundaries in local timezone so full days are covered
   const startIso = new Date(`${startDate}T00:00:00`).toISOString()
   const endIso = new Date(`${endDate}T23:59:59.999`).toISOString()
 
-  // Load shared lookup tables in parallel
-  const [profilesRes, campaignsRes, campOpsRes, stagesRes] = await Promise.all([
+  // Shared lookup tables
+  const [profilesRes, campaignsRes, campOpsRes, stagesRes, flowsRes] = await Promise.all([
     db.from('profiles').select('user_id, full_name, account_role'),
     db.from('distribution_campaigns').select('id, name, code'),
     db.from('campaign_operators').select('campaign_id, user_id'),
-    db.from('pipeline_stages').select('id, name, position, color'),
+    db.from('pipeline_stages').select('id, name, position'),
+    db.from('flows').select('id, name'),
   ])
 
   const profileMap = new Map<string, string>()
@@ -439,6 +350,11 @@ export async function generateAnalyticalReport(
     stageMap.set(s.id, s.name)
   }
 
+  const flowNameMap = new Map<string, string>()
+  for (const f of (flowsRes.data ?? []) as any[]) {
+    flowNameMap.set(f.id, f.name)
+  }
+
   const matchesFilters = (convCampaignId?: string | null, assignedAgentId?: string | null) => {
     if (campaignId && campaignId !== 'all') {
       const effectiveCampId =
@@ -452,348 +368,654 @@ export async function generateAnalyticalReport(
   }
 
   // =========================================================================
-  // 1. ENVIOS ANALÍTICOS
+  // 1. ATENDIMENTOS DETALHADO (TME, TMR, CANAL, QUEM ENCERROU E TABULAÇÃO)
   // =========================================================================
-  if (reportId === 'envios_analiticos') {
-    const [recipRes, outboundMsgsRes] = await Promise.all([
+  if (
+    reportId === 'atendimentos_detalhado' ||
+    reportId === 'atuacao_robo_ia_humano' ||
+    reportId === 'tabulacoes_desfechos' ||
+    reportId === 'janela_24h_meta'
+  ) {
+    const [
+      convsRes,
+      msgsRes,
+      dealsRes,
+      remindersRes,
+      notesRes,
+      flowRunsRes,
+      auditsRes,
+      cpfRespRes,
+      customFieldsRes,
+      customValuesRes,
+    ] = await Promise.all([
       db
-        .from('broadcast_recipients')
+        .from('conversations')
         .select(
-          'id, broadcast_id, contact_id, status, sent_at, delivered_at, read_at, replied_at, error_message, created_at, contact:contacts(id, name, phone), broadcast:broadcasts(id, name, template_name)'
+          'id, contact_id, status, assigned_agent_id, campaign_id, last_message_text, last_message_from, last_message_at, ai_autoreply_disabled, ai_reply_count, ai_handoff_summary, created_at, updated_at, contact:contacts(id, name, phone, opted_out_at, contact_tags(tags(id, name)))'
         )
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false })
-        .limit(1000),
+        .gte('updated_at', startIso)
+        .lte('updated_at', endIso)
+        .order('last_message_at', { ascending: false })
+        .limit(800),
       db
         .from('messages')
         .select(
-          'id, conversation_id, sender_type, sender_id, content_type, content_text, template_name, status, created_at, conversation:conversations(id, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
+          'id, conversation_id, sender_type, sender_id, content_type, content_text, ai_generated, created_at'
         )
-        .neq('sender_type', 'customer')
-        .gte('created_at', startIso)
+        .gte('created_at', new Date(new Date(startIso).getTime() - 86400000 * 3).toISOString())
         .lte('created_at', endIso)
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ])
-
-    const rows: AnalyticalReportRow[] = []
-    let deliveredCount = 0
-    let readCount = 0
-    let repliedCount = 0
-    let failedCount = 0
-
-    for (const r of (recipRes.data ?? []) as any[]) {
-      const status: string = r.status || 'pending'
-      if (status === 'delivered' || status === 'read' || status === 'replied') deliveredCount++
-      if (status === 'read' || status === 'replied') readCount++
-      if (status === 'replied' || r.replied_at) repliedCount++
-      if (status === 'failed') failedCount++
-
-      const statusLabelMap: Record<string, { label: string; tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral' | 'primary' }> = {
-        replied: { label: 'Respondido', tone: 'success' },
-        read: { label: 'Lido pelo Cliente', tone: 'primary' },
-        delivered: { label: 'Entregue', tone: 'info' },
-        sent: { label: 'Enviado', tone: 'neutral' },
-        pending: { label: 'Na Fila', tone: 'warning' },
-        failed: { label: 'Falha na Entrega', tone: 'danger' },
-      }
-      const st = statusLabelMap[status] ?? { label: status, tone: 'neutral' }
-
-      rows.push({
-        id: `br-${r.id}`,
-        cells: {
-          datetime: { text: formatDateTimeBR(r.sent_at || r.created_at), raw: r.sent_at || r.created_at },
-          contactName: { text: r.contact?.name || 'Contato sem nome' },
-          phone: { text: r.contact?.phone || '—' },
-          batchName: { text: r.broadcast?.name || 'Disparo em Massa' },
-          templateName: { text: r.broadcast?.template_name || '—' },
-          status: { text: st.label, badgeTone: st.tone },
-          interactionAt: {
-            text: r.replied_at
-              ? `Resp: ${formatDateTimeBR(r.replied_at)}`
-              : r.read_at
-                ? `Lido: ${formatDateTimeBR(r.read_at)}`
-                : r.delivered_at
-                  ? `Entr: ${formatDateTimeBR(r.delivered_at)}`
-                  : '—',
-          },
-          detail: { text: r.error_message || (r.replied_at ? 'Cliente respondeu ao disparo' : 'Processado via API Oficial Meta') },
-        },
-      })
-    }
-
-    for (const m of (outboundMsgsRes.data ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id || m.sender_id)) continue
-      const status: string = m.status || 'sent'
-      if (status === 'delivered' || status === 'read') deliveredCount++
-      if (status === 'read') readCount++
-      if (status === 'failed') failedCount++
-
-      const stMap: Record<string, { label: string; tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral' | 'primary' }> = {
-        read: { label: 'Lido pelo Cliente', tone: 'primary' },
-        delivered: { label: 'Entregue', tone: 'info' },
-        sent: { label: 'Enviado', tone: 'neutral' },
-        sending: { label: 'Enviando', tone: 'warning' },
-        failed: { label: 'Falha', tone: 'danger' },
-      }
-      const st = stMap[status] ?? { label: status, tone: 'neutral' }
-      const campName = conv?.campaign_id ? campaignMap.get(conv.campaign_id) : undefined
-
-      rows.push({
-        id: `msg-${m.id}`,
-        conversationId: m.conversation_id,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Contato' },
-          phone: { text: conv?.contact?.phone || '—' },
-          batchName: {
-            text: campName
-              ? `Atendimento · ${campName}`
-              : m.sender_type === 'bot'
-                ? 'Fluxo Automático / Robô'
-                : 'Atendimento Individual',
-          },
-          templateName: { text: m.template_name || (m.content_type === 'interactive' ? 'Menu Interativo' : 'Mensagem Direta') },
-          status: { text: st.label, badgeTone: st.tone },
-          interactionAt: { text: status === 'read' ? 'Visualizado' : status === 'delivered' ? 'Recebido no aparelho' : '—' },
-          detail: { text: (m.content_text || '').slice(0, 90) || 'Mensagem enviada na conversa' },
-        },
-      })
-    }
-
-    rows.sort((a, b) => String(b.cells.datetime.raw || '').localeCompare(String(a.cells.datetime.raw || '')))
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total de Envios', value: rows.length, tone: 'primary' },
-        { label: 'Entregues / Lidos', value: deliveredCount, sublabel: rows.length > 0 ? `${Math.round((deliveredCount / rows.length) * 100)}% do total` : '0%', tone: 'success' },
-        { label: 'Visualizados (Lidos)', value: readCount, tone: 'default' },
-        { label: 'Falhas Reportadas', value: failedCount, tone: failedCount > 0 ? 'danger' : 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 2. ENVIOS DO PERÍODO
-  // =========================================================================
-  if (reportId === 'envios_periodo') {
-    const { data: broadcasts } = await db
-      .from('broadcasts')
-      .select(
-        'id, name, template_name, status, total_recipients, sent_count, delivered_count, read_count, replied_count, failed_count, scheduled_at, created_at'
-      )
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .order('created_at', { ascending: false })
-
-    const rows: AnalyticalReportRow[] = []
-    let totalSent = 0
-    let totalDelivered = 0
-    let totalReplied = 0
-    let totalFailed = 0
-
-    for (const b of (broadcasts ?? []) as any[]) {
-      const sent = Number(b.sent_count || 0)
-      const delivered = Number(b.delivered_count || 0)
-      const read = Number(b.read_count || 0)
-      const replied = Number(b.replied_count || 0)
-      const failed = Number(b.failed_count || 0)
-      const base = Number(b.total_recipients || sent + failed)
-      const respRate = delivered > 0 ? Math.round((replied / delivered) * 1000) / 10 : sent > 0 ? Math.round((replied / sent) * 1000) / 10 : 0
-
-      totalSent += sent
-      totalDelivered += delivered
-      totalReplied += replied
-      totalFailed += failed
-
-      const statusBadge: Record<string, { label: string; tone: 'success' | 'info' | 'warning' | 'danger' | 'neutral' }> = {
-        sent: { label: 'Concluído', tone: 'success' },
-        sending: { label: 'Em Disparo', tone: 'info' },
-        scheduled: { label: 'Agendado', tone: 'warning' },
-        draft: { label: 'Rascunho', tone: 'neutral' },
-        failed: { label: 'Com Falha', tone: 'danger' },
-      }
-      const st = statusBadge[b.status] ?? { label: b.status, tone: 'neutral' }
-
-      rows.push({
-        id: b.id,
-        cells: {
-          datetime: { text: formatDateTimeBR(b.scheduled_at || b.created_at), raw: b.created_at },
-          batchName: { text: b.name || 'Lote sem nome' },
-          templateName: { text: b.template_name || '—' },
-          status: { text: st.label, badgeTone: st.tone },
-          totalRecipients: { text: String(base), raw: base },
-          sentCount: { text: String(sent), raw: sent },
-          deliveredCount: { text: String(delivered), raw: delivered },
-          readCount: { text: String(read), raw: read },
-          repliedCount: { text: String(replied), raw: replied },
-          responseRate: { text: `${respRate.toFixed(1)}%`, raw: respRate },
-          failedCount: { text: String(failed), raw: failed },
-        },
-      })
-    }
-
-    const avgResponseRate = totalDelivered > 0 ? Math.round((totalReplied / totalDelivered) * 1000) / 10 : 0
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Lotes no Período', value: rows.length, tone: 'primary' },
-        { label: 'Total Enviado', value: totalSent, tone: 'default' },
-        { label: 'Total Entregue', value: totalDelivered, tone: 'success' },
-        { label: 'Taxa de Resposta', value: `${avgResponseRate}%`, sublabel: `${totalReplied} respostas`, tone: 'primary' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 3. RESUMO DO PERÍODO
-  // =========================================================================
-  if (reportId === 'resumo_periodo') {
-    const [msgsRes, broadcastsRes, dealsRes, remindersRes] = await Promise.all([
-      db
-        .from('messages')
-        .select('id, conversation_id, sender_type, created_at')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso),
-      db
-        .from('broadcasts')
-        .select('id, sent_count, created_at')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso),
+        .order('created_at', { ascending: true }),
       db
         .from('deals')
-        .select('id, value, status, created_at')
-        .eq('status', 'won')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso),
+        .select('id, contact_id, conversation_id, title, value, status, stage_id, notes, updated_at')
+        .order('updated_at', { ascending: false }),
       db
         .from('conversation_reminders')
-        .select('id, created_at')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso),
+        .select('id, conversation_id, contact_id, remind_at, comment, done_at, created_at')
+        .order('created_at', { ascending: false }),
+      db
+        .from('conversation_notes')
+        .select('id, conversation_id, author_name, body, created_at')
+        .order('created_at', { ascending: false }),
+      db
+        .from('flow_runs')
+        .select('id, flow_id, conversation_id, contact_id, status, current_node_key, end_reason, started_at, ended_at')
+        .order('started_at', { ascending: false }),
+      db
+        .from('distribution_audit_logs')
+        .select('conversation_id, contact_id, cpf, campaign_name, assigned_agent_id, created_at')
+        .order('created_at', { ascending: false }),
+      db
+        .from('cpf_responsibilities')
+        .select('cpf, creditor_name, contract_ref, debtor_name'),
+      db.from('custom_fields').select('id, field_name'),
+      db.from('contact_custom_values').select('contact_id, custom_field_id, value'),
     ])
 
-    type DayBucket = {
-      broadcastSent: number
-      inboundMsgs: number
-      outboundMsgs: number
-      activeConvs: Set<string>
-      respondedConvs: Set<string>
-      scheduledCount: number
-      wonDealsCount: number
-      wonDealsValue: number
+    const convs = (convsRes.data ?? []) as any[]
+    const msgs = (msgsRes.data ?? []) as any[]
+
+    // Group messages per conversation
+    const msgsByConv = new Map<string, any[]>()
+    for (const m of msgs) {
+      const list = msgsByConv.get(m.conversation_id)
+      if (list) list.push(m)
+      else msgsByConv.set(m.conversation_id, [m])
     }
 
-    const buckets = new Map<string, DayBucket>()
-    const ensureBucket = (dayKey: string): DayBucket => {
-      let b = buckets.get(dayKey)
-      if (!b) {
-        b = {
-          broadcastSent: 0,
-          inboundMsgs: 0,
-          outboundMsgs: 0,
-          activeConvs: new Set(),
-          respondedConvs: new Set(),
-          scheduledCount: 0,
-          wonDealsCount: 0,
-          wonDealsValue: 0,
-        }
-        buckets.set(dayKey, b)
+    // Map CPF & Creditor by conversation/contact
+    const cpfInfoByConv = new Map<string, { cpf: string; creditor?: string; contract?: string }>()
+    const cpfRespByCpf = new Map<string, { creditor?: string; contract?: string }>()
+    for (const r of (cpfRespRes.data ?? []) as any[]) {
+      if (r.cpf) {
+        cpfRespByCpf.set(String(r.cpf).replace(/\D/g, ''), {
+          creditor: r.creditor_name,
+          contract: r.contract_ref,
+        })
       }
-      return b
     }
-
-    const toLocalDayKey = (iso: string) => {
-      const d = new Date(iso)
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
-    }
-
-    // Seed days in range if range <= 62 days
-    const startMs = new Date(`${startDate}T00:00:00`).getTime()
-    const endMs = new Date(`${endDate}T00:00:00`).getTime()
-    const diffDays = Math.round((endMs - startMs) / 86400000)
-    if (diffDays >= 0 && diffDays <= 62) {
-      for (let i = 0; i <= diffDays; i++) {
-        const d = new Date(startMs + i * 86400000)
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-        ensureBucket(key)
+    for (const a of (auditsRes.data ?? []) as any[]) {
+      if (a.conversation_id && a.cpf && !cpfInfoByConv.has(a.conversation_id)) {
+        const cleanCpf = String(a.cpf).replace(/\D/g, '')
+        const resp = cpfRespByCpf.get(cleanCpf)
+        cpfInfoByConv.set(a.conversation_id, {
+          cpf: a.cpf,
+          creditor: resp?.creditor,
+          contract: resp?.contract,
+        })
       }
     }
 
-    for (const b of (broadcastsRes.data ?? []) as any[]) {
-      const bucket = ensureBucket(toLocalDayKey(b.created_at))
-      bucket.broadcastSent += Number(b.sent_count || 0)
+    // Also map custom field values (CPF, Credor, Contrato) per contact_id
+    const fieldNameById = new Map<string, string>()
+    for (const cf of (customFieldsRes.data ?? []) as any[]) {
+      fieldNameById.set(cf.id, String(cf.field_name || '').toLowerCase())
+    }
+    const customByContact = new Map<string, { cpf?: string; credor?: string; contrato?: string }>()
+    for (const cv of (customValuesRes.data ?? []) as any[]) {
+      if (!cv.contact_id || !cv.value) continue
+      const fName = fieldNameById.get(cv.custom_field_id)
+      if (!fName) continue
+      const entry = customByContact.get(cv.contact_id) ?? {}
+      if (fName === 'cpf') entry.cpf = cv.value
+      else if (fName === 'credor') entry.credor = cv.value
+      else if (fName === 'contrato') entry.contrato = cv.value
+      customByContact.set(cv.contact_id, entry)
     }
 
-    for (const m of (msgsRes.data ?? []) as any[]) {
-      const bucket = ensureBucket(toLocalDayKey(m.created_at))
-      if (m.conversation_id) bucket.activeConvs.add(m.conversation_id)
-      if (m.sender_type === 'customer') {
-        bucket.inboundMsgs++
-        if (m.conversation_id) bucket.respondedConvs.add(m.conversation_id)
-      } else {
-        bucket.outboundMsgs++
-      }
-    }
-
-    for (const r of (remindersRes.data ?? []) as any[]) {
-      const bucket = ensureBucket(toLocalDayKey(r.created_at))
-      bucket.scheduledCount++
-    }
-
+    // Latest deal by conversation or contact
+    const dealByConv = new Map<string, any>()
+    const dealByContact = new Map<string, any>()
     for (const d of (dealsRes.data ?? []) as any[]) {
-      const bucket = ensureBucket(toLocalDayKey(d.created_at))
-      bucket.wonDealsCount++
-      bucket.wonDealsValue += Number(d.value || 0)
+      if (d.conversation_id && !dealByConv.has(d.conversation_id)) dealByConv.set(d.conversation_id, d)
+      if (d.contact_id && !dealByContact.has(d.contact_id)) dealByContact.set(d.contact_id, d)
     }
 
-    const sortedDays = Array.from(buckets.keys()).sort((a, b) => b.localeCompare(a))
-    let totalInbound = 0
-    let totalOutbound = 0
-    let totalWonCount = 0
-    let totalWonValue = 0
+    // Latest reminder by conversation
+    const reminderByConv = new Map<string, any>()
+    for (const r of (remindersRes.data ?? []) as any[]) {
+      if (r.conversation_id && !reminderByConv.has(r.conversation_id)) {
+        reminderByConv.set(r.conversation_id, r)
+      }
+    }
 
-    const rows: AnalyticalReportRow[] = sortedDays.map((dayKey) => {
-      const b = buckets.get(dayKey)!
-      const activeCount = b.activeConvs.size
-      const respCount = b.respondedConvs.size
-      const rate = activeCount > 0 ? Math.round((respCount / activeCount) * 1000) / 10 : 0
+    // Latest internal note by conversation
+    const noteByConv = new Map<string, any>()
+    for (const n of (notesRes.data ?? []) as any[]) {
+      if (n.conversation_id && !noteByConv.has(n.conversation_id)) {
+        noteByConv.set(n.conversation_id, n)
+      }
+    }
 
-      totalInbound += b.inboundMsgs
-      totalOutbound += b.outboundMsgs + b.broadcastSent
-      totalWonCount += b.wonDealsCount
-      totalWonValue += b.wonDealsValue
+    // Latest flow run by conversation or contact
+    const flowRunByConv = new Map<string, any>()
+    const flowRunByContact = new Map<string, any>()
+    for (const fr of (flowRunsRes.data ?? []) as any[]) {
+      if (fr.conversation_id && !flowRunByConv.has(fr.conversation_id)) {
+        flowRunByConv.set(fr.conversation_id, fr)
+      }
+      if (fr.contact_id && !flowRunByContact.has(fr.contact_id)) {
+        flowRunByContact.set(fr.contact_id, fr)
+      }
+    }
+
+    // Helper to compute full per-conversation telemetry
+    const analyzeConversation = (c: any) => {
+      const cMsgs = msgsByConv.get(c.id) ?? []
+      let humanMsgs = 0
+      let botMsgs = 0
+      let aiMsgs = 0
+      let customerMsgs = 0
+
+      let firstCustomerTs: number | null = null
+      let firstHumanReplyAfterCustomerTs: number | null = null
+      let lastInboundIso: string | null = null
+      let lastHumanSenderId: string | null = null
+
+      const operatorReplyDiffsSec: number[] = []
+      const customerReplyDiffsSec: number[] = []
+      let lastTurn: { role: 'customer' | 'agent' | 'bot'; ts: number } | null = null
+
+      for (const m of cMsgs) {
+        const ts = new Date(m.created_at).getTime()
+        if (m.sender_type === 'customer') {
+          customerMsgs++
+          lastInboundIso = m.created_at
+          if (firstCustomerTs === null) firstCustomerTs = ts
+          if (lastTurn && lastTurn.role !== 'customer') {
+            const diff = (ts - lastTurn.ts) / 1000
+            if (diff >= 0 && diff < 86400) customerReplyDiffsSec.push(diff)
+          }
+          lastTurn = { role: 'customer', ts }
+        } else if (m.sender_type === 'agent') {
+          humanMsgs++
+          if (m.sender_id) lastHumanSenderId = m.sender_id
+          if (firstCustomerTs !== null && firstHumanReplyAfterCustomerTs === null && ts >= firstCustomerTs) {
+            firstHumanReplyAfterCustomerTs = ts
+          }
+          if (lastTurn && lastTurn.role === 'customer') {
+            const diff = (ts - lastTurn.ts) / 1000
+            if (diff >= 0 && diff < 86400) operatorReplyDiffsSec.push(diff)
+          }
+          lastTurn = { role: 'agent', ts }
+        } else {
+          // sender_type === 'bot'
+          if (m.ai_generated) aiMsgs++
+          else botMsgs++
+          lastTurn = { role: 'bot', ts }
+        }
+      }
+
+      if ((c.ai_reply_count || 0) > aiMsgs) {
+        aiMsgs = Number(c.ai_reply_count || 0)
+      }
+
+      // Channel Journey Classification
+      const usedBot = botMsgs > 0 || flowRunByConv.has(c.id)
+      const usedAi = aiMsgs > 0 || Boolean(c.ai_handoff_summary)
+      const usedHuman = humanMsgs > 0 || Boolean(c.assigned_agent_id)
+
+      let channelLabel = 'Aguardando Interação'
+      let channelTone: 'primary' | 'info' | 'success' | 'warning' | 'neutral' = 'neutral'
+      let dominantChannel: 'human' | 'bot' | 'ai' = 'human'
+
+      if (usedBot && usedAi && usedHuman) {
+        channelLabel = 'Robô → IA → Humano'
+        channelTone = 'primary'
+        dominantChannel = 'human'
+      } else if (usedBot && usedHuman) {
+        channelLabel = 'Robô → Humano'
+        channelTone = 'primary'
+        dominantChannel = 'human'
+      } else if (usedAi && usedHuman) {
+        channelLabel = 'IA → Humano'
+        channelTone = 'primary'
+        dominantChannel = 'human'
+      } else if (usedHuman) {
+        channelLabel = 'Agente Humano'
+        channelTone = 'info'
+        dominantChannel = 'human'
+      } else if (usedAi) {
+        channelLabel = '100% Agente IA'
+        channelTone = 'success'
+        dominantChannel = 'ai'
+      } else if (usedBot) {
+        channelLabel = '100% Robô (Fluxo)'
+        channelTone = 'warning'
+        dominantChannel = 'bot'
+      }
+
+      // Wait time for 1st human reply (TME)
+      const waitSec =
+        firstCustomerTs !== null && firstHumanReplyAfterCustomerTs !== null
+          ? Math.max(0, Math.round((firstHumanReplyAfterCustomerTs - firstCustomerTs) / 1000))
+          : 0
+
+      const opTmrSec = avgSec(operatorReplyDiffsSec)
+      const custTmrSec = avgSec(customerReplyDiffsSec)
+
+      const startMs = new Date(c.created_at).getTime()
+      const endMs = new Date(c.last_message_at || c.updated_at || c.created_at).getTime()
+      const totalTmaSec = Math.max(0, Math.round((endMs - startMs) / 1000))
+
+      const operatorIdResolved = c.assigned_agent_id || lastHumanSenderId
+      const operatorName = operatorIdResolved
+        ? profileMap.get(operatorIdResolved) || 'Operador'
+        : usedAi
+          ? 'Agente de IA'
+          : usedBot
+            ? 'Robô de Fluxo'
+            : 'Fila Sem Operador'
+
+      const campaignName = c.campaign_id
+        ? campaignMap.get(c.campaign_id) || 'Geral'
+        : operatorIdResolved
+          ? userCampaignMap.get(operatorIdResolved)?.name || 'Geral'
+          : 'Geral'
+
+      // Who closed / Current state
+      const flowRun = flowRunByConv.get(c.id) || flowRunByContact.get(c.contact_id)
+      const isOptedOut = Boolean(c.contact?.opted_out_at)
+
+      let closedByText = 'Em Aberto'
+      let closedByTone: 'success' | 'info' | 'warning' | 'danger' | 'neutral' | 'primary' = 'info'
+
+      if (isOptedOut) {
+        closedByText = 'Devedor (Opt-out)'
+        closedByTone = 'danger'
+      } else if (c.status === 'closed') {
+        if (flowRun?.status === 'timed_out') {
+          closedByText = 'Inatividade (Timeout Fluxo)'
+          closedByTone = 'warning'
+        } else if (c.last_message_from === 'bot' && !usedHuman) {
+          closedByText = usedAi ? 'Encerrado pela IA' : 'Encerrado pelo Robô'
+          closedByTone = 'primary'
+        } else if (operatorIdResolved) {
+          const shortOp = (profileMap.get(operatorIdResolved) || 'Operador').split(' ')[0]
+          closedByText = `Operador (${shortOp})`
+          closedByTone = 'success'
+        } else {
+          closedByText = 'Encerrado pelo Sistema'
+          closedByTone = 'neutral'
+        }
+      } else if (c.last_message_from === 'customer') {
+        closedByText = 'Aguardando Operador'
+        closedByTone = 'warning'
+      } else {
+        closedByText = 'Aguardando Devedor'
+        closedByTone = 'info'
+      }
+
+      // Tabulation / Outcome synthesis
+      const tags: string[] = (c.contact?.contact_tags ?? [])
+        .map((ct: any) => ct?.tags?.name)
+        .filter(Boolean)
+      const deal = dealByConv.get(c.id) || dealByContact.get(c.contact_id)
+      const reminder = reminderByConv.get(c.id)
+      const note = noteByConv.get(c.id)
+
+      let tabulationLabel = 'Sem Tabulação'
+      let tabulationTone: 'success' | 'primary' | 'warning' | 'danger' | 'info' | 'neutral' = 'neutral'
+
+      if (deal?.status === 'won') {
+        tabulationLabel = 'Acordo Fechado'
+        tabulationTone = 'success'
+      } else if (deal?.status === 'lost') {
+        tabulationLabel = 'Recusa / Perdido'
+        tabulationTone = 'danger'
+      } else if (isOptedOut) {
+        tabulationLabel = 'Opt-out / Bloqueio'
+        tabulationTone = 'danger'
+      } else if (reminder && !reminder.done_at) {
+        tabulationLabel = 'Promessa / Retorno Agendado'
+        tabulationTone = 'warning'
+      } else if (tags.length > 0) {
+        tabulationLabel = tags[0]
+        tabulationTone = 'primary'
+      } else if (deal?.stage_id) {
+        tabulationLabel = stageMap.get(deal.stage_id) || 'Em Negociação'
+        tabulationTone = 'info'
+      } else if (flowRun?.status === 'completed') {
+        tabulationLabel = 'Concluído no Robô'
+        tabulationTone = 'info'
+      } else if (c.status === 'closed') {
+        tabulationLabel = 'Atendimento Finalizado'
+        tabulationTone = 'neutral'
+      } else {
+        tabulationLabel = 'Em Andamento'
+        tabulationTone = 'info'
+      }
+
+      const detailParts: string[] = []
+      if (tags.length > 1) detailParts.push(`Tags: ${tags.join(', ')}`)
+      if (reminder?.comment) detailParts.push(`Agendado: ${reminder.comment}`)
+      if (note?.body) detailParts.push(`Nota: ${note.body}`)
+      if (c.ai_handoff_summary) detailParts.push(`Resumo IA: ${c.ai_handoff_summary}`)
+      if (!detailParts.length && c.last_message_text) {
+        detailParts.push(`Últ. msg: ${String(c.last_message_text).slice(0, 80)}`)
+      }
+
+      const auditCpf = cpfInfoByConv.get(c.id)
+      const customInfo = customByContact.get(c.contact_id)
+      const cpfStr = auditCpf?.cpf || customInfo?.cpf || '—'
+      const creditorStr = auditCpf?.creditor || customInfo?.credor || customInfo?.contrato || ''
 
       return {
-        id: dayKey,
+        conv: c,
+        humanMsgs,
+        botMsgs,
+        aiMsgs,
+        customerMsgs,
+        usedBot,
+        usedAi,
+        usedHuman,
+        dominantChannel,
+        channelLabel,
+        channelTone,
+        waitSec,
+        opTmrSec,
+        custTmrSec,
+        totalTmaSec,
+        operatorIdResolved,
+        operatorName,
+        campaignName,
+        closedByText,
+        closedByTone,
+        tabulationLabel,
+        tabulationTone,
+        tabulationDetail: detailParts.join(' | ') || '—',
+        tags,
+        deal,
+        reminder,
+        note,
+        flowRun,
+        lastInboundIso,
+        cpfStr,
+        creditorStr,
+      }
+    }
+
+    const analyzed = convs
+      .filter((c) => matchesFilters(c.campaign_id, c.assigned_agent_id))
+      .map(analyzeConversation)
+      .filter((item) => {
+        if (channelFilter === 'all') return true
+        if (channelFilter === 'human') return item.usedHuman
+        if (channelFilter === 'bot') return item.usedBot
+        if (channelFilter === 'ai') return item.usedAi
+        return true
+      })
+
+    // -----------------------------------------------------------------------
+    // 1A. ATENDIMENTOS DETALHADO
+    // -----------------------------------------------------------------------
+    if (reportId === 'atendimentos_detalhado') {
+      const waitArr = analyzed.filter((a) => a.waitSec > 0).map((a) => a.waitSec)
+      const tmrArr = analyzed.filter((a) => a.opTmrSec > 0).map((a) => a.opTmrSec)
+      const closedCount = analyzed.filter((a) => a.conv.status === 'closed').length
+
+      const rows: AnalyticalReportRow[] = analyzed.map((a) => ({
+        id: a.conv.id,
+        conversationId: a.conv.id,
         cells: {
-          date: { text: formatDateOnlyBR(dayKey), raw: dayKey },
-          broadcastSent: { text: String(b.broadcastSent), raw: b.broadcastSent },
-          inboundMsgs: { text: String(b.inboundMsgs), raw: b.inboundMsgs },
-          outboundMsgs: { text: String(b.outboundMsgs), raw: b.outboundMsgs },
-          activeConvs: { text: String(activeCount), raw: activeCount },
-          respondedConvs: { text: String(respCount), raw: respCount },
-          responseRate: { text: `${rate.toFixed(1)}%`, raw: rate },
-          scheduledCount: { text: String(b.scheduledCount), raw: b.scheduledCount },
-          wonDealsCount: { text: String(b.wonDealsCount), raw: b.wonDealsCount },
-          wonDealsValue: { text: formatBRL(b.wonDealsValue), raw: b.wonDealsValue },
+          startedAt: {
+            text: `${formatDateTimeBR(a.conv.created_at)} → ${formatDateTimeBR(a.conv.last_message_at || a.conv.updated_at)}`,
+            raw: a.conv.last_message_at || a.conv.updated_at,
+          },
+          contactName: { text: a.conv.contact?.name || 'Devedor sem nome' },
+          phone: { text: a.conv.contact?.phone || '—' },
+          cpfContract: {
+            text: a.creditorStr ? `${a.cpfStr} · ${a.creditorStr}` : a.cpfStr,
+          },
+          campaignName: { text: a.campaignName },
+          channelJourney: {
+            text: `${a.channelLabel} (${a.botMsgs}R/${a.aiMsgs}IA/${a.humanMsgs}H)`,
+            badgeTone: a.channelTone,
+          },
+          operatorName: { text: a.operatorName },
+          waitTimeFirstReply: {
+            text: a.waitSec > 0 ? formatSeconds(a.waitSec) : '—',
+            raw: a.waitSec,
+          },
+          operatorTmr: {
+            text: a.opTmrSec > 0 ? formatSeconds(a.opTmrSec) : '—',
+            raw: a.opTmrSec,
+          },
+          customerTmr: {
+            text: a.custTmrSec > 0 ? formatSeconds(a.custTmrSec) : '—',
+            raw: a.custTmrSec,
+          },
+          totalTma: {
+            text: a.totalTmaSec > 0 ? formatSeconds(a.totalTmaSec) : '—',
+            raw: a.totalTmaSec,
+          },
+          closedBy: { text: a.closedByText, badgeTone: a.closedByTone },
+          tabulation: { text: a.tabulationLabel, badgeTone: a.tabulationTone },
+          tabulationDetail: { text: a.tabulationDetail },
+        },
+      }))
+
+      return {
+        reportId,
+        generatedAt: new Date().toISOString(),
+        startDate,
+        endDate,
+        totalRows: rows.length,
+        summary: [
+          { label: 'Total de Atendimentos', value: rows.length, sublabel: `${closedCount} finalizados`, tone: 'primary' },
+          { label: 'Espera Média 1º Atend. (TME)', value: formatSeconds(avgSec(waitArr)), sublabel: 'Fila até 1ª resp. humana', tone: 'warning' },
+          { label: 'TMR Médio do Operador', value: formatSeconds(avgSec(tmrArr)), sublabel: 'Tempo p/ responder devedor', tone: 'success' },
+          {
+            label: 'Atuação Híbrida (Robô/IA/Humano)',
+            value: analyzed.filter((a) => a.usedHuman).length,
+            sublabel: `${analyzed.filter((a) => a.usedBot || a.usedAi).length} passaram por Robô/IA`,
+            tone: 'default',
+          },
+        ],
+        rows,
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 1B. JORNADA DE CANAIS: ROBÔ VS IA VS HUMANO
+    // -----------------------------------------------------------------------
+    if (reportId === 'atuacao_robo_ia_humano') {
+      let retainedAuto = 0
+      let handedToHuman = 0
+      let withAiCount = 0
+
+      const rows: AnalyticalReportRow[] = analyzed.map((a) => {
+        if (a.usedAi) withAiCount++
+        const hadAuto = a.usedBot || a.usedAi
+        if (hadAuto && a.usedHuman) handedToHuman++
+        else if (hadAuto && !a.usedHuman) retainedAuto++
+
+        const fName = a.flowRun?.flow_id ? flowNameMap.get(a.flowRun.flow_id) || 'Fluxo Ativo' : a.usedBot ? 'Automação / Menu' : '—'
+        const fNode = a.flowRun?.current_node_key ? `Nó: ${a.flowRun.current_node_key}` : a.flowRun?.status || ''
+
+        return {
+          id: a.conv.id,
+          conversationId: a.conv.id,
+          cells: {
+            datetime: { text: formatDateTimeBR(a.conv.last_message_at || a.conv.updated_at), raw: a.conv.updated_at },
+            contactName: { text: a.conv.contact?.name || 'Devedor' },
+            phone: { text: a.conv.contact?.phone || '—' },
+            activeEngine: { text: a.channelLabel, badgeTone: a.channelTone },
+            msgBreakdown: {
+              text: `${a.botMsgs} Robô · ${a.aiMsgs} IA · ${a.humanMsgs} Hum · ${a.customerMsgs} Cli`,
+            },
+            flowInfo: { text: fNode ? `${fName} (${fNode})` : fName },
+            aiInfo: {
+              text: a.conv.ai_handoff_summary
+                ? `${a.aiMsgs} resp · "${a.conv.ai_handoff_summary}"`
+                : a.aiMsgs > 0
+                  ? `${a.aiMsgs} respostas geradas pela IA`
+                  : 'Sem acionamento IA',
+            },
+            handoffState: {
+              text:
+                hadAuto && a.usedHuman
+                  ? 'Transbordou p/ Humano'
+                  : hadAuto && !a.usedHuman
+                    ? 'Retido no Automático (Robô/IA)'
+                    : 'Atendimento Direto Humano',
+              badgeTone: hadAuto && a.usedHuman ? 'primary' : hadAuto ? 'success' : 'info',
+            },
+            operatorName: { text: a.usedHuman ? a.operatorName : '—' },
+            closedBy: { text: a.closedByText, badgeTone: a.closedByTone },
+          },
+        }
+      })
+
+      return {
+        reportId,
+        generatedAt: new Date().toISOString(),
+        startDate,
+        endDate,
+        totalRows: rows.length,
+        summary: [
+          { label: 'Conversas Analisadas', value: rows.length, tone: 'primary' },
+          { label: 'Retidos 100% no Robô / IA', value: retainedAuto, sublabel: 'Resolvidos sem ocupar operador', tone: 'success' },
+          { label: 'Transbordados p/ Humano', value: handedToHuman, tone: 'warning' },
+          { label: 'Com Atuação do Agente de IA', value: withAiCount, tone: 'default' },
+        ],
+        rows,
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 1C. TABULAÇÕES, ETIQUETAS E DESFECHOS
+    // -----------------------------------------------------------------------
+    if (reportId === 'tabulacoes_desfechos') {
+      let agreements = 0
+      let scheduled = 0
+      let tagged = 0
+
+      const rows: AnalyticalReportRow[] = analyzed.map((a) => {
+        if (a.deal?.status === 'won') agreements++
+        if (a.reminder && !a.reminder.done_at) scheduled++
+        if (a.tags.length > 0) tagged++
+
+        const stageLabel = a.deal
+          ? `${stageMap.get(a.deal.stage_id) || 'Funil'} (${a.deal.status === 'won' ? 'Ganho' : a.deal.status === 'lost' ? 'Perdido' : 'Em Aberto'})`
+          : 'Sem negócio no funil'
+
+        return {
+          id: a.conv.id,
+          conversationId: a.conv.id,
+          cells: {
+            datetime: { text: formatDateTimeBR(a.conv.updated_at), raw: a.conv.updated_at },
+            contactName: { text: a.conv.contact?.name || 'Devedor' },
+            phone: { text: a.conv.contact?.phone || '—' },
+            cpf: { text: a.cpfStr },
+            primaryTabulation: { text: a.tabulationLabel, badgeTone: a.tabulationTone },
+            tagsList: { text: a.tags.length > 0 ? a.tags.join(', ') : 'Sem etiqueta' },
+            funnelStage: {
+              text: stageLabel,
+              badgeTone: a.deal?.status === 'won' ? 'success' : a.deal?.status === 'lost' ? 'danger' : 'neutral',
+            },
+            closingNote: {
+              text: a.note?.body || a.deal?.notes || a.reminder?.comment || a.conv.ai_handoff_summary || '—',
+            },
+            campaignName: { text: a.campaignName },
+            operatorName: { text: a.operatorName },
+            convStatus: { text: a.closedByText, badgeTone: a.closedByTone },
+          },
+        }
+      })
+
+      return {
+        reportId,
+        generatedAt: new Date().toISOString(),
+        startDate,
+        endDate,
+        totalRows: rows.length,
+        summary: [
+          { label: 'Atendimentos Tabulados', value: rows.length, tone: 'primary' },
+          { label: 'Com Etiquetas (Tags)', value: tagged, tone: 'default' },
+          { label: 'Promessas / Retornos Ativos', value: scheduled, tone: 'warning' },
+          { label: 'Acordos Ganhos no Funil', value: agreements, tone: 'success' },
+        ],
+        rows,
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 1D. JANELA 24H META E QUEM AGUARDA RESPOSTA
+    // -----------------------------------------------------------------------
+    const nowMs = Date.now()
+    let openWindows = 0
+    let waitingOperatorCount = 0
+
+    const rows: AnalyticalReportRow[] = analyzed.map((a) => {
+      const expiresMs = a.lastInboundIso ? new Date(a.lastInboundIso).getTime() + 24 * 3600 * 1000 : 0
+      const remSec = a.lastInboundIso ? Math.floor((expiresMs - nowMs) / 1000) : -1
+      const isOpen = remSec > 0
+      const isExpiring = isOpen && remSec <= 3 * 3600
+      if (isOpen) openWindows++
+
+      const waitingOp = a.conv.status !== 'closed' && a.conv.last_message_from === 'customer'
+      if (waitingOp) waitingOperatorCount++
+
+      const h = isOpen ? Math.floor(remSec / 3600) : 0
+      const m = isOpen ? Math.floor((remSec % 3600) / 60) : 0
+
+      return {
+        id: a.conv.id,
+        conversationId: a.conv.id,
+        cells: {
+          lastInboundAt: {
+            text: a.lastInboundIso ? formatDateTimeBR(a.lastInboundIso) : 'Sem msg do devedor',
+            raw: a.lastInboundIso || '',
+          },
+          contactName: { text: a.conv.contact?.name || 'Devedor' },
+          phone: { text: a.conv.contact?.phone || '—' },
+          windowStatus: {
+            text: isExpiring
+              ? 'Expira em Breve (<3h)'
+              : isOpen
+                ? 'Janela 24h Aberta'
+                : 'Expirada (Requer Template)',
+            badgeTone: isExpiring ? 'warning' : isOpen ? 'success' : 'neutral',
+          },
+          remainingTime: {
+            text: isOpen ? `${h}h ${String(m).padStart(2, '0')}m livres` : 'Encerrada',
+            raw: remSec,
+          },
+          waitingWho: {
+            text:
+              a.conv.status === 'closed'
+                ? 'Conversa Finalizada'
+                : waitingOp
+                  ? 'Aguardando Operador Responder'
+                  : 'Aguardando Devedor Responder',
+            badgeTone: a.conv.status === 'closed' ? 'neutral' : waitingOp ? 'danger' : 'info',
+          },
+          idleTime: {
+            text: formatElapsedSince(a.conv.last_message_at || a.conv.updated_at),
+          },
+          campaignName: { text: a.campaignName },
+          operatorName: { text: a.operatorName },
         },
       }
     })
@@ -805,808 +1027,18 @@ export async function generateAnalyticalReport(
       endDate,
       totalRows: rows.length,
       summary: [
-        { label: 'Dias Analisados', value: rows.length, tone: 'default' },
-        { label: 'Msgs Recebidas', value: totalInbound, tone: 'primary' },
-        { label: 'Msgs / Disparos Enviados', value: totalOutbound, tone: 'default' },
-        { label: 'Acordos no Período', value: totalWonCount, sublabel: formatBRL(totalWonValue), tone: 'success' },
+        { label: 'Janelas 24h Abertas Agora', value: openWindows, tone: 'success' },
+        { label: 'Devedores Aguardando Operador', value: waitingOperatorCount, tone: waitingOperatorCount > 0 ? 'danger' : 'success' },
+        { label: 'Total de Conversas no Período', value: rows.length, tone: 'default' },
       ],
       rows,
     }
   }
 
   // =========================================================================
-  // 4. RESPONDEU SIM
+  // 2. PRODUÇÃO E TEMPOS POR OPERADOR (TME, TMR, TMA E SLA)
   // =========================================================================
-  if (reportId === 'respondeu_sim') {
-    const { data: inboundMsgs } = await db
-      .from('messages')
-      .select(
-        'id, conversation_id, content_type, content_text, interactive_reply_id, created_at, conversation:conversations(id, status, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
-      )
-      .eq('sender_type', 'customer')
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-
-    const rows: AnalyticalReportRow[] = []
-    let buttonClicks = 0
-    let textAffirmatives = 0
-
-    for (const m of (inboundMsgs ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
-      const text = (m.content_text || '').trim()
-      const isInteractive = m.content_type === 'interactive' || Boolean(m.interactive_reply_id)
-      const isNegative = NEGATIVE_REGEX.test(text) || UNRECOGNIZED_REGEX.test(text)
-      const isAffirmative = !isNegative && (isInteractive || AFFIRMATIVE_REGEX.test(text))
-
-      if (!isAffirmative) continue
-
-      if (isInteractive) buttonClicks++
-      else textAffirmatives++
-
-      const campName = conv?.campaign_id
-        ? campaignMap.get(conv.campaign_id)
-        : conv?.assigned_agent_id
-          ? userCampaignMap.get(conv.assigned_agent_id)?.name
-          : 'Geral'
-      const opName = conv?.assigned_agent_id ? profileMap.get(conv.assigned_agent_id) || 'Atribuído' : 'Fila / Robô'
-
-      rows.push({
-        id: m.id,
-        conversationId: m.conversation_id,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Cliente' },
-          phone: { text: conv?.contact?.phone || '—' },
-          replyText: { text: text || (m.interactive_reply_id ? `[Botão: ${m.interactive_reply_id}]` : 'Confirmação interativa') },
-          matchType: {
-            text: isInteractive ? 'Clique em Botão' : 'Confirmação por Texto',
-            badgeTone: isInteractive ? 'primary' : 'success',
-          },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-          convStatus: {
-            text: conv?.status === 'closed' ? 'Finalizada' : conv?.status === 'pending' ? 'Pendente' : 'Em Atendimento',
-            badgeTone: conv?.status === 'closed' ? 'neutral' : 'info',
-          },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total Respondeu SIM', value: rows.length, tone: 'success' },
-        { label: 'Cliques em Botão', value: buttonClicks, tone: 'primary' },
-        { label: 'Respostas por Texto', value: textAffirmatives, tone: 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 5. RESPONDEU NÃO / OPT-OUT
-  // =========================================================================
-  if (reportId === 'respondeu_nao') {
-    const [optOutsRes, inboundMsgsRes] = await Promise.all([
-      db
-        .from('contacts')
-        .select('id, name, phone, opted_out_at, opted_out_reason')
-        .not('opted_out_at', 'is', null)
-        .gte('opted_out_at', startIso)
-        .lte('opted_out_at', endIso)
-        .order('opted_out_at', { ascending: false }),
-      db
-        .from('messages')
-        .select(
-          'id, conversation_id, content_text, created_at, conversation:conversations(id, status, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
-        )
-        .eq('sender_type', 'customer')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ])
-
-    const rows: AnalyticalReportRow[] = []
-    let optOutCount = 0
-    let refusalMsgCount = 0
-
-    for (const c of (optOutsRes.data ?? []) as any[]) {
-      optOutCount++
-      rows.push({
-        id: `optout-${c.id}`,
-        cells: {
-          datetime: { text: formatDateTimeBR(c.opted_out_at), raw: c.opted_out_at },
-          contactName: { text: c.name || 'Contato' },
-          phone: { text: c.phone || '—' },
-          replyText: { text: c.opted_out_reason || 'Solicitou descadastramento / bloqueio (Opt-out)' },
-          refusalType: { text: 'Opt-out / Bloqueio', badgeTone: 'danger' },
-          campaignName: { text: 'Base Geral' },
-          operatorName: { text: 'Automático (Opt-out)' },
-        },
-      })
-    }
-
-    for (const m of (inboundMsgsRes.data ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
-      const text = (m.content_text || '').trim()
-      if (!NEGATIVE_REGEX.test(text)) continue
-
-      refusalMsgCount++
-      const campName = conv?.campaign_id ? campaignMap.get(conv.campaign_id) : 'Geral'
-      const opName = conv?.assigned_agent_id ? profileMap.get(conv.assigned_agent_id) || 'Operador' : 'Fila / Robô'
-
-      rows.push({
-        id: `neg-${m.id}`,
-        conversationId: m.conversation_id,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Cliente' },
-          phone: { text: conv?.contact?.phone || '—' },
-          replyText: { text },
-          refusalType: { text: 'Recusa na Conversa', badgeTone: 'warning' },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-        },
-      })
-    }
-
-    rows.sort((a, b) => String(b.cells.datetime.raw || '').localeCompare(String(a.cells.datetime.raw || '')))
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total Respondeu NÃO', value: rows.length, tone: 'warning' },
-        { label: 'Opt-out / Bloqueios', value: optOutCount, tone: 'danger' },
-        { label: 'Recusas por Mensagem', value: refusalMsgCount, tone: 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 6. NÃO RESPONDEU
-  // =========================================================================
-  if (reportId === 'nao_respondeu') {
-    const [unrepliedRecipRes, convsRes] = await Promise.all([
-      db
-        .from('broadcast_recipients')
-        .select(
-          'id, status, sent_at, delivered_at, read_at, replied_at, created_at, contact:contacts(id, name, phone), broadcast:broadcasts(id, name, template_name)'
-        )
-        .in('status', ['sent', 'delivered', 'read'])
-        .is('replied_at', null)
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false })
-        .limit(800),
-      db
-        .from('conversations')
-        .select(
-          'id, status, campaign_id, assigned_agent_id, last_message_text, last_message_from, last_message_at, created_at, contact:contacts(id, name, phone)'
-        )
-        .neq('last_message_from', 'customer')
-        .gte('updated_at', startIso)
-        .lte('updated_at', endIso)
-        .order('last_message_at', { ascending: false })
-        .limit(500),
-    ])
-
-    const rows: AnalyticalReportRow[] = []
-    let readWithoutReply = 0
-
-    for (const r of (unrepliedRecipRes.data ?? []) as any[]) {
-      if (r.status === 'read' || r.read_at) readWithoutReply++
-      const refIso = r.sent_at || r.created_at
-      rows.push({
-        id: `nr-br-${r.id}`,
-        cells: {
-          datetime: { text: formatDateTimeBR(refIso), raw: refIso },
-          contactName: { text: r.contact?.name || 'Contato' },
-          phone: { text: r.contact?.phone || '—' },
-          origin: { text: r.broadcast?.name || 'Disparo em Massa' },
-          templateName: { text: r.broadcast?.template_name || '—' },
-          deliveryStatus: {
-            text: r.status === 'read' ? 'Visualizou e não respondeu' : r.status === 'delivered' ? 'Entregue sem resposta' : 'Enviado sem resposta',
-            badgeTone: r.status === 'read' ? 'warning' : 'info',
-          },
-          elapsedTime: { text: formatElapsedSince(refIso) },
-        },
-      })
-    }
-
-    for (const c of (convsRes.data ?? []) as any[]) {
-      if (!matchesFilters(c.campaign_id, c.assigned_agent_id)) continue
-      const refIso = c.last_message_at || c.created_at
-      const campName = c.campaign_id ? campaignMap.get(c.campaign_id) : 'Atendimento'
-      rows.push({
-        id: `nr-conv-${c.id}`,
-        conversationId: c.id,
-        cells: {
-          datetime: { text: formatDateTimeBR(refIso), raw: refIso },
-          contactName: { text: c.contact?.name || 'Cliente' },
-          phone: { text: c.contact?.phone || '—' },
-          origin: { text: `Conversa · ${campName}` },
-          templateName: { text: (c.last_message_text || 'Mensagem do operador').slice(0, 60) },
-          deliveryStatus: { text: 'Aguardando retorno do cliente', badgeTone: 'neutral' },
-          elapsedTime: { text: formatElapsedSince(refIso) },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total Sem Resposta', value: rows.length, tone: 'warning' },
-        { label: 'Visualizaram e Não Responderam', value: readWithoutReply, tone: 'primary' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 7. NÃO RECONHECE / NÃO SOU EU
-  // =========================================================================
-  if (reportId === 'nao_reconhece') {
-    const [msgsRes, auditsRes] = await Promise.all([
-      db
-        .from('messages')
-        .select(
-          'id, conversation_id, content_text, created_at, conversation:conversations(id, status, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
-        )
-        .eq('sender_type', 'customer')
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      db
-        .from('distribution_audit_logs')
-        .select('conversation_id, cpf')
-        .not('cpf', 'is', null),
-    ])
-
-    const cpfByConv = new Map<string, string>()
-    for (const a of (auditsRes.data ?? []) as any[]) {
-      if (a.conversation_id && a.cpf) cpfByConv.set(a.conversation_id, a.cpf)
-    }
-
-    const rows: AnalyticalReportRow[] = []
-    for (const m of (msgsRes.data ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
-      const text = (m.content_text || '').trim()
-      if (!UNRECOGNIZED_REGEX.test(text)) continue
-
-      const campName = conv?.campaign_id ? campaignMap.get(conv.campaign_id) : 'Geral'
-      const opName = conv?.assigned_agent_id ? profileMap.get(conv.assigned_agent_id) || 'Operador' : 'Fila / Robô'
-
-      rows.push({
-        id: m.id,
-        conversationId: m.conversation_id,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Contato' },
-          phone: { text: conv?.contact?.phone || '—' },
-          messageText: { text },
-          cpf: { text: cpfByConv.get(m.conversation_id) || 'Não informado' },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-          status: { text: 'Higienizar Cadastro', badgeTone: 'warning' },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Ocorrências "Não Reconhece"', value: rows.length, tone: rows.length > 0 ? 'warning' : 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 8. AMEAÇA E EXAUSTÃO
-  // =========================================================================
-  if (reportId === 'ameaca_exaustao') {
-    const { data: msgs } = await db
-      .from('messages')
-      .select(
-        'id, conversation_id, content_text, created_at, conversation:conversations(id, status, campaign_id, assigned_agent_id, contact:contacts(id, name, phone, opted_out_at))'
-      )
-      .eq('sender_type', 'customer')
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-
-    const rows: AnalyticalReportRow[] = []
-    for (const m of (msgs ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
-      const text = (m.content_text || '').trim()
-      if (!text) continue
-
-      const matched = THREAT_EXHAUSTION_TERMS.find((t) => t.pattern.test(text))
-      if (!matched) continue
-
-      const campName = conv?.campaign_id ? campaignMap.get(conv.campaign_id) : 'Geral'
-      const opName = conv?.assigned_agent_id ? profileMap.get(conv.assigned_agent_id) || 'Operador' : 'Fila / Robô'
-      const isOptedOut = Boolean(conv?.contact?.opted_out_at)
-
-      rows.push({
-        id: m.id,
-        conversationId: m.conversation_id,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Cliente' },
-          phone: { text: conv?.contact?.phone || '—' },
-          triggerTerm: { text: matched.label, badgeTone: 'danger' },
-          messageText: { text },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-          optOutState: {
-            text: isOptedOut ? 'Bloqueado (Opt-out)' : 'Ativo — Avaliar Bloqueio',
-            badgeTone: isOptedOut ? 'neutral' : 'warning',
-          },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Alertas Críticos Identificados', value: rows.length, tone: rows.length > 0 ? 'danger' : 'success' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 9. COMPROVANTE RECEBIDO
-  // =========================================================================
-  if (reportId === 'comprovante_recebido') {
-    const { data: msgs } = await db
-      .from('messages')
-      .select(
-        'id, conversation_id, content_type, content_text, media_url, created_at, conversation:conversations(id, status, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
-      )
-      .eq('sender_type', 'customer')
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-
-    const rows: AnalyticalReportRow[] = []
-    let docCount = 0
-    let imgCount = 0
-
-    for (const m of (msgs ?? []) as any[]) {
-      const conv = m.conversation
-      if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
-      const text = (m.content_text || '').trim()
-      const isMediaReceipt = m.content_type === 'document' || m.content_type === 'image'
-      const isTextReceipt = /\b(comprovante|paguei|pago|pix feito|pagamento realizado|segue o comprovante|anexo)\b/i.test(text)
-
-      if (!isMediaReceipt && !isTextReceipt) continue
-
-      if (m.content_type === 'document') docCount++
-      else if (m.content_type === 'image') imgCount++
-
-      const campName = conv?.campaign_id ? campaignMap.get(conv.campaign_id) : 'Geral'
-      const opName = conv?.assigned_agent_id ? profileMap.get(conv.assigned_agent_id) || 'Operador' : 'Fila / Robô'
-
-      rows.push({
-        id: m.id,
-        conversationId: m.conversation_id,
-        mediaUrl: m.media_url || undefined,
-        cells: {
-          datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-          contactName: { text: conv?.contact?.name || 'Cliente' },
-          phone: { text: conv?.contact?.phone || '—' },
-          mediaType: {
-            text:
-              m.content_type === 'document'
-                ? 'Documento / PDF'
-                : m.content_type === 'image'
-                  ? 'Imagem / Foto'
-                  : 'Aviso de Pagamento',
-            badgeTone: isMediaReceipt ? 'success' : 'info',
-          },
-          caption: { text: text || 'Arquivo de mídia anexado pelo cliente' },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total de Comprovantes', value: rows.length, tone: 'success' },
-        { label: 'Documentos (PDF)', value: docCount, tone: 'primary' },
-        { label: 'Imagens / Fotos', value: imgCount, tone: 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 10. FUNIL DE BOLETO
-  // =========================================================================
-  if (reportId === 'funil_boleto') {
-    const { data: deals } = await db
-      .from('deals')
-      .select(
-        'id, title, value, status, stage_id, assigned_to, user_id, conversation_id, created_at, updated_at, contact:contacts(id, name, phone)'
-      )
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .order('created_at', { ascending: false })
-
-    const rows: AnalyticalReportRow[] = []
-    let wonValue = 0
-    let openValue = 0
-
-    for (const d of (deals ?? []) as any[]) {
-      const ownerId = d.assigned_to || d.user_id
-      if (!matchesFilters(undefined, ownerId)) continue
-
-      const val = Number(d.value || 0)
-      if (d.status === 'won') wonValue += val
-      else if (d.status === 'open') openValue += val
-
-      const stageName = stageMap.get(d.stage_id) || 'Em Negociação'
-      const opName = ownerId ? profileMap.get(ownerId) || 'Operador' : 'Equipe'
-
-      const statusMap: Record<string, { label: string; tone: 'success' | 'info' | 'danger' }> = {
-        won: { label: 'Boleto Pago / Acordo Ganho', tone: 'success' },
-        open: { label: 'Aguardando Pagamento', tone: 'info' },
-        lost: { label: 'Vencido / Perdido', tone: 'danger' },
-      }
-      const st = statusMap[d.status || 'open'] ?? { label: 'Em Aberto', tone: 'info' }
-
-      rows.push({
-        id: d.id,
-        conversationId: d.conversation_id || undefined,
-        cells: {
-          datetime: { text: formatDateTimeBR(d.updated_at || d.created_at), raw: d.updated_at || d.created_at },
-          contactName: { text: d.contact?.name || 'Cliente' },
-          phone: { text: d.contact?.phone || '—' },
-          dealTitle: { text: d.title || 'Negociação' },
-          stageName: { text: stageName, badgeTone: 'primary' },
-          dealStatus: { text: st.label, badgeTone: st.tone },
-          value: { text: formatBRL(val), raw: val },
-          operatorName: { text: opName },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Negociações no Funil', value: rows.length, tone: 'primary' },
-        { label: 'Em Aberto / Emitidos', value: formatBRL(openValue), tone: 'warning' },
-        { label: 'Quitados / Ganhos', value: formatBRL(wonValue), tone: 'success' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 11. PREVENTIVO
-  // =========================================================================
-  if (reportId === 'preventivo') {
-    const { data: reminders } = await db
-      .from('conversation_reminders')
-      .select(
-        'id, conversation_id, user_id, remind_at, comment, done_at, created_at, contact:contacts(id, name, phone)'
-      )
-      .gte('remind_at', startIso)
-      .lte('remind_at', endIso)
-      .order('remind_at', { ascending: true })
-
-    const rows: AnalyticalReportRow[] = []
-    let pendingCount = 0
-    let doneCount = 0
-    let overdueCount = 0
-    const nowMs = Date.now()
-
-    for (const r of (reminders ?? []) as any[]) {
-      if (!matchesFilters(undefined, r.user_id)) continue
-      const remindMs = new Date(r.remind_at).getTime()
-      const isDone = Boolean(r.done_at)
-      const isOverdue = !isDone && remindMs < nowMs
-
-      if (isDone) doneCount++
-      else if (isOverdue) overdueCount++
-      else pendingCount++
-
-      const opName = r.user_id ? profileMap.get(r.user_id) || 'Operador' : 'Equipe'
-      const campName = r.user_id ? userCampaignMap.get(r.user_id)?.name || 'Geral' : 'Geral'
-
-      rows.push({
-        id: r.id,
-        conversationId: r.conversation_id || undefined,
-        cells: {
-          remindAt: { text: formatDateTimeBR(r.remind_at), raw: r.remind_at },
-          contactName: { text: r.contact?.name || 'Cliente' },
-          phone: { text: r.contact?.phone || '—' },
-          comment: { text: r.comment || 'Acompanhamento preventivo agendado' },
-          campaignName: { text: campName },
-          operatorName: { text: opName },
-          status: {
-            text: isDone ? 'Concluído' : isOverdue ? 'Atrasado' : 'Programado',
-            badgeTone: isDone ? 'success' : isOverdue ? 'danger' : 'info',
-          },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Total de Agendamentos', value: rows.length, tone: 'primary' },
-        { label: 'No Prazo / Programados', value: pendingCount, tone: 'default' },
-        { label: 'Atrasados', value: overdueCount, tone: overdueCount > 0 ? 'danger' : 'default' },
-        { label: 'Concluídos', value: doneCount, tone: 'success' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 12. PROMESSA, ACORDO E RECUSA
-  // =========================================================================
-  if (reportId === 'promessa_acordo_recusa') {
-    const [dealsRes, remindersRes] = await Promise.all([
-      db
-        .from('deals')
-        .select(
-          'id, title, value, status, stage_id, assigned_to, user_id, conversation_id, created_at, contact:contacts(id, name, phone)'
-        )
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false }),
-      db
-        .from('conversation_reminders')
-        .select(
-          'id, conversation_id, user_id, remind_at, comment, created_at, contact:contacts(id, name, phone)'
-        )
-        .gte('created_at', startIso)
-        .lte('created_at', endIso)
-        .order('created_at', { ascending: false }),
-    ])
-
-    const rows: AnalyticalReportRow[] = []
-    let agreementsCount = 0
-    let promisesCount = 0
-    let refusalsCount = 0
-    let totalAgreementValue = 0
-
-    for (const d of (dealsRes.data ?? []) as any[]) {
-      const ownerId = d.assigned_to || d.user_id
-      if (!matchesFilters(undefined, ownerId)) continue
-
-      const val = Number(d.value || 0)
-      const stageName = stageMap.get(d.stage_id) || 'Funil'
-      const opName = ownerId ? profileMap.get(ownerId) || 'Operador' : 'Equipe'
-      const campName = ownerId ? userCampaignMap.get(ownerId)?.name || 'Geral' : 'Geral'
-
-      let outcomeLabel = 'Promessa / Em Negociação'
-      let outcomeTone: 'success' | 'warning' | 'danger' | 'info' = 'info'
-
-      if (d.status === 'won') {
-        outcomeLabel = 'Acordo Fechado'
-        outcomeTone = 'success'
-        agreementsCount++
-        totalAgreementValue += val
-      } else if (d.status === 'lost') {
-        outcomeLabel = 'Recusa / Perdido'
-        outcomeTone = 'danger'
-        refusalsCount++
-      } else {
-        promisesCount++
-      }
-
-      rows.push({
-        id: `deal-${d.id}`,
-        conversationId: d.conversation_id || undefined,
-        cells: {
-          datetime: { text: formatDateTimeBR(d.created_at), raw: d.created_at },
-          contactName: { text: d.contact?.name || 'Cliente' },
-          phone: { text: d.contact?.phone || '—' },
-          outcome: { text: outcomeLabel, badgeTone: outcomeTone },
-          detail: { text: `${d.title} (${stageName})` },
-          value: { text: formatBRL(val), raw: val },
-          campaignName: { text: campName },
-          operatorName: { text: opName },
-        },
-      })
-    }
-
-    for (const r of (remindersRes.data ?? []) as any[]) {
-      if (!matchesFilters(undefined, r.user_id)) continue
-      promisesCount++
-      const opName = r.user_id ? profileMap.get(r.user_id) || 'Operador' : 'Equipe'
-      const campName = r.user_id ? userCampaignMap.get(r.user_id)?.name || 'Geral' : 'Geral'
-
-      rows.push({
-        id: `rem-${r.id}`,
-        conversationId: r.conversation_id || undefined,
-        cells: {
-          datetime: { text: formatDateTimeBR(r.created_at), raw: r.created_at },
-          contactName: { text: r.contact?.name || 'Cliente' },
-          phone: { text: r.contact?.phone || '—' },
-          outcome: { text: 'Promessa Agendada', badgeTone: 'warning' },
-          detail: { text: `${r.comment || 'Retorno'} · Para ${formatDateTimeBR(r.remind_at)}` },
-          value: { text: '—', raw: 0 },
-          campaignName: { text: campName },
-          operatorName: { text: opName },
-        },
-      })
-    }
-
-    rows.sort((a, b) => String(b.cells.datetime.raw || '').localeCompare(String(a.cells.datetime.raw || '')))
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Acordos Fechados', value: agreementsCount, sublabel: formatBRL(totalAgreementValue), tone: 'success' },
-        { label: 'Promessas / Em Negociação', value: promisesCount, tone: 'warning' },
-        { label: 'Recusas / Perdidos', value: refusalsCount, tone: refusalsCount > 0 ? 'danger' : 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 13. JANELA 24H
-  // =========================================================================
-  if (reportId === 'janela_24h') {
-    const [convsRes, inboundMsgsRes] = await Promise.all([
-      db
-        .from('conversations')
-        .select(
-          'id, status, campaign_id, assigned_agent_id, last_message_at, updated_at, contact:contacts(id, name, phone)'
-        )
-        .gte('updated_at', startIso)
-        .lte('updated_at', endIso)
-        .order('last_message_at', { ascending: false })
-        .limit(800),
-      db
-        .from('messages')
-        .select('conversation_id, created_at')
-        .eq('sender_type', 'customer')
-        .gte('created_at', new Date(new Date(startIso).getTime() - 86400000 * 2).toISOString())
-        .order('created_at', { ascending: false }),
-    ])
-
-    const lastInboundByConv = new Map<string, string>()
-    for (const m of (inboundMsgsRes.data ?? []) as any[]) {
-      if (m.conversation_id && !lastInboundByConv.has(m.conversation_id)) {
-        lastInboundByConv.set(m.conversation_id, m.created_at)
-      }
-    }
-
-    const nowMs = Date.now()
-    const rows: AnalyticalReportRow[] = []
-    let openWindowsCount = 0
-    let expiringSoonCount = 0
-    let expiredWindowsCount = 0
-
-    for (const c of (convsRes.data ?? []) as any[]) {
-      if (!matchesFilters(c.campaign_id, c.assigned_agent_id)) continue
-      const lastInboundIso = lastInboundByConv.get(c.id)
-      const expiresAtMs = lastInboundIso ? new Date(lastInboundIso).getTime() + 24 * 3600 * 1000 : 0
-      const remainingSec = lastInboundIso ? Math.floor((expiresAtMs - nowMs) / 1000) : -1
-      const isOpen = remainingSec > 0
-      const isExpiringSoon = isOpen && remainingSec <= 3 * 3600
-
-      if (isOpen) {
-        openWindowsCount++
-        if (isExpiringSoon) expiringSoonCount++
-      } else {
-        expiredWindowsCount++
-      }
-
-      const h = isOpen ? Math.floor(remainingSec / 3600) : 0
-      const m = isOpen ? Math.floor((remainingSec % 3600) / 60) : 0
-
-      const campName = c.campaign_id ? campaignMap.get(c.campaign_id) : 'Geral'
-      const opName = c.assigned_agent_id ? profileMap.get(c.assigned_agent_id) || 'Operador' : 'Fila / Robô'
-
-      rows.push({
-        id: c.id,
-        conversationId: c.id,
-        cells: {
-          lastInboundAt: {
-            text: lastInboundIso ? formatDateTimeBR(lastInboundIso) : 'Sem msg do cliente',
-            raw: lastInboundIso || '',
-          },
-          contactName: { text: c.contact?.name || 'Cliente' },
-          phone: { text: c.contact?.phone || '—' },
-          windowStatus: {
-            text: isExpiringSoon
-              ? 'Expira em Breve (<3h)'
-              : isOpen
-                ? 'Janela 24h Aberta'
-                : 'Expirada (Requer Template)',
-            badgeTone: isExpiringSoon ? 'warning' : isOpen ? 'success' : 'neutral',
-          },
-          remainingTime: {
-            text: isOpen ? `${h}h ${String(m).padStart(2, '0')}m restantes` : 'Encerrada',
-            raw: remainingSec,
-          },
-          campaignName: { text: campName || 'Geral' },
-          operatorName: { text: opName },
-          convStatus: {
-            text: c.status === 'closed' ? 'Finalizada' : c.status === 'pending' ? 'Pendente' : 'Aberta',
-            badgeTone: c.status === 'closed' ? 'neutral' : 'info',
-          },
-        },
-      })
-    }
-
-    return {
-      reportId,
-      generatedAt: new Date().toISOString(),
-      startDate,
-      endDate,
-      totalRows: rows.length,
-      summary: [
-        { label: 'Janelas 24h Abertas Agora', value: openWindowsCount, tone: 'success' },
-        { label: 'Expirando em menos de 3h', value: expiringSoonCount, tone: expiringSoonCount > 0 ? 'warning' : 'default' },
-        { label: 'Janelas Expiradas', value: expiredWindowsCount, tone: 'default' },
-      ],
-      rows,
-    }
-  }
-
-  // =========================================================================
-  // 14. PRODUÇÃO DO OPERADOR
-  // =========================================================================
-  if (reportId === 'producao_operador') {
+  if (reportId === 'tempos_sla_operador') {
     const [convsRes, msgsRes, dealsRes, remindersRes] = await Promise.all([
       db
         .from('conversations')
@@ -1621,7 +1053,7 @@ export async function generateAnalyticalReport(
         .order('created_at', { ascending: true }),
       db
         .from('deals')
-        .select('id, user_id, assigned_to, value, status, created_at')
+        .select('id, user_id, assigned_to, status, created_at')
         .eq('status', 'won')
         .gte('created_at', startIso)
         .lte('created_at', endIso),
@@ -1643,33 +1075,47 @@ export async function generateAnalyticalReport(
     }
 
     const sentByUser = new Map<string, number>()
-    const replyDiffsByUser = new Map<string, number[]>()
-    const lastCustomerTsByConv = new Map<string, number>()
+    const tmrDiffsByUser = new Map<string, number[]>()
+    const firstWaitDiffsByUser = new Map<string, number[]>()
+    const firstCustByConv = new Map<string, number>()
+    const firstAgentRepliedConvs = new Set<string>()
+    const lastCustByConv = new Map<string, number>()
 
     for (const m of msgs) {
       const ts = new Date(m.created_at).getTime()
       if (m.sender_type === 'customer') {
-        lastCustomerTsByConv.set(m.conversation_id, ts)
+        if (!firstCustByConv.has(m.conversation_id)) {
+          firstCustByConv.set(m.conversation_id, ts)
+        }
+        lastCustByConv.set(m.conversation_id, ts)
       } else if (m.sender_type === 'agent') {
         const uid = m.sender_id || convAssignee.get(m.conversation_id)
-        if (uid) {
-          sentByUser.set(uid, (sentByUser.get(uid) || 0) + 1)
-          const custTs = lastCustomerTsByConv.get(m.conversation_id)
-          if (custTs && ts >= custTs && ts - custTs < 86400000) {
-            const list = replyDiffsByUser.get(uid) ?? []
-            list.push((ts - custTs) / 1000)
-            replyDiffsByUser.set(uid, list)
-            lastCustomerTsByConv.delete(m.conversation_id)
+        if (!uid) continue
+        sentByUser.set(uid, (sentByUser.get(uid) || 0) + 1)
+
+        if (!firstAgentRepliedConvs.has(m.conversation_id)) {
+          firstAgentRepliedConvs.add(m.conversation_id)
+          const firstCustTs = firstCustByConv.get(m.conversation_id)
+          if (firstCustTs && ts >= firstCustTs && ts - firstCustTs < 86400000) {
+            const list = firstWaitDiffsByUser.get(uid) ?? []
+            list.push((ts - firstCustTs) / 1000)
+            firstWaitDiffsByUser.set(uid, list)
           }
+        }
+
+        const lastCustTs = lastCustByConv.get(m.conversation_id)
+        if (lastCustTs && ts >= lastCustTs && ts - lastCustTs < 86400000) {
+          const list = tmrDiffsByUser.get(uid) ?? []
+          list.push((ts - lastCustTs) / 1000)
+          tmrDiffsByUser.set(uid, list)
+          lastCustByConv.delete(m.conversation_id)
         }
       }
     }
 
     const rows: AnalyticalReportRow[] = []
-    let teamTotalConvs = 0
-    let teamTotalMsgs = 0
-    let teamTotalDeals = 0
-    let teamTotalValue = 0
+    const allTeamTmr: number[] = []
+    const allTeamWait: number[] = []
 
     for (const prof of (profilesRes.data ?? []) as any[]) {
       if (prof.account_role === 'viewer') continue
@@ -1678,31 +1124,31 @@ export async function generateAnalyticalReport(
       if (!matchesFilters(userCamp?.id, uid)) continue
 
       const opConvs = convs.filter((c) => c.assigned_agent_id === uid)
-      const openConvs = opConvs.filter((c) => c.status === 'open' || c.status === 'pending').length
+      const openConvs = opConvs.filter((c) => c.status !== 'closed').length
       const closedConvs = opConvs.filter((c) => c.status === 'closed').length
       const totalConvs = opConvs.length
-      const msgsSent = sentByUser.get(uid) || 0
 
-      const tmrArr = replyDiffsByUser.get(uid) ?? []
-      const avgTmr = tmrArr.length > 0 ? Math.round(tmrArr.reduce((a, b) => a + b, 0) / tmrArr.length) : 0
+      const waitList = firstWaitDiffsByUser.get(uid) ?? []
+      const tmrList = tmrDiffsByUser.get(uid) ?? []
+      allTeamWait.push(...waitList)
+      allTeamTmr.push(...tmrList)
 
-      const tmaArr: number[] = []
+      const avgWait = avgSec(waitList)
+      const avgTmr = avgSec(tmrList)
+
+      const withinSlaCount = tmrList.filter((s) => s <= 300).length
+      const slaPct = tmrList.length > 0 ? Math.round((withinSlaCount / tmrList.length) * 100) : 100
+
+      const tmaList: number[] = []
       for (const c of opConvs) {
         const dur = (new Date(c.last_message_at || c.updated_at || c.created_at).getTime() - new Date(c.created_at).getTime()) / 1000
-        if (dur > 0 && dur < 86400 * 7) tmaArr.push(dur)
+        if (dur > 0 && dur < 86400 * 7) tmaList.push(dur)
       }
-      const avgTma = tmaArr.length > 0 ? Math.round(tmaArr.reduce((a, b) => a + b, 0) / tmaArr.length) : 0
+      const avgTma = avgSec(tmaList)
 
-      const opDeals = wonDeals.filter((d) => (d.assigned_to || d.user_id) === uid)
-      const dealsCount = opDeals.length
-      const dealsVal = opDeals.reduce((acc, d) => acc + Number(d.value || 0), 0)
-      const promisesCount = reminders.filter((r) => r.user_id === uid).length
-      const convRate = totalConvs > 0 ? Math.min(100, Math.round((dealsCount / totalConvs) * 1000) / 10) : 0
-
-      teamTotalConvs += totalConvs
-      teamTotalMsgs += msgsSent
-      teamTotalDeals += dealsCount
-      teamTotalValue += dealsVal
+      const msgsSent = sentByUser.get(uid) || 0
+      const remCount = reminders.filter((r) => r.user_id === uid).length
+      const dealsCount = wonDeals.filter((d) => (d.assigned_to || d.user_id) === uid).length
 
       rows.push({
         id: uid,
@@ -1711,14 +1157,14 @@ export async function generateAnalyticalReport(
           campaignName: { text: userCamp?.name || 'Geral' },
           totalConvs: { text: String(totalConvs), raw: totalConvs },
           openConvs: { text: String(openConvs), raw: openConvs },
-          closedConvs: { text: String(closedConvs), raw: closedConvs },
+          closedByOperator: { text: String(closedConvs), raw: closedConvs },
+          avgWaitTme: { text: avgWait > 0 ? formatSeconds(avgWait) : '—', raw: avgWait },
+          avgOperatorTmr: { text: avgTmr > 0 ? formatSeconds(avgTmr) : '—', raw: avgTmr },
+          avgTotalTma: { text: avgTma > 0 ? formatSeconds(avgTma) : '—', raw: avgTma },
+          slaCompliance: { text: `${slaPct}%`, raw: slaPct },
           messagesSent: { text: String(msgsSent), raw: msgsSent },
-          tmr: { text: formatSeconds(avgTmr), raw: avgTmr },
-          tma: { text: formatSeconds(avgTma), raw: avgTma },
-          promisesCount: { text: String(promisesCount), raw: promisesCount },
-          wonDealsCount: { text: String(dealsCount), raw: dealsCount },
-          wonDealsValue: { text: formatBRL(dealsVal), raw: dealsVal },
-          conversionRate: { text: `${convRate.toFixed(1)}%`, raw: convRate },
+          remindersCreated: { text: String(remCount), raw: remCount },
+          wonDeals: { text: String(dealsCount), raw: dealsCount },
         },
       })
     }
@@ -1733,69 +1179,398 @@ export async function generateAnalyticalReport(
       totalRows: rows.length,
       summary: [
         { label: 'Operadores Avaliados', value: rows.length, tone: 'primary' },
-        { label: 'Atendimentos no Período', value: teamTotalConvs, tone: 'default' },
-        { label: 'Mensagens Enviadas', value: teamTotalMsgs, tone: 'default' },
-        { label: 'Acordos da Equipe', value: teamTotalDeals, sublabel: formatBRL(teamTotalValue), tone: 'success' },
+        { label: 'TME Médio da Equipe (1ª Resp)', value: formatSeconds(avgSec(allTeamWait)), tone: 'warning' },
+        { label: 'TMR Médio da Equipe ao Devedor', value: formatSeconds(avgSec(allTeamTmr)), tone: 'success' },
       ],
       rows,
     }
   }
 
   // =========================================================================
-  // 15. NÃO ENTREGUE (FALHAS)
+  // 5. AUDITORIA DE DISTRIBUIÇÃO, TRIAGEM DE CPF E FILAS
   // =========================================================================
-  const [failedRecipRes, failedMsgsRes] = await Promise.all([
-    db
+  if (reportId === 'auditoria_distribuicao_filas') {
+    const [auditsRes, cpfRespRes] = await Promise.all([
+      db
+        .from('distribution_audit_logs')
+        .select(
+          'id, conversation_id, contact_id, cpf, campaign_id, campaign_name, assigned_agent_id, assigned_agent_name, distribution_mode, strategy_used, status, reason, execution_time_ms, created_at, contact:contacts(id, name, phone)'
+        )
+        .gte('created_at', startIso)
+        .lte('created_at', endIso)
+        .order('created_at', { ascending: false })
+        .limit(800),
+      db.from('cpf_responsibilities').select('cpf, creditor_name, contract_ref'),
+    ])
+
+    const cpfMap = new Map<string, string>()
+    for (const r of (cpfRespRes.data ?? []) as any[]) {
+      if (r.cpf) {
+        cpfMap.set(
+          String(r.cpf).replace(/\D/g, ''),
+          [r.creditor_name, r.contract_ref].filter(Boolean).join(' · ') || 'Base CPF'
+        )
+      }
+    }
+
+    const rows: AnalyticalReportRow[] = []
+    let routedSuccess = 0
+    let queuedCount = 0
+    let triageCount = 0
+
+    for (const a of (auditsRes.data ?? []) as any[]) {
+      if (!matchesFilters(a.campaign_id, a.assigned_agent_id)) continue
+      if (a.status === 'success') routedSuccess++
+      else if (a.status === 'queued') queuedCount++
+      else if (a.status === 'triage') triageCount++
+
+      const cleanCpf = a.cpf ? String(a.cpf).replace(/\D/g, '') : ''
+      const credInfo = cleanCpf ? cpfMap.get(cleanCpf) || 'CPF Identificado' : 'Aguardando CPF'
+
+      const statusBadge: Record<string, { label: string; tone: 'success' | 'warning' | 'info' | 'danger' }> = {
+        success: { label: 'Atribuído ao Operador', tone: 'success' },
+        queued: { label: 'Aguardando na Fila', tone: 'warning' },
+        triage: { label: 'Em Triagem (Sem CPF)', tone: 'info' },
+        conflict: { label: 'Conflito de Carteira', tone: 'danger' },
+        failed: { label: 'Falha no Roteamento', tone: 'danger' },
+      }
+      const st = statusBadge[a.status] ?? { label: a.status, tone: 'info' }
+
+      rows.push({
+        id: a.id,
+        conversationId: a.conversation_id || undefined,
+        cells: {
+          datetime: { text: formatDateTimeBR(a.created_at), raw: a.created_at },
+          contactName: { text: a.contact?.name || 'Devedor' },
+          phone: { text: a.contact?.phone || '—' },
+          cpf: { text: a.cpf || 'Não informado' },
+          creditorContract: { text: credInfo },
+          campaignName: { text: a.campaign_name || (a.campaign_id ? campaignMap.get(a.campaign_id) : 'Geral') || 'Geral' },
+          modeStrategy: {
+            text: `${a.distribution_mode === 'cpf_responsibility' ? 'Resp. CPF' : a.distribution_mode === 'manual' ? 'Manual' : 'Inteligente'} (${a.strategy_used || 'padrão'})`,
+            badgeTone: 'primary',
+          },
+          routingStatus: { text: st.label, badgeTone: st.tone },
+          assignedOperator: {
+            text: a.assigned_agent_name || (a.assigned_agent_id ? profileMap.get(a.assigned_agent_id) : '—') || '—',
+          },
+          reason: { text: a.reason || 'Roteado pelo motor de distribuição' },
+        },
+      })
+    }
+
+    return {
+      reportId,
+      generatedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      totalRows: rows.length,
+      summary: [
+        { label: 'Eventos de Distribuição', value: rows.length, tone: 'primary' },
+        { label: 'Entregues a Operadores', value: routedSuccess, tone: 'success' },
+        { label: 'Retidos em Fila', value: queuedCount, tone: 'warning' },
+        { label: 'Em Triagem de CPF', value: triageCount, tone: 'default' },
+      ],
+      rows,
+    }
+  }
+
+  // =========================================================================
+  // 6. AGENDAMENTOS DE RETORNO E PROMESSAS (REMINDERS)
+  // =========================================================================
+  if (reportId === 'retornos_agendamentos') {
+    const { data: reminders } = await db
+      .from('conversation_reminders')
+      .select(
+        'id, conversation_id, user_id, remind_at, comment, done_at, created_at, contact:contacts(id, name, phone)'
+      )
+      .gte('remind_at', startIso)
+      .lte('remind_at', endIso)
+      .order('remind_at', { ascending: true })
+
+    const rows: AnalyticalReportRow[] = []
+    let pending = 0
+    let overdue = 0
+    let done = 0
+    const nowMs = Date.now()
+
+    for (const r of (reminders ?? []) as any[]) {
+      const userCamp = r.user_id ? userCampaignMap.get(r.user_id) : undefined
+      if (!matchesFilters(userCamp?.id, r.user_id)) continue
+
+      const isDone = Boolean(r.done_at)
+      const isOverdue = !isDone && new Date(r.remind_at).getTime() < nowMs
+
+      if (isDone) done++
+      else if (isOverdue) overdue++
+      else pending++
+
+      rows.push({
+        id: r.id,
+        conversationId: r.conversation_id || undefined,
+        cells: {
+          remindAt: { text: formatDateTimeBR(r.remind_at), raw: r.remind_at },
+          contactName: { text: r.contact?.name || 'Devedor' },
+          phone: { text: r.contact?.phone || '—' },
+          comment: { text: r.comment || 'Retorno agendado pelo operador' },
+          campaignName: { text: userCamp?.name || 'Geral' },
+          operatorName: { text: r.user_id ? profileMap.get(r.user_id) || 'Operador' : 'Equipe' },
+          status: {
+            text: isDone ? 'Concluído' : isOverdue ? 'Atrasado / Vencido' : 'No Prazo',
+            badgeTone: isDone ? 'success' : isOverdue ? 'danger' : 'info',
+          },
+          doneAt: { text: r.done_at ? formatDateTimeBR(r.done_at) : '—' },
+        },
+      })
+    }
+
+    return {
+      reportId,
+      generatedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      totalRows: rows.length,
+      summary: [
+        { label: 'Total de Agendamentos', value: rows.length, tone: 'primary' },
+        { label: 'Programados no Prazo', value: pending, tone: 'default' },
+        { label: 'Atrasados', value: overdue, tone: overdue > 0 ? 'danger' : 'default' },
+        { label: 'Concluídos', value: done, tone: 'success' },
+      ],
+      rows,
+    }
+  }
+
+  // =========================================================================
+  // 8. ENVIOS ANALÍTICOS DE DISPAROS (BROADCAST RECIPIENTS)
+  // =========================================================================
+  if (reportId === 'disparos_analitico') {
+    const { data: recips } = await db
       .from('broadcast_recipients')
       .select(
-        'id, error_message, created_at, contact:contacts(id, name, phone), broadcast:broadcasts(id, name, template_name)'
+        'id, status, sent_at, delivered_at, read_at, replied_at, error_message, created_at, contact:contacts(id, name, phone), broadcast:broadcasts(id, name, template_name)'
       )
+      .gte('created_at', startIso)
+      .lte('created_at', endIso)
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    const rows: AnalyticalReportRow[] = []
+    let delivered = 0
+    let read = 0
+    let replied = 0
+    let failed = 0
+
+    for (const r of (recips ?? []) as any[]) {
+      const st = r.status || 'pending'
+      if (st === 'delivered' || st === 'read' || st === 'replied') delivered++
+      if (st === 'read' || st === 'replied') read++
+      if (st === 'replied' || r.replied_at) replied++
+      if (st === 'failed') failed++
+
+      const sentMs = r.sent_at ? new Date(r.sent_at).getTime() : 0
+      const replyMs = r.replied_at ? new Date(r.replied_at).getTime() : 0
+      const replyDiffStr =
+        sentMs && replyMs && replyMs >= sentMs
+          ? `${formatDateTimeBR(r.replied_at)} (em ${formatSeconds((replyMs - sentMs) / 1000)})`
+          : r.replied_at
+            ? formatDateTimeBR(r.replied_at)
+            : 'Sem resposta'
+
+      const badgeMap: Record<string, { label: string; tone: 'success' | 'primary' | 'info' | 'warning' | 'danger' | 'neutral' }> = {
+        replied: { label: 'Respondido pelo Devedor', tone: 'success' },
+        read: { label: 'Visualizado (Lido)', tone: 'primary' },
+        delivered: { label: 'Entregue no Aparelho', tone: 'info' },
+        sent: { label: 'Enviado à Meta', tone: 'neutral' },
+        pending: { label: 'Na Fila de Disparo', tone: 'warning' },
+        failed: { label: 'Falha na Entrega', tone: 'danger' },
+      }
+      const badge = badgeMap[st] ?? { label: st, tone: 'neutral' }
+
+      rows.push({
+        id: r.id,
+        cells: {
+          sentAt: { text: formatDateTimeBR(r.sent_at || r.created_at), raw: r.sent_at || r.created_at },
+          contactName: { text: r.contact?.name || 'Contato' },
+          phone: { text: r.contact?.phone || '—' },
+          batchName: { text: r.broadcast?.name || 'Disparo' },
+          templateName: { text: r.broadcast?.template_name || '—' },
+          deliveryStatus: { text: badge.label, badgeTone: badge.tone },
+          readAt: { text: formatDateTimeBR(r.read_at) },
+          repliedAt: { text: replyDiffStr },
+          errorDetail: { text: r.error_message || 'OK · Processado pela Meta' },
+        },
+      })
+    }
+
+    return {
+      reportId,
+      generatedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      totalRows: rows.length,
+      summary: [
+        { label: 'Total Acionado no Período', value: rows.length, tone: 'primary' },
+        { label: 'Entregues', value: delivered, tone: 'default' },
+        { label: 'Visualizados (Lidos)', value: read, tone: 'default' },
+        { label: 'Respondidos / Falhas', value: `${replied} resp · ${failed} falhas`, tone: 'success' },
+      ],
+      rows,
+    }
+  }
+
+  // =========================================================================
+  // 9. DESEMPENHO CONSOLIDADO DE LOTES DISPARADOS NO PERÍODO
+  // =========================================================================
+  if (reportId === 'lotes_disparos_periodo') {
+    const { data: broadcasts } = await db
+      .from('broadcasts')
+      .select(
+        'id, name, template_name, status, total_recipients, sent_count, delivered_count, read_count, replied_count, failed_count, scheduled_at, created_at'
+      )
+      .gte('created_at', startIso)
+      .lte('created_at', endIso)
+      .order('created_at', { ascending: false })
+
+    const rows: AnalyticalReportRow[] = []
+    let totalSent = 0
+    let totalReplied = 0
+
+    for (const b of (broadcasts ?? []) as any[]) {
+      const sent = Number(b.sent_count || 0)
+      const delivered = Number(b.delivered_count || 0)
+      const read = Number(b.read_count || 0)
+      const replied = Number(b.replied_count || 0)
+      const failed = Number(b.failed_count || 0)
+      const base = Number(b.total_recipients || sent + failed)
+      const rate = delivered > 0 ? Math.round((replied / delivered) * 1000) / 10 : sent > 0 ? Math.round((replied / sent) * 1000) / 10 : 0
+
+      totalSent += sent
+      totalReplied += replied
+
+      rows.push({
+        id: b.id,
+        cells: {
+          createdAt: { text: formatDateTimeBR(b.scheduled_at || b.created_at), raw: b.created_at },
+          batchName: { text: b.name || 'Campanha' },
+          templateName: { text: b.template_name || '—' },
+          status: {
+            text: b.status === 'sent' ? 'Concluído' : b.status === 'sending' ? 'Enviando' : b.status,
+            badgeTone: b.status === 'sent' ? 'success' : 'info',
+          },
+          totalRecipients: { text: String(base), raw: base },
+          sentCount: { text: String(sent), raw: sent },
+          deliveredCount: { text: String(delivered), raw: delivered },
+          readCount: { text: String(read), raw: read },
+          repliedCount: { text: String(replied), raw: replied },
+          responseRate: { text: `${rate.toFixed(1)}%`, raw: rate },
+          failedCount: { text: String(failed), raw: failed },
+        },
+      })
+    }
+
+    return {
+      reportId,
+      generatedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      totalRows: rows.length,
+      summary: [
+        { label: 'Campanhas Disparadas', value: rows.length, tone: 'primary' },
+        { label: 'Total Enviado', value: totalSent, tone: 'default' },
+        { label: 'Total Respondido', value: totalReplied, tone: 'success' },
+      ],
+      rows,
+    }
+  }
+
+  // =========================================================================
+  // 10. HIGIENIZAÇÃO DE BASE: OPT-OUTS, FALHAS META E Nº DE TERCEIROS
+  // =========================================================================
+  const [optOutsRes, failedRecipRes, inboundMsgsRes] = await Promise.all([
+    db
+      .from('contacts')
+      .select('id, name, phone, opted_out_at, opted_out_reason')
+      .not('opted_out_at', 'is', null)
+      .gte('opted_out_at', startIso)
+      .lte('opted_out_at', endIso)
+      .order('opted_out_at', { ascending: false }),
+    db
+      .from('broadcast_recipients')
+      .select('id, error_message, created_at, contact:contacts(id, name, phone), broadcast:broadcasts(name, template_name)')
       .eq('status', 'failed')
       .gte('created_at', startIso)
       .lte('created_at', endIso)
       .order('created_at', { ascending: false })
-      .limit(500),
+      .limit(400),
     db
       .from('messages')
-      .select(
-        'id, conversation_id, content_text, template_name, created_at, conversation:conversations(id, campaign_id, assigned_agent_id, contact:contacts(id, name, phone))'
-      )
-      .eq('status', 'failed')
+      .select('id, conversation_id, content_text, created_at, conversation:conversations(id, contact:contacts(id, name, phone, opted_out_at))')
+      .eq('sender_type', 'customer')
       .gte('created_at', startIso)
       .lte('created_at', endIso)
       .order('created_at', { ascending: false })
-      .limit(500),
+      .limit(600),
   ])
 
   const rows: AnalyticalReportRow[] = []
+  let optOutTotal = 0
+  let failedTotal = 0
+  let wrongPartyTotal = 0
 
-  for (const r of (failedRecipRes.data ?? []) as any[]) {
+  for (const c of (optOutsRes.data ?? []) as any[]) {
+    optOutTotal++
     rows.push({
-      id: `fail-br-${r.id}`,
+      id: `opt-${c.id}`,
       cells: {
-        datetime: { text: formatDateTimeBR(r.created_at), raw: r.created_at },
-        contactName: { text: r.contact?.name || 'Contato' },
-        phone: { text: r.contact?.phone || '—' },
-        origin: { text: `Disparo · ${r.broadcast?.name || 'Lote'}`, badgeTone: 'danger' },
-        templateOrText: { text: r.broadcast?.template_name || 'Template' },
-        errorReason: { text: r.error_message || 'Falha reportada pela API do WhatsApp Business (Meta)' },
+        datetime: { text: formatDateTimeBR(c.opted_out_at), raw: c.opted_out_at },
+        contactName: { text: c.name || 'Contato' },
+        phone: { text: c.phone || '—' },
+        cpf: { text: '—' },
+        occurrenceType: { text: 'Opt-out / Bloqueio Solicitado', badgeTone: 'danger' },
+        reasonDetail: { text: c.opted_out_reason || 'Solicitou parada de envios (Opt-out)' },
+        origin: { text: 'Gatilho de Opt-out' },
+        contactState: { text: 'Bloqueado p/ Disparos', badgeTone: 'neutral' },
       },
     })
   }
 
-  for (const m of (failedMsgsRes.data ?? []) as any[]) {
-    const conv = m.conversation
-    if (!matchesFilters(conv?.campaign_id, conv?.assigned_agent_id)) continue
+  for (const r of (failedRecipRes.data ?? []) as any[]) {
+    failedTotal++
     rows.push({
-      id: `fail-msg-${m.id}`,
+      id: `fail-${r.id}`,
+      cells: {
+        datetime: { text: formatDateTimeBR(r.created_at), raw: r.created_at },
+        contactName: { text: r.contact?.name || 'Contato' },
+        phone: { text: r.contact?.phone || '—' },
+        cpf: { text: '—' },
+        occurrenceType: { text: 'Falha de Entrega (API Meta)', badgeTone: 'warning' },
+        reasonDetail: { text: r.error_message || 'Número inválido ou sem WhatsApp ativo' },
+        origin: { text: `Lote: ${r.broadcast?.name || 'Disparo'}` },
+        contactState: { text: 'Revisar / Inativar Número', badgeTone: 'warning' },
+      },
+    })
+  }
+
+  for (const m of (inboundMsgsRes.data ?? []) as any[]) {
+    const text = (m.content_text || '').trim()
+    if (!UNRECOGNIZED_REGEX.test(text)) continue
+    wrongPartyTotal++
+    const contact = m.conversation?.contact
+    rows.push({
+      id: `wrong-${m.id}`,
       conversationId: m.conversation_id,
       cells: {
         datetime: { text: formatDateTimeBR(m.created_at), raw: m.created_at },
-        contactName: { text: conv?.contact?.name || 'Cliente' },
-        phone: { text: conv?.contact?.phone || '—' },
-        origin: { text: 'Mensagem na Conversa', badgeTone: 'warning' },
-        templateOrText: { text: m.template_name || (m.content_text || '').slice(0, 60) || 'Mensagem' },
-        errorReason: { text: 'Não entregue pela Meta (janela fechada ou número inválido)' },
+        contactName: { text: contact?.name || 'Contato' },
+        phone: { text: contact?.phone || '—' },
+        cpf: { text: '—' },
+        occurrenceType: { text: 'Não Reconhece / Número de Terceiro', badgeTone: 'primary' },
+        reasonDetail: { text },
+        origin: { text: 'Resposta na Conversa' },
+        contactState: {
+          text: contact?.opted_out_at ? 'Já Bloqueado' : 'Higienizar Cadastro',
+          badgeTone: contact?.opted_out_at ? 'neutral' : 'info',
+        },
       },
     })
   }
@@ -1803,13 +1578,16 @@ export async function generateAnalyticalReport(
   rows.sort((a, b) => String(b.cells.datetime.raw || '').localeCompare(String(a.cells.datetime.raw || '')))
 
   return {
-    reportId: 'nao_entregue',
+    reportId: 'higienizacao_bloqueios_falhas',
     generatedAt: new Date().toISOString(),
     startDate,
     endDate,
     totalRows: rows.length,
     summary: [
-      { label: 'Total Não Entregue / Falhas', value: rows.length, tone: rows.length > 0 ? 'danger' : 'success' },
+      { label: 'Total p/ Higienização', value: rows.length, tone: 'primary' },
+      { label: 'Opt-outs (Bloqueios)', value: optOutTotal, tone: 'danger' },
+      { label: 'Falhas de Entrega Meta', value: failedTotal, tone: 'warning' },
+      { label: 'Relatos de Terceiro / Engano', value: wrongPartyTotal, tone: 'default' },
     ],
     rows,
   }
