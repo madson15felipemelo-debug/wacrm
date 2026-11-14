@@ -12,10 +12,6 @@
  *
  * `TextRow` — wraps Input or Textarea behind a label. Pure UI sugar
  * to keep per-node forms uncluttered.
- *
- * Lives in src/components/flows/forms/ so both the list view's
- * collapsed-card editor and the canvas view's side-panel editor
- * (introduced in this PR) mount the exact same form components.
  */
 
 import { Input } from "@/components/ui/input";
@@ -44,19 +40,21 @@ export function TextRow({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+      <label className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </label>
       {rows > 1 ? (
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
-          className="bg-muted"
+          className="bg-muted/40"
         />
       ) : (
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-muted"
+          className="h-9 bg-muted/40"
         />
       )}
     </div>
@@ -78,7 +76,9 @@ export function NextNodeRow({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+      <label className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </label>
       <NodeKeySelect
         value={value || null}
         nodes={allNodes}
@@ -107,13 +107,32 @@ export function NodeKeySelect({
 }) {
   const t = useTranslations("Flows.builder.form");
   const options = nodes.filter((n) => n.node_key !== excludeKey);
+  const selectedNode = value ? options.find((n) => n.node_key === value) : null;
+  const SelectedIcon = selectedNode ? NODE_META[selectedNode.node_type].icon : null;
+
   return (
     <Select
       value={value ?? "__none__"}
       onValueChange={(v) => onChange(v === "__none__" ? null : v)}
     >
-      <SelectTrigger className={cn("bg-muted", className)}>
-        <SelectValue placeholder={placeholder ?? "—"} />
+      <SelectTrigger className={cn("h-9 w-full bg-muted/40", className)}>
+        <SelectValue placeholder={placeholder ?? "—"}>
+          {selectedNode && SelectedIcon ? (
+            <span className="inline-flex items-center gap-1.5">
+              <SelectedIcon
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0",
+                  NODE_META[selectedNode.node_type].color
+                )}
+              />
+              <span className="font-mono text-xs">{selectedNode.node_key}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              {placeholder ?? t("none")}
+            </span>
+          )}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__">{t("none")}</SelectItem>
@@ -123,9 +142,9 @@ export function NodeKeySelect({
             <SelectItem key={n.node_key} value={n.node_key}>
               <span className="inline-flex items-center gap-1.5">
                 <Icon
-                  className={cn("h-3 w-3", NODE_META[n.node_type].color)}
+                  className={cn("h-3.5 w-3.5", NODE_META[n.node_type].color)}
                 />
-                {n.node_key}
+                <span className="font-mono text-xs">{n.node_key}</span>
               </span>
             </SelectItem>
           );

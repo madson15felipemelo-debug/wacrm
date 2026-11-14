@@ -155,7 +155,7 @@ export function FlowBuilder() {
   }, [flashKey]);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-7">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-6">
       <TriggerPanel
         state={state}
         setState={setState}
@@ -252,7 +252,7 @@ function KeywordsInput({
         }
       }}
       placeholder={t('keywordsPlaceholder')}
-      className="bg-muted"
+      className="h-9 bg-muted/40"
     />
   );
 }
@@ -272,12 +272,28 @@ function TriggerPanel({
   triggerIssues: ValidationIssue[];
   t: ReturnType<typeof useTranslations>;
 }) {
+  const triggerLabel =
+    state.trigger_type === 'keyword'
+      ? t('triggerKeywordTitle')
+      : state.trigger_type === 'first_inbound_message'
+        ? t('triggerFirstInboundTitle')
+        : t('triggerManualTitle');
+
   return (
-    <section className="border-border bg-card rounded-lg border p-4">
-      <h2 className="text-foreground mb-3 text-sm font-semibold">{t('triggerTitle')}</h2>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div>
-          <label className="text-muted-foreground mb-1 block text-xs">
+    <section className="border-border bg-card rounded-xl border p-5 shadow-2xs">
+      <div className="mb-3.5 flex items-center justify-between">
+        <h2 className="text-foreground text-sm font-semibold tracking-tight">
+          {t('triggerTitle')}
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+        <div
+          className={cn(
+            'min-w-0',
+            state.trigger_type === 'keyword' ? 'md:col-span-5' : 'md:col-span-12'
+          )}
+        >
+          <label className="text-muted-foreground mb-1.5 block text-[11px] font-semibold tracking-wider uppercase">
             {t('whenLabel')}
           </label>
           <Select
@@ -291,8 +307,8 @@ function TriggerPanel({
               }))
             }
           >
-            <SelectTrigger className="bg-muted">
-              <SelectValue />
+            <SelectTrigger className="h-9 w-full bg-muted/40">
+              <SelectValue>{triggerLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="keyword">
@@ -308,8 +324,8 @@ function TriggerPanel({
           </Select>
         </div>
         {state.trigger_type === 'keyword' && (
-          <div>
-            <label className="text-muted-foreground mb-1 block text-xs">
+          <div className="min-w-0 md:col-span-7">
+            <label className="text-muted-foreground mb-1.5 block text-[11px] font-semibold tracking-wider uppercase">
               {t('keywordsLabel')}
             </label>
             <KeywordsInput
@@ -355,15 +371,21 @@ function EntryPicker({
 }) {
   if (state.nodes.length === 0) return null;
   return (
-    <section className="border-border bg-card flex items-center gap-3 rounded-lg border p-3">
-      <CornerDownRight className="text-primary h-4 w-4 shrink-0" />
-      <span className="text-muted-foreground text-xs">{t('entryNodeTitle')}</span>
+    <section className="border-border bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-3.5 shadow-2xs">
+      <div className="flex items-center gap-2.5">
+        <span className="border-primary/25 bg-primary/10 text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border">
+          <CornerDownRight className="h-3.5 w-3.5" />
+        </span>
+        <span className="text-foreground text-xs font-medium">
+          {t('entryNodeTitle')}
+        </span>
+      </div>
       <NodeKeySelect
         value={state.entry_node_id}
         nodes={state.nodes}
         onChange={(key) => setState((s) => ({ ...s, entry_node_id: key }))}
         placeholder={t('entryNodePlaceholder')}
-        className="max-w-xs flex-1"
+        className="w-full sm:w-64"
       />
     </section>
   );
