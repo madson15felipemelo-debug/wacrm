@@ -36,6 +36,7 @@ interface AttendancesManagementTabProps {
   attendances: AttendanceDetailRow[];
   operators?: OperatorProductivityRow[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 type SortOption = "waiting_desc" | "sla_critical" | "duration_desc" | "client_asc";
@@ -83,7 +84,9 @@ export function AttendancesManagementTab({
   attendances: initialAttendances,
   operators = [],
   loading = false,
+  mode = "collection",
 }: AttendancesManagementTabProps) {
+  const isSales = mode === "sales";
   const router = useRouter();
   const [attendancesList, setAttendancesList] = useState<AttendanceDetailRow[]>(initialAttendances);
 
@@ -429,7 +432,9 @@ export function AttendancesManagementTab({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground">Carteira:</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {isSales ? "Funil / Equipe:" : "Carteira:"}
+            </span>
             <select
               value={portfolioFilter}
               onChange={(e) => setPortfolioFilter(e.target.value)}
@@ -466,8 +471,8 @@ export function AttendancesManagementTab({
               className="h-8 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted cursor-pointer transition-colors"
             >
               <option value="all">Todos</option>
-              <option value="operator">Operador</option>
-              <option value="client">Cliente</option>
+              <option value="operator">{isSales ? "Consultor" : "Operador"}</option>
+              <option value="client">{isSales ? "Lead / Cliente" : "Cliente"}</option>
             </select>
           </div>
         </div>
@@ -475,7 +480,11 @@ export function AttendancesManagementTab({
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente, CPF ou telefone..."
+            placeholder={
+              isSales
+                ? "Buscar lead, cliente ou telefone..."
+                : "Buscar cliente, CPF ou telefone..."
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 pl-8 text-xs bg-background"
@@ -489,10 +498,14 @@ export function AttendancesManagementTab({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-sm font-semibold text-foreground">
-                Atendimentos em Curso ({processed.length})
+                {isSales
+                  ? `Leads & Atendimentos em Curso (${processed.length})`
+                  : `Atendimentos em Curso (${processed.length})`}
               </CardTitle>
               <CardDescription className="text-xs">
-                Acompanhamento de SLA, responsável e etapa de negociação
+                {isSales
+                  ? "Acompanhamento de SLA, consultor responsável e etapa comercial"
+                  : "Acompanhamento de SLA, responsável e etapa de negociação"}
               </CardDescription>
             </div>
           </div>
@@ -504,9 +517,15 @@ export function AttendancesManagementTab({
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <th className="py-2.5 pl-6 pr-3">SLA</th>
-                  <th className="px-3 py-2.5">Carteira</th>
-                  <th className="px-3 py-2.5">Cliente</th>
-                  <th className="px-3 py-2.5">Responsável</th>
+                  <th className="px-3 py-2.5">
+                    {isSales ? "Funil / Equipe" : "Carteira"}
+                  </th>
+                  <th className="px-3 py-2.5">
+                    {isSales ? "Lead / Cliente" : "Cliente"}
+                  </th>
+                  <th className="px-3 py-2.5">
+                    {isSales ? "Consultor" : "Responsável"}
+                  </th>
                   <th className="px-3 py-2.5 text-center">Espera</th>
                   <th className="px-3 py-2.5">Etapa</th>
                   <th className="px-3 py-2.5 text-center">Duração</th>

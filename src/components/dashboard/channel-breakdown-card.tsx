@@ -7,20 +7,27 @@ import { Bot, UserCheck, Workflow } from "lucide-react";
 interface ChannelBreakdownCardProps {
   channels: ChannelBreakdown;
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
-export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
+export function ChannelBreakdownCard({
+  channels,
+  mode = "collection",
+}: ChannelBreakdownCardProps) {
   const { robot, ai, human } = channels;
+  const isSales = mode === "sales";
 
   return (
     <Card className="h-full border border-border shadow-xs">
       <CardHeader className="pb-3">
         <div>
           <CardTitle className="text-sm font-semibold text-foreground">
-            Canais de Atendimento
+            {isSales ? "Canais de Atendimento Comercial" : "Canais de Atendimento"}
           </CardTitle>
           <CardDescription className="text-xs">
-            Distribuição de volume entre triagem, automação e equipe humana
+            {isSales
+              ? "Distribuição de leads entre qualificação, automação/IA e consultores"
+              : "Distribuição de volume entre triagem, automação e equipe humana"}
           </CardDescription>
         </div>
       </CardHeader>
@@ -47,15 +54,15 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
           <div className="flex justify-between text-[11px] text-muted-foreground px-0.5">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-sky-500" />
-              Triagem {robot.percentage}%
+              {isSales ? "Qualificação" : "Triagem"} {robot.percentage}%
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-primary" />
-              Automático {ai.percentage}%
+              {isSales ? "IA / Bot" : "Automático"} {ai.percentage}%
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Humano {human.percentage}%
+              {isSales ? "Consultor" : "Humano"} {human.percentage}%
             </span>
           </div>
         </div>
@@ -65,7 +72,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                 <Workflow className="h-3.5 w-3.5 text-sky-500" />
-                Triagem
+                {isSales ? "Qualificação" : "Triagem"}
               </span>
               <span className="text-[10px] font-mono">&lt; 2s</span>
             </div>
@@ -74,7 +81,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
               <span className="text-xs font-mono text-muted-foreground">{robot.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Identificação e coleta de CPF
+              {isSales ? "Recepção e triagem de leads" : "Identificação e coleta de CPF"}
             </p>
           </div>
 
@@ -82,7 +89,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                 <Bot className="h-3.5 w-3.5 text-primary" />
-                Automático
+                {isSales ? "IA / Automático" : "Automático"}
               </span>
               <span className="text-[10px] font-mono">~6s</span>
             </div>
@@ -91,7 +98,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
               <span className="text-xs font-mono text-muted-foreground">{ai.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Atendimento sem transbordo
+              {isSales ? "Dúvidas e qualificação sem fila" : "Atendimento sem transbordo"}
             </p>
           </div>
 
@@ -99,7 +106,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                 <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
-                Humano
+                {isSales ? "Consultores" : "Humano"}
               </span>
               <span className="text-[10px] font-mono text-emerald-500">{human.agreementRate}% conv.</span>
             </div>
@@ -108,7 +115,7 @@ export function ChannelBreakdownCard({ channels }: ChannelBreakdownCardProps) {
               <span className="text-xs font-mono text-muted-foreground">{human.percentage}%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Negociação e fechamento
+              {isSales ? "Apresentação, proposta e venda" : "Negociação e fechamento"}
             </p>
           </div>
         </div>

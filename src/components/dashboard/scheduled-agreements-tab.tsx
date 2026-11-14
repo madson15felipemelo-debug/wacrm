@@ -13,12 +13,15 @@ import { Search, Clock } from "lucide-react";
 interface ScheduledAgreementsTabProps {
   scheduled: ScheduledAgreementRow[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 export function ScheduledAgreementsTab({
   scheduled,
   loading = false,
+  mode = "collection",
 }: ScheduledAgreementsTabProps) {
+  const isSales = mode === "sales";
   const router = useRouter();
   const [search, setSearch] = useState("");
 
@@ -40,10 +43,14 @@ export function ScheduledAgreementsTab({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-sm font-semibold text-foreground">
-              Agendamentos e Promessas de Pagamento
+              {isSales
+                ? "Agendamentos, Retornos e Follow-ups Comerciais"
+                : "Agendamentos e Promessas de Pagamento"}
             </CardTitle>
             <CardDescription className="text-xs">
-              Retornos programados e compromissos registrados pela equipe
+              {isSales
+                ? "Retornos programados, follow-ups de propostas e compromissos registrados pelos consultores"
+                : "Retornos programados e compromissos registrados pela equipe"}
             </CardDescription>
           </div>
 
@@ -51,7 +58,11 @@ export function ScheduledAgreementsTab({
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Buscar cliente, operador ou nota..."
+                placeholder={
+                  isSales
+                    ? "Buscar lead, consultor ou nota..."
+                    : "Buscar cliente, operador ou nota..."
+                }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-xs"
@@ -66,11 +77,17 @@ export function ScheduledAgreementsTab({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-2.5 pl-6 pr-3">Carteira</th>
+                <th className="py-2.5 pl-6 pr-3">
+                  {isSales ? "Funil / Equipe" : "Carteira"}
+                </th>
                 <th className="px-3 py-2.5">Data Prevista</th>
-                <th className="px-3 py-2.5">Cliente</th>
+                <th className="px-3 py-2.5">
+                  {isSales ? "Lead / Cliente" : "Cliente"}
+                </th>
                 <th className="px-3 py-2.5">Telefone</th>
-                <th className="px-3 py-2.5">Operador</th>
+                <th className="px-3 py-2.5">
+                  {isSales ? "Consultor" : "Operador"}
+                </th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Observação</th>
                 <th className="py-2.5 pl-3 pr-6 text-right">Ação</th>

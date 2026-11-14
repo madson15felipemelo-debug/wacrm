@@ -55,7 +55,10 @@ export function OptOutButtonsSettings() {
           ? (data.opt_out_buttons as string[])
           : DEFAULT_OPT_OUT_BUTTONS;
         const list = raw.filter(
-          (item) => typeof item === "string" && !item.startsWith("__close_"),
+          (item) =>
+            typeof item === "string" &&
+            !item.startsWith("__close_") &&
+            !item.startsWith("__view_mode__:"),
         );
         const joined = list.join("\n");
         setSaved(joined);
@@ -82,7 +85,9 @@ export function OptOutButtonsSettings() {
       .maybeSingle();
     const preservedCloseMeta = Array.isArray(currentRow?.opt_out_buttons)
       ? (currentRow.opt_out_buttons as string[]).filter(
-          (item) => typeof item === "string" && item.startsWith("__close_"),
+          (item) =>
+            typeof item === "string" &&
+            (item.startsWith("__close_") || item.startsWith("__view_mode__:")),
         )
       : [];
     const { error } = await supabase

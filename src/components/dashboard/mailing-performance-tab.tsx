@@ -19,12 +19,15 @@ import {
 interface MailingPerformanceTabProps {
   mailings: MailingPerformanceRow[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 export function MailingPerformanceTab({
   mailings,
   loading = false,
+  mode = "collection",
 }: MailingPerformanceTabProps) {
+  const isSales = mode === "sales";
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -190,7 +193,9 @@ export function MailingPerformanceTab({
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Acordos</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider">
+              {isSales ? "Fechamentos" : "Acordos"}
+            </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
           <p className="mt-2 text-2xl font-semibold font-mono text-emerald-500">
@@ -208,10 +213,14 @@ export function MailingPerformanceTab({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-sm font-semibold text-foreground">
-                Desempenho por Lote de Disparo
+                {isSales
+                  ? "Desempenho por Campanha / Lote de Disparo"
+                  : "Desempenho por Lote de Disparo"}
               </CardTitle>
               <CardDescription className="text-xs">
-                Entrega, respostas, encaminhamento para equipe e conversão
+                {isSales
+                  ? "Entrega, respostas de leads, atendimento comercial e vendas geradas"
+                  : "Entrega, respostas, encaminhamento para equipe e conversão"}
               </CardDescription>
             </div>
 
@@ -252,7 +261,9 @@ export function MailingPerformanceTab({
                   <th className="px-3 py-2.5 text-center">Inválidos</th>
                   <th className="px-3 py-2.5 text-center">Respostas</th>
                   <th className="px-3 py-2.5 text-center">Transbordo</th>
-                  <th className="px-3 py-2.5 text-center font-semibold text-emerald-500">Acordos</th>
+                  <th className="px-3 py-2.5 text-center font-semibold text-emerald-500">
+                    {isSales ? "Fechamentos" : "Acordos"}
+                  </th>
                   <th className="px-3 py-2.5 text-center">Status</th>
                   <th className="py-2.5 pl-3 pr-6 text-right">Conversão</th>
                 </tr>

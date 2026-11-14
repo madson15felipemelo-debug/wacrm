@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
 import { SettingsPanelHead } from "./settings-panel-head";
+import { CrmViewModeSettings } from "./crm-view-mode-settings";
 
 /**
  * Deals settings — account-wide default currency.
@@ -125,6 +126,8 @@ export function DealsSettings() {
           )}
         </CardContent>
       </Card>
+
+      <CrmViewModeSettings className="mt-6" />
     </section>
   );
 }

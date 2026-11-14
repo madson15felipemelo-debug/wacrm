@@ -8,12 +8,51 @@ interface CpfLossFunnelCardProps {
   stages: CpfDropoffStage[];
   insights: CpfLossInsight[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
+
+const SALES_STAGE_LABELS: Record<string, string> = {
+  "1. Mensagem Enviada / Recebida": "1. Leads Recebidos / Acionados",
+  "2. Interação Inicial": "2. Engajamento Inicial",
+  "3. Triagem Concluída (CPF)": "3. Qualificação Concluída (Robô/IA)",
+  "4. Em Negociação": "4. Atendimento com Consultor",
+  "5. Acordo Fechado": "5. Venda / Negócio Ganho",
+};
 
 export function CpfLossFunnelCard({
   stages,
   insights,
+  mode = "collection",
 }: CpfLossFunnelCardProps) {
+  const isSales = mode === "sales";
+  const mappedStages = isSales
+    ? stages.map((st) => ({
+        ...st,
+        label:
+          SALES_STAGE_LABELS[st.label] ||
+          st.label
+            .replace(/CPF/gi, "Lead")
+            .replace(/Acordo Fechado/gi, "Venda / Negócio Ganho")
+            .replace(/Triagem/gi, "Qualificação"),
+      }))
+    : stages;
+  const mappedInsights = isSales
+    ? insights.map((ins) => ({
+        ...ins,
+        title: ins.title
+          .replace(/triagem de CPF/gi, "qualificação inicial")
+          .replace(/CPF/gi, "Lead")
+          .replace(/acordos/gi, "fechamentos")
+          .replace(/acordo/gi, "fechamento"),
+        description: ins.description
+          .replace(/informar o CPF/gi, "concluir a qualificação")
+          .replace(/CPF/gi, "lead")
+          .replace(/acordos/gi, "vendas/fechamentos")
+          .replace(/acordo/gi, "fechamento")
+          .replace(/operadores/gi, "consultores")
+          .replace(/operador/gi, "consultor"),
+      }))
+    : insights;
   const getInsightIcon = (type: CpfLossInsight["type"]) => {
     switch (type) {
       case "warning":
@@ -32,17 +71,19 @@ export function CpfLossFunnelCard({
       <CardHeader className="pb-3">
         <div>
           <CardTitle className="text-sm font-semibold text-foreground">
-            Funil de Atendimento
+            {isSales ? "Funil Comercial & Qualificação" : "Funil de Atendimento"}
           </CardTitle>
           <CardDescription className="text-xs">
-            Progressão desde o contato inicial até o fechamento do acordo
+            {isSales
+              ? "Progressão desde a entrada do lead até o fechamento da venda"
+              : "Progressão desde o contato inicial até o fechamento do acordo"}
           </CardDescription>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         <div className="space-y-2.5">
-          {stages.map((st, idx) => (
+          {mappedStages.map((st, idx) => (
             <div key={st.stage} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-foreground">{st.label}</span>
@@ -59,7 +100,7 @@ export function CpfLossFunnelCard({
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
-                    idx === stages.length - 1
+                    idx === mappedStages.length - 1
                       ? "bg-emerald-500"
                       : "bg-primary"
                   }`}
@@ -72,7 +113,7 @@ export function CpfLossFunnelCard({
 
         <div className="space-y-2 pt-2 border-t border-border/60">
           <div className="space-y-1.5">
-            {insights.map((item, i) => (
+            {mappedInsights.map((item, i) => (
               <div
                 key={i}
                 className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/15 p-2.5 text-xs"

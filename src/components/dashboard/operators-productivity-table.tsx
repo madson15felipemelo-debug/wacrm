@@ -11,12 +11,15 @@ import { Input } from "@/components/ui/input";
 interface OperatorsProductivityTableProps {
   operators: OperatorProductivityRow[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 export function OperatorsProductivityTable({
   operators,
   loading = false,
+  mode = "collection",
 }: OperatorsProductivityTableProps) {
+  const isSales = mode === "sales";
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -37,17 +40,21 @@ export function OperatorsProductivityTable({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-sm font-semibold text-foreground">
-              Produtividade por Operador
+              {isSales
+                ? "Produtividade por Consultor / Atendente"
+                : "Produtividade por Operador"}
             </CardTitle>
             <CardDescription className="text-xs">
-              Conversão em acordos, tempo médio de atendimento e ocupação
+              {isSales
+                ? "Conversão em vendas/fechamentos, tempo médio de atendimento e ocupação"
+                : "Conversão em acordos, tempo médio de atendimento e ocupação"}
             </CardDescription>
           </div>
 
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Buscar operador..."
+              placeholder={isSales ? "Buscar consultor..." : "Buscar operador..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 pl-8 text-xs"
@@ -61,10 +68,14 @@ export function OperatorsProductivityTable({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-y border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-2.5 pl-6 pr-3">Operador</th>
+                <th className="py-2.5 pl-6 pr-3">
+                  {isSales ? "Consultor / Atendente" : "Operador"}
+                </th>
                 <th className="px-3 py-2.5 text-center">Ativos</th>
                 <th className="px-3 py-2.5 text-center">Finalizados</th>
-                <th className="px-3 py-2.5 text-center font-semibold text-foreground">Acordos</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-foreground">
+                  {isSales ? "Fechamentos" : "Acordos"}
+                </th>
                 <th className="px-3 py-2.5 text-center font-semibold text-emerald-500">Conversão</th>
                 <th className="px-3 py-2.5 text-center">TMA</th>
                 <th className="py-2.5 pl-3 pr-6 text-right">Ocupação</th>
@@ -74,13 +85,15 @@ export function OperatorsProductivityTable({
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
-                    Carregando operadores...
+                    {isSales ? "Carregando consultores..." : "Carregando operadores..."}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
-                    Nenhum operador com atividade no período selecionado.
+                    {isSales
+                      ? "Nenhum consultor com atividade no período selecionado."
+                      : "Nenhum operador com atividade no período selecionado."}
                   </td>
                 </tr>
               ) : (

@@ -171,8 +171,8 @@ export const WHATSAPP_SERVICE_PRESENTATION: FlowTemplate = {
                 next_node_key: "detalhe_vendas",
               },
               {
-                reply_id: "seg_clinicas",
-                title: "Clínicas e Escritórios",
+                reply_id: "seg_servicos",
+                title: "Empresas e Serviços",
                 description:
                   "Agendamentos, lembretes de retorno e vários atendentes em 1 só número",
                 next_node_key: "detalhe_servicos",
@@ -257,8 +257,8 @@ export const WHATSAPP_SERVICE_PRESENTATION: FlowTemplate = {
       node_key: "detalhe_servicos",
       node_type: "send_buttons",
       config: {
-        header_text: "Clínicas, Escritórios e Serviços",
-        text: "Para *Clínicas, Escritórios Jurídicos/Contábeis e Prestadores de Serviço*:\n\n✅ Centralize toda a equipe em um único número oficial de WhatsApp\n✅ Triagem inicial automática para direcionar ao setor correto\n✅ Controle de agendamentos, lembretes de retorno e histórico unificado\n✅ Visão transparente de custos da Meta e produtividade da recepção",
+        header_text: "Empresas, Escritórios e Serviços",
+        text: "Para *Empresas de Serviços, Escritórios Jurídicos/Contábeis e Atendimento Comercial*:\n\n✅ Centralize toda a equipe em um único número oficial de WhatsApp\n✅ Triagem inicial automática para direcionar ao setor correto\n✅ Controle de agendamentos, lembretes de retorno e histórico unificado\n✅ Visão transparente de custos da Meta e produtividade da equipe",
         footer_text: "Deseja ver na prática ou conhecer outro perfil?",
         buttons: [
           {

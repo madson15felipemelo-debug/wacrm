@@ -68,6 +68,58 @@ export interface AnalyticalReportFilterParams {
   channelFilter?: 'all' | 'human' | 'bot' | 'ai'
 }
 
+export function adaptTextToSalesMode(text: string): string {
+  return text
+    .replace(/Devedores/g, 'Leads / Clientes')
+    .replace(/devedores/g, 'leads / clientes')
+    .replace(/Devedor/g, 'Lead / Cliente')
+    .replace(/devedor/g, 'lead / cliente')
+    .replace(/Carteiras/g, 'Funis / Equipes')
+    .replace(/carteiras/g, 'funis / equipes')
+    .replace(/Carteira Principal/g, 'Funil / Equipe Principal')
+    .replace(/Carteira Destino/g, 'Funil / Equipe Destino')
+    .replace(/Carteira/g, 'Funil / Equipe')
+    .replace(/carteira/g, 'funil / equipe')
+    .replace(/Operadores Humanos/g, 'Consultores Comerciais')
+    .replace(/operadores humanos/g, 'consultores comerciais')
+    .replace(/Operador Humano/g, 'Consultor Comercial')
+    .replace(/Operadores/g, 'Consultores')
+    .replace(/operadores/g, 'consultores')
+    .replace(/Operador/g, 'Consultor')
+    .replace(/operador/g, 'consultor')
+    .replace(/Acordos Ganhos/g, 'Vendas / Negócios Ganhos')
+    .replace(/Acordos/g, 'Vendas / Fechamentos')
+    .replace(/acordos/g, 'vendas / fechamentos')
+    .replace(/Acordo/g, 'Fechamento')
+    .replace(/acordo/g, 'fechamento')
+    .replace(/Promessas/g, 'Follow-ups / Propostas')
+    .replace(/promessas/g, 'follow-ups / propostas')
+    .replace(/Promessa/g, 'Proposta')
+    .replace(/promessa/g, 'proposta')
+    .replace(/Credor \/ Contrato/g, 'Origem / Negócio')
+    .replace(/CPF \/ Credor/g, 'Doc / Origem')
+    .replace(/triagem de CPF/gi, 'qualificação de leads')
+    .replace(/CPFs consultados/gi, 'Leads qualificados')
+    .replace(/CPF Triado/g, 'Doc / ID Lead')
+    .replace(/Responsabilidade CPF/g, 'Fidelização do Lead')
+}
+
+export function getAnalyticalReportDefinitions(
+  mode: 'collection' | 'sales' = 'collection',
+): AnalyticalReportDefinition[] {
+  if (mode === 'collection') return ANALYTICAL_REPORT_DEFINITIONS
+  return ANALYTICAL_REPORT_DEFINITIONS.map((def) => ({
+    ...def,
+    label: adaptTextToSalesMode(def.label),
+    categoryLabel: adaptTextToSalesMode(def.categoryLabel),
+    description: adaptTextToSalesMode(def.description),
+    columns: def.columns.map((col) => ({
+      ...col,
+      label: adaptTextToSalesMode(col.label),
+    })),
+  }))
+}
+
 export const ANALYTICAL_REPORT_DEFINITIONS: AnalyticalReportDefinition[] = [
   {
     id: 'atendimentos_detalhado',

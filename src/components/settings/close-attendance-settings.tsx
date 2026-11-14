@@ -92,13 +92,16 @@ export function CloseAttendanceSettings() {
       .eq("id", accountId)
       .maybeSingle();
 
-    const { optOutButtons } = unpackAccountMessagingLists(currentRow?.opt_out_buttons);
+    const { optOutButtons, viewMode } = unpackAccountMessagingLists(
+      currentRow?.opt_out_buttons,
+    );
     const packed = packAccountMessagingLists(
       optOutButtons ?? DEFAULT_OPT_OUT_BUTTONS,
       {
         words,
         closeMessage: trimmedMsg,
       },
+      viewMode,
     );
 
     const { error } = await supabase

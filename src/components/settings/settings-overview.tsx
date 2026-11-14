@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { SECTION_META, type SettingsSection } from './settings-sections';
 import { SettingsChip, StatusDot } from './settings-chip';
 import { ROLE_META } from './role-meta';
+import { CrmViewModeSettings } from './crm-view-mode-settings';
 
 interface OverviewCounts {
   members: number | null;
@@ -315,6 +316,8 @@ export function SettingsOverview({
           );
         })}
       </div>
+
+      {isOwner && <CrmViewModeSettings className="mt-5" />}
     </section>
   );
 }

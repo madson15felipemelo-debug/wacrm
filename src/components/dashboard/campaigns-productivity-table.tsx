@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge";
 interface CampaignsProductivityTableProps {
   campaigns: CampaignProductivityRow[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 export function CampaignsProductivityTable({
   campaigns,
   loading = false,
+  mode = "collection",
 }: CampaignsProductivityTableProps) {
+  const isSales = mode === "sales";
   const getProgressColor = (percent: number) => {
     if (percent >= 80) return "bg-emerald-500";
     if (percent >= 65) return "bg-amber-500";
@@ -24,10 +27,14 @@ export function CampaignsProductivityTable({
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-0.5">
           <CardTitle className="text-sm font-semibold text-foreground">
-            Produtividade por Carteira / Assessoria
+            {isSales
+              ? "Desempenho por Funil / Equipe Comercial"
+              : "Produtividade por Carteira / Assessoria"}
           </CardTitle>
           <CardDescription className="text-xs">
-            Volume recebido, conversão em acordos e tempo médio por assessoria
+            {isSales
+              ? "Volume de leads recebidos, fechamentos e tempo médio por funil ou campanha"
+              : "Volume recebido, conversão em acordos e tempo médio por assessoria"}
           </CardDescription>
         </div>
       </CardHeader>
@@ -37,11 +44,19 @@ export function CampaignsProductivityTable({
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-y border-border bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="py-2.5 pl-6 pr-3">Carteira / Assessoria</th>
-                <th className="px-3 py-2.5 text-center">Operadores Online</th>
-                <th className="px-3 py-2.5 text-center">CPFs Recebidos</th>
+                <th className="py-2.5 pl-6 pr-3">
+                  {isSales ? "Funil / Equipe / Campanha" : "Carteira / Assessoria"}
+                </th>
+                <th className="px-3 py-2.5 text-center">
+                  {isSales ? "Consultores Online" : "Operadores Online"}
+                </th>
+                <th className="px-3 py-2.5 text-center">
+                  {isSales ? "Leads Recebidos" : "CPFs Recebidos"}
+                </th>
                 <th className="px-3 py-2.5 text-center">Finalizados</th>
-                <th className="px-3 py-2.5 text-center font-semibold text-foreground">Acordos</th>
+                <th className="px-3 py-2.5 text-center font-semibold text-foreground">
+                  {isSales ? "Fechamentos" : "Acordos"}
+                </th>
                 <th className="px-3 py-2.5 text-center font-semibold text-emerald-500">Conversão</th>
                 <th className="px-3 py-2.5 text-center">TMA</th>
                 <th className="py-2.5 pl-3 pr-6 text-right">Ocupação</th>
@@ -51,13 +66,17 @@ export function CampaignsProductivityTable({
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
-                    Carregando dados das carteiras...
+                    {isSales
+                      ? "Carregando dados dos funis e equipes..."
+                      : "Carregando dados das carteiras..."}
                   </td>
                 </tr>
               ) : campaigns.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-xs text-muted-foreground">
-                    Nenhuma assessoria cadastrada ou sem atividade no período.
+                    {isSales
+                      ? "Nenhuma campanha ou equipe com atividade no período."
+                      : "Nenhuma assessoria cadastrada ou sem atividade no período."}
                   </td>
                 </tr>
               ) : (

@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const CLOSE_WORD_PREFIX = '__close_word__:'
 export const CLOSE_MSG_PREFIX = '__close_msg__:'
+export const VIEW_MODE_PREFIX = '__view_mode__:'
+
+export type CrmAccountViewMode = 'both' | 'collection' | 'sales'
 
 /**
  * Default words/phrases that finalize the attendance when typed or tapped
@@ -58,6 +61,7 @@ export function isCloseAttendanceMessage(
 export function unpackAccountMessagingLists(raw: unknown): {
   optOutButtons: string[] | null
   closeConfig: CloseAttendanceConfig
+  viewMode: CrmAccountViewMode
 } {
   if (!Array.isArray(raw)) {
     return {
@@ -66,6 +70,7 @@ export function unpackAccountMessagingLists(raw: unknown): {
         words: DEFAULT_CLOSE_ATTENDANCE_WORDS,
         closeMessage: DEFAULT_CLOSE_ATTENDANCE_MESSAGE,
       },
+      viewMode: 'both',
     }
   }
 
@@ -73,6 +78,7 @@ export function unpackAccountMessagingLists(raw: unknown): {
   const closeWords: string[] = []
   let hasCustomCloseWords = false
   let closeMessage = DEFAULT_CLOSE_ATTENDANCE_MESSAGE
+  let viewMode: CrmAccountViewMode = 'both'
 
   for (const item of raw) {
     if (typeof item !== 'string') continue
@@ -82,6 +88,11 @@ export function unpackAccountMessagingLists(raw: unknown): {
       if (word) closeWords.push(word)
     } else if (item.startsWith(CLOSE_MSG_PREFIX)) {
       closeMessage = item.slice(CLOSE_MSG_PREFIX.length)
+    } else if (item.startsWith(VIEW_MODE_PREFIX)) {
+      const val = item.slice(VIEW_MODE_PREFIX.length).trim()
+      if (val === 'collection' || val === 'sales' || val === 'both') {
+        viewMode = val
+      }
     } else {
       optOutButtons.push(item)
     }
@@ -93,27 +104,35 @@ export function unpackAccountMessagingLists(raw: unknown): {
       words: hasCustomCloseWords ? closeWords : DEFAULT_CLOSE_ATTENDANCE_WORDS,
       closeMessage,
     },
+    viewMode,
   }
 }
 
 /**
- * Packs `optOutButtons` and `closeConfig` back into the single `TEXT[]` array
- * stored on `accounts.opt_out_buttons`.
+ * Packs `optOutButtons`, `closeConfig`, and `viewMode` back into the single
+ * `TEXT[]` array stored on `accounts.opt_out_buttons`.
  */
 export function packAccountMessagingLists(
   optOutButtons: string[],
   closeConfig: CloseAttendanceConfig,
+  viewMode: CrmAccountViewMode = 'both',
 ): string[] {
   const cleanOptOut = optOutButtons
     .map((b) => b.trim())
-    .filter((b) => b && !b.startsWith('__close_'))
+    .filter(
+      (b) =>
+        b &&
+        !b.startsWith('__close_') &&
+        !b.startsWith(VIEW_MODE_PREFIX),
+    )
   const encodedWords = closeConfig.words
     .map((w) => w.trim())
     .filter(Boolean)
     .map((w) => `${CLOSE_WORD_PREFIX}${w}`)
   const encodedMsg = `${CLOSE_MSG_PREFIX}${closeConfig.closeMessage ?? ''}`
+  const encodedViewMode = `${VIEW_MODE_PREFIX}${viewMode}`
 
-  return [...cleanOptOut, ...encodedWords, encodedMsg]
+  return [...cleanOptOut, ...encodedWords, encodedMsg, encodedViewMode]
 }
 
 export async function loadCloseAttendanceConfig(

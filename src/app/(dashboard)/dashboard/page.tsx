@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { useCrmViewMode } from '@/hooks/use-crm-view-mode'
 import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import {
@@ -70,9 +71,25 @@ type RangeDays = 7 | 30 | 90
 export default function DashboardPage() {
   const t = useTranslations('Dashboard.page')
   const { defaultCurrency } = useAuth()
+  const { crmViewMode } = useCrmViewMode()
 
-  // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas & Pipeline)
+  // View Mode: 'operational' (Cobrança, Operadores & Campanhas) or 'pipeline' (Vendas, Leads & Pipeline)
   const [viewMode, setViewMode] = useState<'operational' | 'pipeline'>('operational')
+
+  useEffect(() => {
+    if (crmViewMode === 'collection') {
+      setViewMode('operational')
+    } else if (crmViewMode === 'sales') {
+      setViewMode('pipeline')
+    }
+  }, [crmViewMode])
+
+  const effectiveViewMode: 'operational' | 'pipeline' =
+    crmViewMode === 'collection'
+      ? 'operational'
+      : crmViewMode === 'sales'
+      ? 'pipeline'
+      : viewMode
 
   // Operational Sub-tabs: 'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'
   const [operationalSubTab, setOperationalSubTab] = useState<'overview' | 'attendances' | 'live' | 'mailings' | 'scheduled'>('overview')
@@ -257,14 +274,14 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {viewMode === 'operational'
-              ? 'Operações'
-              : t('title')}
+            {effectiveViewMode === 'operational'
+              ? 'Operações & Cobrança'
+              : 'Pipeline, Leads & Vendas'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {viewMode === 'operational'
+            {effectiveViewMode === 'operational'
               ? 'Acompanhamento de filas, atendimento, campanhas e produtividade'
-              : t('description')}
+              : 'Gestão comercial de leads, funil de vendas, atendimento e performance de consultores'}
           </p>
         </div>
 
@@ -278,36 +295,38 @@ export default function DashboardPage() {
             Relatórios Analíticos
           </Link>
 
-          <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('operational')}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
-                viewMode === 'operational'
-                  ? 'bg-background text-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Operações & Cobrança
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('pipeline')}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
-                viewMode === 'pipeline'
-                  ? 'bg-background text-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Pipeline & Vendas
-            </button>
-          </div>
+          {crmViewMode === 'both' && (
+            <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('operational')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
+                  effectiveViewMode === 'operational'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Operações & Cobrança
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('pipeline')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer',
+                  effectiveViewMode === 'pipeline'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Pipeline & Vendas
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {viewMode === 'operational' ? (
+      {effectiveViewMode === 'operational' ? (
         /* ================= OPERATIONAL & COBRANÇA VIEW ================= */
         <div className="space-y-6">
           <WhatsAppNumberHealthBar />
@@ -536,92 +555,262 @@ export default function DashboardPage() {
           )}
         </div>
       ) : (
-        /* ================= PIPELINE & SALES VIEW ================= */
-        <div className="space-y-5">
-          {/* Metric cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {metricsLoading || !metrics ? (
-              Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-            ) : (
-              <>
-                <MetricCard
-                  title={t('activeConversations')}
-                  value={metrics.activeConversations.current.toLocaleString()}
-                  icon={MessageSquare}
-                  delta={{
-                    sign: metrics.activeConversations.previous,
-                    label: deltaLabel(
-                      metrics.activeConversations.previous,
-                      t('newTodayVsYesterday'),
-                      t('noChange', { suffix: t('newTodayVsYesterday') })
-                    ),
-                  }}
-                />
-                <MetricCard
-                  title={t('newContactsToday')}
-                  value={metrics.newContactsToday.current.toLocaleString()}
-                  icon={UserPlus}
-                  delta={{
-                    sign:
-                      metrics.newContactsToday.current - metrics.newContactsToday.previous,
-                    label: deltaLabel(
-                      metrics.newContactsToday.current - metrics.newContactsToday.previous,
-                      t('vsYesterday'),
-                      t('noChange', { suffix: t('vsYesterday') })
-                    ),
-                  }}
-                />
-                <MetricCard
-                  title={t('openDealsValue')}
-                  value={formatCurrency(metrics.openDealsValue, defaultCurrency)}
-                  icon={DollarSign}
-                  subtitle={t('openDeals', { count: metrics.openDealsCount })}
-                />
-                <MetricCard
-                  title={t('messagesSentToday')}
-                  value={metrics.messagesSentToday.current.toLocaleString()}
-                  icon={Send}
-                  delta={{
-                    sign:
-                      metrics.messagesSentToday.current - metrics.messagesSentToday.previous,
-                    label: deltaLabel(
-                      metrics.messagesSentToday.current - metrics.messagesSentToday.previous,
-                      t('vsYesterday'),
-                      t('noChange', { suffix: t('vsYesterday') })
-                    ),
-                  }}
-                />
-              </>
-            )}
+        /* ================= PIPELINE, LEADS & SALES VIEW ================= */
+        <div className="space-y-6">
+          <WhatsAppNumberHealthBar />
+
+          <DashboardFiltersBar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            lastUpdated={lastUpdated}
+            mode="sales"
+            campaigns={(operationalData?.campaigns ?? []).map((c) => ({
+              id: c.campaignId,
+              name: c.name,
+            }))}
+          />
+
+          {/* Sub-Abas Comerciais (Padrão Executivo LUMA) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="inline-flex flex-wrap items-center rounded-lg border border-border bg-muted/30 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('overview')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
+                  operationalSubTab === 'overview'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Visão Geral
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('attendances')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
+                  operationalSubTab === 'attendances'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Leads & Atendimentos
+                {operationalData && operationalData.attendances.length > 0 && (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {operationalData.attendances.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('live')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
+                  operationalSubTab === 'live'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Tempo Real
+                {filteredLiveQueue.length > 0 && (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {filteredLiveQueue.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('mailings')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
+                  operationalSubTab === 'mailings'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Campanhas & Disparos
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOperationalSubTab('scheduled')}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer',
+                  operationalSubTab === 'scheduled'
+                    ? 'bg-background text-foreground shadow-xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Agendamentos & Retornos
+                {filteredScheduled.length > 0 && (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {filteredScheduled.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Quick actions */}
-          <QuickActions />
+          {operationalSubTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 4 Executive Commercial KPI Cards */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {operationalLoading || !operationalData ? (
+                  Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+                ) : (
+                  <>
+                    <MetricCard
+                      title="Leads & Conversas Ativas"
+                      value={operationalData.kpis.activeConversations.toString()}
+                      icon={Users}
+                      subtitle={`${operationalData.kpis.queuedConversations} aguardando atendimento · +${metrics?.newContactsToday.current ?? 0} novos hoje`}
+                    />
+                    <MetricCard
+                      title="Negócios em Aberto (Pipeline)"
+                      value={formatCurrency(metrics?.openDealsValue ?? 0, defaultCurrency)}
+                      icon={DollarSign}
+                      subtitle={`${metrics?.openDealsCount ?? 0} oportunidades ativas no funil`}
+                    />
+                    <MetricCard
+                      title="Taxa de Fechamento s/ Leads"
+                      value={`${operationalData.kpis.agreementRateOnResponses.toFixed(1)}%`}
+                      icon={TrendingUp}
+                      delta={{
+                        sign: operationalData.kpis.agreementRateDelta,
+                        label: `Taxa de resposta inbound: ${operationalData.kpis.responseRate.toFixed(1)}%`,
+                      }}
+                    />
+                    <MetricCard
+                      title="Tempo Médio Atendimento (TMA)"
+                      value={formatSeconds(operationalData.kpis.avgTmaSeconds)}
+                      icon={Clock}
+                      subtitle="Velocidade média de tratativa comercial"
+                    />
+                  </>
+                )}
+              </div>
 
-          {/* Charts row */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-            <div className="h-full lg:col-span-3">
-              <ConversationsChart
-                series={series}
-                loading={seriesLoading}
-                range={range}
-                onRangeChange={handleRangeChange}
+              {/* Row 1: Canais de Atendimento Comercial + Funil Comercial */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+                <div className="lg:col-span-2">
+                  {operationalData ? (
+                    <ChannelBreakdownCard
+                      channels={operationalData.channels}
+                      loading={operationalLoading}
+                      mode="sales"
+                    />
+                  ) : (
+                    <SkeletonCard />
+                  )}
+                </div>
+                <div className="lg:col-span-3">
+                  {operationalData ? (
+                    <CpfLossFunnelCard
+                      stages={operationalData.funnel.stages}
+                      insights={operationalData.funnel.insights}
+                      loading={operationalLoading}
+                      mode="sales"
+                    />
+                  ) : (
+                    <SkeletonCard />
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Evolução de Conversas & Distribuição do Pipeline de Negócios */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+                <div className="h-full lg:col-span-3">
+                  <ConversationsChart
+                    series={series}
+                    loading={seriesLoading}
+                    range={range}
+                    onRangeChange={handleRangeChange}
+                  />
+                </div>
+                <div className="h-full lg:col-span-2">
+                  <PipelineDonut
+                    data={pipeline}
+                    loading={pipelineLoading}
+                    currency={defaultCurrency}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Produtividade por Consultor / Atendente */}
+              <OperatorsProductivityTable
+                operators={filteredOperators}
+                loading={operationalLoading}
+                mode="sales"
               />
-            </div>
-            <div className="h-full lg:col-span-2">
-              <PipelineDonut
-                data={pipeline}
-                loading={pipelineLoading}
-                currency={defaultCurrency}
+
+              {/* Row 4: Desempenho por Funil / Equipe Comercial */}
+              <CampaignsProductivityTable
+                campaigns={filteredCampaigns}
+                loading={operationalLoading}
+                mode="sales"
               />
+
+              {/* Row 5: Tempo de Resposta & Atividades Recentes */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <ResponseTimeChart data={responseTime} loading={responseTimeLoading} />
+                <ActivityFeed items={activity} loading={activityLoading} />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Response time */}
-          <ResponseTimeChart data={responseTime} loading={responseTimeLoading} />
+          {operationalSubTab === 'attendances' && (
+            <AttendancesManagementTab
+              attendances={filteredAttendances}
+              operators={operationalData?.operators ?? []}
+              loading={operationalLoading}
+              mode="sales"
+            />
+          )}
 
-          {/* Activity feed */}
-          <ActivityFeed items={activity} loading={activityLoading} />
+          {operationalSubTab === 'live' && (
+            <LiveMonitorTab
+              realtime={operationalData?.realtime ?? {
+                operatorsOnline: 0,
+                operatorsAvailable: 0,
+                operatorsInBreak: 0,
+                operatorsDisconnected: 0,
+                waitingResponses: 0,
+                tmrOperator: '00:00:00',
+                tmrClient: '00:00:00',
+                tmf: '00:00:00',
+                inRobot: 0,
+                inQueue: 0,
+                inHuman: 0,
+                inAi: 0,
+              }}
+              liveQueue={filteredLiveQueue}
+              liveHuman={filteredLiveHuman}
+              loading={operationalLoading}
+              mode="sales"
+            />
+          )}
+
+          {operationalSubTab === 'mailings' && (
+            <MailingPerformanceTab
+              mailings={filteredMailings}
+              loading={operationalLoading}
+              mode="sales"
+            />
+          )}
+
+          {operationalSubTab === 'scheduled' && (
+            <ScheduledAgreementsTab
+              scheduled={filteredScheduled}
+              loading={operationalLoading}
+              mode="sales"
+            />
+          )}
         </div>
       )}
     </div>

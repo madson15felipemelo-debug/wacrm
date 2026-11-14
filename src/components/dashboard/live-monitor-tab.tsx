@@ -29,6 +29,7 @@ interface LiveMonitorTabProps {
   liveQueue: LiveQueueItem[];
   liveHuman: LiveHumanAttendance[];
   loading?: boolean;
+  mode?: "collection" | "sales";
 }
 
 export function LiveMonitorTab({
@@ -36,7 +37,9 @@ export function LiveMonitorTab({
   liveQueue,
   liveHuman,
   loading = false,
+  mode = "collection",
 }: LiveMonitorTabProps) {
+  const isSales = mode === "sales";
   const router = useRouter();
   const [activeSubView, setActiveSubView] = useState<"queue" | "human">("queue");
 
@@ -149,12 +152,14 @@ export function LiveMonitorTab({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Workflow className="h-4 w-4 text-sky-500" />
-              Triagem
+              {isSales ? "Qualificação" : "Triagem"}
             </span>
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-semibold font-mono text-foreground">{realtime.inRobot}</span>
-            <span className="text-[11px] text-muted-foreground">Coleta de CPF</span>
+            <span className="text-[11px] text-muted-foreground">
+              {isSales ? "Recepção de leads" : "Coleta de CPF"}
+            </span>
           </div>
         </div>
 
@@ -218,10 +223,14 @@ export function LiveMonitorTab({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-sm font-semibold text-foreground">
-                Acompanhamento de Fila e Operadores
+                {isSales
+                  ? "Acompanhamento de Fila e Consultores"
+                  : "Acompanhamento de Fila e Operadores"}
               </CardTitle>
               <CardDescription className="text-xs">
-                Conversas aguardando distribuição e negociações em andamento
+                {isSales
+                  ? "Leads aguardando atendimento e negociações comerciais em andamento"
+                  : "Conversas aguardando distribuição e negociações em andamento"}
               </CardDescription>
             </div>
 

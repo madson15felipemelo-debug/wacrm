@@ -60,6 +60,7 @@ interface ExecutiveReportsViewProps {
   campaignId: string
   onCampaignChange: (id: string) => void
   campaigns: { id: string; name: string }[]
+  mode?: "collection" | "sales"
 }
 
 export function ExecutiveReportsView({
@@ -70,7 +71,9 @@ export function ExecutiveReportsView({
   campaignId,
   onCampaignChange,
   campaigns,
+  mode = "collection",
 }: ExecutiveReportsViewProps) {
+  const isSales = mode === "sales"
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [data, setData] = useState<ExecutiveReportData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -132,7 +135,7 @@ export function ExecutiveReportsView({
               htmlFor="exec-campaign-select"
               className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
             >
-              Escopo da Carteira / Credor
+              {isSales ? "Escopo do Funil / Equipe Comercial" : "Escopo da Carteira / Credor"}
             </label>
             <div className="relative">
               <Briefcase className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -142,10 +145,14 @@ export function ExecutiveReportsView({
                 onChange={(e) => onCampaignChange(e.target.value)}
                 className="h-9 w-full appearance-none rounded-lg border border-border bg-background pr-8 pl-8 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none cursor-pointer"
               >
-                <option value="all">Visão Consolidada (Todas as Carteiras)</option>
+                <option value="all">
+                  {isSales
+                    ? "Visão Consolidada (Todos os Funis / Equipes)"
+                    : "Visão Consolidada (Todas as Carteiras)"}
+                </option>
                 {campaigns.map((c) => (
                   <option key={c.id} value={c.id}>
-                    Carteira: {c.name}
+                    {isSales ? `Funil / Equipe: ${c.name}` : `Carteira: ${c.name}`}
                   </option>
                 ))}
               </select>
@@ -278,7 +285,7 @@ export function ExecutiveReportsView({
         <div className="flex flex-col justify-between rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              TME (1ª Resp) & TMR Operador
+              {isSales ? "TME (1ª Resp) & TMR Consultor" : "TME (1ª Resp) & TMR Operador"}
             </span>
             <Clock className="h-4 w-4 text-amber-500" />
           </div>
@@ -293,14 +300,18 @@ export function ExecutiveReportsView({
             )}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Tempo médio que o operador leva para responder o devedor
+            {isSales
+              ? "Tempo médio que o consultor leva para responder o lead"
+              : "Tempo médio que o operador leva para responder o devedor"}
           </p>
         </div>
 
         <div className="flex flex-col justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              Desfechos Positivos (Acordos + Promessas)
+              {isSales
+                ? "Desfechos Positivos (Vendas + Retornos)"
+                : "Desfechos Positivos (Acordos + Promessas)"}
             </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
@@ -315,7 +326,9 @@ export function ExecutiveReportsView({
             )}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Acordos ganhos no funil + retornos/promessas agendados
+            {isSales
+              ? "Negócios ganhos no funil + agendamentos/retornos comerciais"
+              : "Acordos ganhos no funil + retornos/promessas agendados"}
           </p>
         </div>
       </div>
@@ -327,14 +340,18 @@ export function ExecutiveReportsView({
           <div className="border-b border-border bg-muted/20 px-5 py-3.5">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-foreground">
-                Impacto da Demora do Operador no Abandono do Devedor (TMR × Conversão)
+                {isSales
+                  ? "Impacto da Demora do Consultor na Perda do Lead (TMR × Vendas)"
+                  : "Impacto da Demora do Operador no Abandono do Devedor (TMR × Conversão)"}
               </h2>
               <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                 Auditoria de Pico
               </span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Mostra quantos devedores continuam negociando vs. quantos esfriam/abandonam conforme o tempo que o operador demora para responder.
+              {isSales
+                ? "Mostra quantos leads continuam avançando vs. quantos esfriam/abandonam conforme o tempo que o consultor demora para responder."
+                : "Mostra quantos devedores continuam negociando vs. quantos esfriam/abandonam conforme o tempo que o operador demora para responder."}
             </p>
           </div>
 
@@ -342,11 +359,17 @@ export function ExecutiveReportsView({
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                  <th className="px-4 py-3">Faixa de Tempo do Operador</th>
+                  <th className="px-4 py-3">
+                    {isSales ? "Faixa de Tempo do Consultor" : "Faixa de Tempo do Operador"}
+                  </th>
                   <th className="px-3 py-3 text-right">Conversas</th>
-                  <th className="px-3 py-3 text-right">Devedor Continuou</th>
+                  <th className="px-3 py-3 text-right">
+                    {isSales ? "Lead Continuou" : "Devedor Continuou"}
+                  </th>
                   <th className="px-3 py-3 text-right">Esfriou (Abandono)</th>
-                  <th className="px-4 py-3 text-right">Acordo / Promessa</th>
+                  <th className="px-4 py-3 text-right">
+                    {isSales ? "Venda / Agendamento" : "Acordo / Promessa"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -405,7 +428,9 @@ export function ExecutiveReportsView({
           {/* Reaction Time Strip Inside Card Footer */}
           <div className="mt-auto border-t border-border bg-muted/15 px-5 py-3.5">
             <span className="block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              Velocidade de Reação do Devedor após o Envio da Ação
+              {isSales
+                ? "Velocidade de Reação do Lead após o Contato / Disparo"
+                : "Velocidade de Reação do Devedor após o Envio da Ação"}
             </span>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(data?.reactionTimes ?? []).map((rt, idx) => (
@@ -496,14 +521,22 @@ export function ExecutiveReportsView({
               <tr className="border-b border-border bg-muted/30 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3 text-right">Disparos Enviados</th>
-                <th className="px-4 py-3 text-right">Msgs de Devedores</th>
+                <th className="px-4 py-3 text-right">
+                  {isSales ? "Msgs de Leads" : "Msgs de Devedores"}
+                </th>
                 <th className="px-4 py-3 text-right">Conversas Ativas</th>
                 <th className="px-4 py-3 text-right">100% Robô / IA</th>
-                <th className="px-4 py-3 text-right">Atend. Humano</th>
+                <th className="px-4 py-3 text-right">
+                  {isSales ? "Atend. Consultor" : "Atend. Humano"}
+                </th>
                 <th className="px-4 py-3 text-right">TME (1ª Resp)</th>
-                <th className="px-4 py-3 text-right">TMR Operador</th>
+                <th className="px-4 py-3 text-right">
+                  {isSales ? "TMR Consultor" : "TMR Operador"}
+                </th>
                 <th className="px-4 py-3 text-right">Encerradas</th>
-                <th className="px-4 py-3 text-right">Acordos / Promessas</th>
+                <th className="px-4 py-3 text-right">
+                  {isSales ? "Vendas / Retornos" : "Acordos / Promessas"}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -558,11 +591,15 @@ export function ExecutiveReportsView({
           <div className="flex items-center gap-2">
             <Briefcase className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">
-              Comparativo Consolidado por Carteira / Credor
+              {isSales
+                ? "Comparativo Consolidado por Funil / Equipe Comercial"
+                : "Comparativo Consolidado por Carteira / Credor"}
             </h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Eficiência operacional, retenção automática, tempos de atendimento e conversão comparados entre carteiras.
+            {isSales
+              ? "Eficiência comercial, qualificação automática, tempos de resposta e fechamentos comparados entre funis e equipes."
+              : "Eficiência operacional, retenção automática, tempos de atendimento e conversão comparados entre carteiras."}
           </p>
         </div>
 
@@ -570,16 +607,26 @@ export function ExecutiveReportsView({
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                <th className="px-4 py-3">Carteira</th>
-                <th className="px-4 py-3">Cliente / Credor</th>
-                <th className="px-3 py-3 text-right">Operadores</th>
-                <th className="px-3 py-3 text-right">CPFs Triados</th>
+                <th className="px-4 py-3">{isSales ? "Funil / Equipe" : "Carteira"}</th>
+                <th className="px-4 py-3">
+                  {isSales ? "Segmento / Origem" : "Cliente / Credor"}
+                </th>
+                <th className="px-3 py-3 text-right">
+                  {isSales ? "Consultores" : "Operadores"}
+                </th>
+                <th className="px-3 py-3 text-right">
+                  {isSales ? "Leads Qualificados" : "CPFs Triados"}
+                </th>
                 <th className="px-3 py-3 text-right">Conversas</th>
                 <th className="px-3 py-3 text-right">% Retido Robô/IA</th>
                 <th className="px-3 py-3 text-right">TME Médio</th>
                 <th className="px-3 py-3 text-right">TMR Médio</th>
-                <th className="px-3 py-3 text-right">Promessas</th>
-                <th className="px-3 py-3 text-right">Acordos</th>
+                <th className="px-3 py-3 text-right">
+                  {isSales ? "Agendamentos" : "Promessas"}
+                </th>
+                <th className="px-3 py-3 text-right">
+                  {isSales ? "Vendas / Ganhos" : "Acordos"}
+                </th>
                 <th className="px-4 py-3 text-right">Conversão (%)</th>
               </tr>
             </thead>

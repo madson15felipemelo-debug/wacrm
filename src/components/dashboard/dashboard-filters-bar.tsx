@@ -34,6 +34,7 @@ interface DashboardFiltersBarProps {
   isRefreshing?: boolean;
   lastUpdated?: string;
   campaigns?: { id: string; name: string }[];
+  mode?: "collection" | "sales";
 }
 
 export function DashboardFiltersBar({
@@ -43,8 +44,10 @@ export function DashboardFiltersBar({
   isRefreshing = false,
   lastUpdated = "agora",
   campaigns = [],
+  mode = "collection",
 }: DashboardFiltersBarProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const isSales = mode === "sales";
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
@@ -85,7 +88,9 @@ export function DashboardFiltersBar({
               onChange={(e) => onFilterChange({ ...filters, campaign: e.target.value })}
               className="h-8 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer appearance-none pr-7"
             >
-              <option value="all">Todas as carteiras</option>
+              <option value="all">
+                {isSales ? "Todos os funis / equipes" : "Todas as carteiras"}
+              </option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.name}>
                   {c.name}
@@ -120,7 +125,7 @@ export function DashboardFiltersBar({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Triagem
+            {isSales ? "Qualificação" : "Triagem"}
           </button>
           <button
             type="button"
@@ -132,7 +137,7 @@ export function DashboardFiltersBar({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Automático
+            {isSales ? "IA / Robô" : "Automático"}
           </button>
           <button
             type="button"
@@ -144,7 +149,7 @@ export function DashboardFiltersBar({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Humano
+            {isSales ? "Consultores" : "Humano"}
           </button>
         </div>
       </div>

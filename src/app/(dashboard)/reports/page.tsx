@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
+import { useCrmViewMode } from "@/hooks/use-crm-view-mode"
 import { cn } from "@/lib/utils"
 import {
   ANALYTICAL_REPORT_DEFINITIONS,
+  adaptTextToSalesMode,
   exportAnalyticalReportToCsv,
   generateAnalyticalReport,
+  getAnalyticalReportDefinitions,
   type AnalyticalReportId,
   type AnalyticalReportResult,
 } from "@/lib/reports/analytical-reports"
@@ -73,6 +76,25 @@ const SUMMARY_TONE_CLASSES: Record<string, string> = {
 }
 
 export default function ReportsPage() {
+  const { crmViewMode } = useCrmViewMode()
+  const [segmentView, setSegmentView] = useState<"collection" | "sales">("collection")
+
+  useEffect(() => {
+    if (crmViewMode === "collection") {
+      setSegmentView("collection")
+    } else if (crmViewMode === "sales") {
+      setSegmentView("sales")
+    }
+  }, [crmViewMode])
+
+  const effectiveSegment: "collection" | "sales" =
+    crmViewMode === "collection"
+      ? "collection"
+      : crmViewMode === "sales"
+      ? "sales"
+      : segmentView
+  const isSales = effectiveSegment === "sales"
+
   // 2-Part Module Switcher ('part1_analytical' | 'part2_executive')
   const [activePart, setActivePart] = useState<"part1_analytical" | "part2_executive">("part1_analytical")
 
@@ -111,11 +133,16 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(25)
 
+  const reportDefinitions = useMemo(
+    () => getAnalyticalReportDefinitions(effectiveSegment),
+    [effectiveSegment]
+  )
+
   const activeDefinition = useMemo(
     () =>
-      ANALYTICAL_REPORT_DEFINITIONS.find((d) => d.id === selectedReportId) ??
-      ANALYTICAL_REPORT_DEFINITIONS[0],
-    [selectedReportId]
+      reportDefinitions.find((d) => d.id === selectedReportId) ??
+      reportDefinitions[0],
+    [reportDefinitions, selectedReportId]
   )
 
   // Load campaigns and operators once for filter dropdowns
@@ -219,18 +246,34 @@ export default function ReportsPage() {
     const groups: {
       category: string
       categoryLabel: string
-      items: typeof ANALYTICAL_REPORT_DEFINITIONS
+      items: typeof reportDefinitions
     }[] = [
-      { category: "atendimento", categoryLabel: "Atendimento, Tempos (TME/TMR) & Operadores", items: [] },
-      { category: "canais_tabulacao", categoryLabel: "Canais (Robô / IA / Humano) & Tabulações", items: [] },
-      { category: "disparos_higienizacao", categoryLabel: "Disparos em Massa & Higienização de Base", items: [] },
+      {
+        category: "atendimento",
+        categoryLabel: isSales
+          ? "Atendimento Comercial, Tempos (TME/TMR) & Consultores"
+          : "Atendimento, Tempos (TME/TMR) & Operadores",
+        items: [],
+      },
+      {
+        category: "canais_tabulacao",
+        categoryLabel: isSales
+          ? "Canais (Robô / IA / Consultor), Funil & Desfechos"
+          : "Canais (Robô / IA / Humano) & Tabulações",
+        items: [],
+      },
+      {
+        category: "disparos_higienizacao",
+        categoryLabel: "Disparos em Massa & Higienização de Base",
+        items: [],
+      },
     ]
-    for (const def of ANALYTICAL_REPORT_DEFINITIONS) {
+    for (const def of reportDefinitions) {
       const grp = groups.find((g) => g.category === def.category)
       if (grp) grp.items.push(def)
     }
     return groups
-  }, [])
+  }, [reportDefinitions, isSales])
 
   return (
     <div className="space-y-6">
@@ -238,15 +281,49 @@ export default function ReportsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Relatórios da Operação
+            {isSales
+              ? "Relatórios Comerciais, Leads & Vendas"
+              : "Relatórios da Operação"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Auditoria analítica de tempos (TME e TMR), canais (Humano, Robô e IA), encerramentos e tabulações
+            {isSales
+              ? "Auditoria comercial de leads, funil de vendas, tempos de atendimento (TME e TMR), canais e fechamentos"
+              : "Auditoria analítica de tempos (TME e TMR), canais (Humano, Robô e IA), encerramentos e tabulações"}
           </p>
         </div>
 
-        {/* 2-Part Switcher (Same proportion as Dashboard switcher) */}
-        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {crmViewMode === "both" && (
+            <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setSegmentView("collection")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                  effectiveSegment === "collection"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Operações & Cobrança
+              </button>
+              <button
+                type="button"
+                onClick={() => setSegmentView("sales")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                  effectiveSegment === "sales"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Pipeline & Vendas
+              </button>
+            </div>
+          )}
+
+          {/* 2-Part Switcher (Same proportion as Dashboard switcher) */}
+          <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-xs">
           <button
             type="button"
             onClick={() => setActivePart("part1_analytical")}
@@ -274,6 +351,7 @@ export default function ReportsPage() {
             <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Relatórios Gerenciais</span>
           </button>
+        </div>
         </div>
       </div>
 
@@ -395,7 +473,7 @@ export default function ReportsPage() {
                   htmlFor="report-campaign-filter"
                   className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
                 >
-                  Carteira
+                  {isSales ? "Funil / Equipe" : "Carteira"}
                 </label>
                 <div className="relative">
                   <Briefcase className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -405,7 +483,9 @@ export default function ReportsPage() {
                     onChange={(e) => setCampaignId(e.target.value)}
                     className="h-9 w-full appearance-none rounded-lg border border-border bg-background pr-7 pl-8 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 focus:border-primary focus:outline-none cursor-pointer"
                   >
-                    <option value="all">Todas as carteiras</option>
+                    <option value="all">
+                      {isSales ? "Todos os funis / equipes" : "Todas as carteiras"}
+                    </option>
                     {campaigns.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -422,7 +502,7 @@ export default function ReportsPage() {
                   htmlFor="report-operator-filter"
                   className="mb-1.5 block text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
                 >
-                  Operador
+                  {isSales ? "Consultor" : "Operador"}
                 </label>
                 <div className="relative">
                   <Users className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -452,7 +532,7 @@ export default function ReportsPage() {
                   {(
                     [
                       { id: "all", label: "Todos" },
-                      { id: "human", label: "Humano" },
+                      { id: "human", label: isSales ? "Consultor" : "Humano" },
                       { id: "bot", label: "Robô" },
                       { id: "ai", label: "Agente IA" },
                     ] as const
@@ -492,7 +572,11 @@ export default function ReportsPage() {
                       setSearchQuery(e.target.value)
                       setCurrentPage(1)
                     }}
-                    placeholder="Devedor, telefone, CPF, tabulação..."
+                    placeholder={
+                      isSales
+                        ? "Lead, cliente, telefone, funil..."
+                        : "Devedor, telefone, CPF, tabulação..."
+                    }
                     className="h-9 w-full rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -517,7 +601,7 @@ export default function ReportsPage() {
                   )}
                 >
                   <span className="text-xs font-medium text-muted-foreground">
-                    {item.label}
+                    {isSales ? adaptTextToSalesMode(item.label) : item.label}
                   </span>
                   <div className="mt-1.5 flex items-baseline justify-between gap-2">
                     <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -525,7 +609,7 @@ export default function ReportsPage() {
                     </span>
                     {item.sublabel && !loading && (
                       <span className="text-xs font-medium text-muted-foreground">
-                        {item.sublabel}
+                        {isSales ? adaptTextToSalesMode(item.sublabel) : item.sublabel}
                       </span>
                     )}
                   </div>
@@ -776,6 +860,7 @@ export default function ReportsPage() {
           campaignId={campaignId}
           onCampaignChange={setCampaignId}
           campaigns={campaigns}
+          mode={effectiveSegment}
         />
       )}
     </div>

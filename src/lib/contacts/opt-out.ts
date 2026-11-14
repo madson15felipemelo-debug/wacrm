@@ -47,7 +47,10 @@ export async function loadOptOutButtons(
     .maybeSingle()
   if (error || !Array.isArray(data?.opt_out_buttons)) return DEFAULT_OPT_OUT_BUTTONS
   return (data.opt_out_buttons as string[]).filter(
-    (item) => typeof item === 'string' && !item.startsWith('__close_'),
+    (item) =>
+      typeof item === 'string' &&
+      !item.startsWith('__close_') &&
+      !item.startsWith('__view_mode__:'),
   )
 }
 
