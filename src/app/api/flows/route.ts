@@ -33,7 +33,7 @@ export async function GET() {
   if (!guard.ok) {
     return NextResponse.json(guard.body, { status: guard.status })
   }
-  const { supabase } = guard
+  const { userId, supabase } = guard
 
   const { data, error } = await supabase
     .from('flows')
@@ -42,7 +42,60 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return NextResponse.json({ flows: data ?? [] })
+
+  const existingFlows = data ?? []
+  const template = getFlowTemplate('whatsapp_service_presentation')
+  const alreadyHasPresentation = existingFlows.some(
+    (f) => f.name === template?.name
+  )
+
+  if (template && !alreadyHasPresentation) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('account_id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      const accountId = profile?.account_id as string | undefined
+      if (accountId) {
+        const admin = supabaseAdmin()
+        const { data: createdFlow, error: flowErr } = await admin
+          .from('flows')
+          .insert({
+            user_id: userId,
+            account_id: accountId,
+            name: template.name,
+            description: template.description,
+            status: 'draft',
+            trigger_type: template.trigger_type,
+            trigger_config: template.trigger_config,
+            entry_node_id: template.entry_node_id,
+          })
+          .select()
+          .single()
+
+        if (!flowErr && createdFlow) {
+          const { error: nodesErr } = await admin.from('flow_nodes').insert(
+            template.nodes.map((n) => ({
+              flow_id: createdFlow.id,
+              node_key: n.node_key,
+              node_type: n.node_type,
+              config: n.config,
+            }))
+          )
+          if (!nodesErr) {
+            return NextResponse.json({ flows: [createdFlow, ...existingFlows] })
+          }
+          await admin.from('flows').delete().eq('id', createdFlow.id)
+        }
+      }
+    } catch {
+      // Fallback to returning existing flows if auto-provision fails
+    }
+  }
+
+  return NextResponse.json({ flows: existingFlows })
 }
 
 export async function POST(request: Request) {
