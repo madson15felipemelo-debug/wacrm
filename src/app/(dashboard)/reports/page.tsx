@@ -99,7 +99,7 @@ export default function ReportsPage() {
   const [activePart, setActivePart] = useState<"part1_analytical" | "part2_executive">("part1_analytical")
 
   // Report Selection & Filters
-  const [selectedReportId, setSelectedReportId] = useState<AnalyticalReportId>("atendimentos_detalhado")
+  const [selectedReportId, setSelectedReportId] = useState<AnalyticalReportId>("relatorio_completo_detalhado")
   const [calendarOpen, setCalendarOpen] = useState(false)
 
   const initialDates = useMemo(() => {
@@ -248,6 +248,11 @@ export default function ReportsPage() {
       categoryLabel: string
       items: typeof reportDefinitions
     }[] = [
+      {
+        category: "completo_master",
+        categoryLabel: "Relatório Geral Completo 360° (Todas as Opções)",
+        items: [],
+      },
       {
         category: "atendimento",
         categoryLabel: isSales
@@ -784,7 +789,7 @@ export default function ReportsPage() {
                             )}
                             {row.conversationId ? (
                               <Link
-                                href={`/inbox?conversation=${row.conversationId}`}
+                                href={`/inbox?c=${row.conversationId}`}
                                 className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
                               >
                                 <span>Abrir Conversa</span>

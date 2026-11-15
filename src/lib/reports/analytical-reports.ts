@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatSeconds } from '@/lib/dashboard/operational-queries'
 
 export type AnalyticalReportId =
+  | 'relatorio_completo_detalhado'
   | 'atendimentos_detalhado'
   | 'tempos_sla_operador'
   | 'atuacao_robo_ia_humano'
@@ -16,7 +17,7 @@ export type AnalyticalReportId =
 export interface AnalyticalReportDefinition {
   id: AnalyticalReportId
   label: string
-  category: 'atendimento' | 'canais_tabulacao' | 'disparos_higienizacao'
+  category: 'completo_master' | 'atendimento' | 'canais_tabulacao' | 'disparos_higienizacao'
   categoryLabel: string
   description: string
   columns: {
@@ -121,6 +122,56 @@ export function getAnalyticalReportDefinitions(
 }
 
 export const ANALYTICAL_REPORT_DEFINITIONS: AnalyticalReportDefinition[] = [
+  {
+    id: 'relatorio_completo_detalhado',
+    label: 'Relatório completo detalhado 360° (Todas as opções: Tempos, Canais, Funil, Filas, Disparos e Higienização)',
+    category: 'completo_master',
+    categoryLabel: 'Relatório Geral Completo (360°)',
+    description:
+      'Visão master unificada com todas as colunas do CRM em uma única base: dados do contato, CPF/credor, campos personalizados, carteira, operador, jornada Robô/IA/Humano, TME, TMR, TMA, SLA, janela 24h Meta, distribuição/filas, tabulação, etiquetas, etapa e valor no funil, agendamentos, notas internas, disparos de origem e higienização/opt-out.',
+    columns: [
+      { key: 'startedAt', label: 'Abertura Conversa', type: 'datetime' },
+      { key: 'lastInteractionAt', label: 'Última Interação', type: 'datetime' },
+      { key: 'contactName', label: 'Devedor / Contato', type: 'text' },
+      { key: 'phone', label: 'Telefone', type: 'phone' },
+      { key: 'cpf', label: 'CPF', type: 'mono' },
+      { key: 'creditorContract', label: 'Credor / Contrato', type: 'text' },
+      { key: 'customFieldsSummary', label: 'Campos Personalizados', type: 'text' },
+      { key: 'campaignName', label: 'Carteira', type: 'text' },
+      { key: 'operatorName', label: 'Operador Humano', type: 'text' },
+      { key: 'convStatus', label: 'Status Conversa', type: 'badge', align: 'center' },
+      { key: 'closedBy', label: 'Quem Encerrou / Situação', type: 'badge', align: 'center' },
+      { key: 'channelJourney', label: 'Atuação (Robô / IA / Humano)', type: 'badge', align: 'center' },
+      { key: 'handoffState', label: 'Transbordo / Retenção', type: 'badge', align: 'center' },
+      { key: 'msgBreakdown', label: 'Volume Msgs (R / IA / H / C)', type: 'mono', align: 'center' },
+      { key: 'waitTimeFirstReply', label: 'Espera 1º Atend. (TME)', type: 'mono', align: 'right' },
+      { key: 'operatorTmr', label: 'TMR Operador', type: 'mono', align: 'right' },
+      { key: 'customerTmr', label: 'TMR Devedor', type: 'mono', align: 'right' },
+      { key: 'totalTma', label: 'Duração (TMA)', type: 'mono', align: 'right' },
+      { key: 'slaStatus', label: 'SLA (<5m)', type: 'badge', align: 'center' },
+      { key: 'windowStatus', label: 'Janela Meta 24h', type: 'badge', align: 'center' },
+      { key: 'remainingTime', label: 'Tempo Livre 24h', type: 'mono', align: 'right' },
+      { key: 'waitingWho', label: 'Quem Aguarda Resposta', type: 'badge', align: 'center' },
+      { key: 'idleTime', label: 'Tempo Sem Interação', type: 'mono', align: 'right' },
+      { key: 'primaryTabulation', label: 'Tabulação Principal', type: 'badge', align: 'center' },
+      { key: 'tagsList', label: 'Etiquetas (Tags)', type: 'text' },
+      { key: 'funnelStage', label: 'Etapa do Funil / Acordo', type: 'badge', align: 'center' },
+      { key: 'dealValue', label: 'Valor Acordo / Negócio', type: 'currency', align: 'right' },
+      { key: 'reminderStatus', label: 'Status Agendamento', type: 'badge', align: 'center' },
+      { key: 'reminderDetail', label: 'Data / Nota do Agendamento', type: 'text' },
+      { key: 'closingNote', label: 'Nota Interna / Observação', type: 'text' },
+      { key: 'flowInfo', label: 'Fluxo / Nó do Robô', type: 'text' },
+      { key: 'aiInfo', label: 'Atuação IA / Resumo Handoff', type: 'text' },
+      { key: 'distributionRule', label: 'Regra de Distribuição', type: 'badge', align: 'center' },
+      { key: 'distributionDetail', label: 'Resultado / Motivo da Fila', type: 'text' },
+      { key: 'broadcastBatch', label: 'Campanha de Disparo (Lote)', type: 'text' },
+      { key: 'broadcastTemplate', label: 'Template Meta', type: 'mono' },
+      { key: 'broadcastStatus', label: 'Status do Disparo', type: 'badge', align: 'center' },
+      { key: 'hygieneStatus', label: 'Higienização / Bloqueio', type: 'badge', align: 'center' },
+      { key: 'hygieneDetail', label: 'Motivo Opt-out / Erro Meta / Terceiro', type: 'text' },
+      { key: 'lastMessagePreview', label: 'Última Mensagem', type: 'text' },
+    ],
+  },
   {
     id: 'atendimentos_detalhado',
     label: 'Atendimentos detalhado (TME, TMR, Canal e Tabulação)',
@@ -420,9 +471,10 @@ export async function generateAnalyticalReport(
   }
 
   // =========================================================================
-  // 1. ATENDIMENTOS DETALHADO (TME, TMR, CANAL, QUEM ENCERROU E TABULAÇÃO)
+  // 1. ATENDIMENTOS DETALHADO & RELATÓRIO COMPLETO 360° (MASTER)
   // =========================================================================
   if (
+    reportId === 'relatorio_completo_detalhado' ||
     reportId === 'atendimentos_detalhado' ||
     reportId === 'atuacao_robo_ia_humano' ||
     reportId === 'tabulacoes_desfechos' ||
@@ -439,11 +491,12 @@ export async function generateAnalyticalReport(
       cpfRespRes,
       customFieldsRes,
       customValuesRes,
+      broadcastRecipsRes,
     ] = await Promise.all([
       db
         .from('conversations')
         .select(
-          'id, contact_id, status, assigned_agent_id, campaign_id, last_message_text, last_message_from, last_message_at, ai_autoreply_disabled, ai_reply_count, ai_handoff_summary, created_at, updated_at, contact:contacts(id, name, phone, opted_out_at, contact_tags(tags(id, name)))'
+          'id, contact_id, status, assigned_agent_id, campaign_id, last_message_text, last_message_from, last_message_at, ai_autoreply_disabled, ai_reply_count, ai_handoff_summary, created_at, updated_at, contact:contacts(id, name, phone, opted_out_at, opted_out_reason, contact_tags(tags(id, name)))'
         )
         .gte('updated_at', startIso)
         .lte('updated_at', endIso)
@@ -475,13 +528,18 @@ export async function generateAnalyticalReport(
         .order('started_at', { ascending: false }),
       db
         .from('distribution_audit_logs')
-        .select('conversation_id, contact_id, cpf, campaign_name, assigned_agent_id, created_at')
+        .select('id, conversation_id, contact_id, cpf, campaign_id, campaign_name, assigned_agent_id, assigned_agent_name, distribution_mode, strategy_used, status, reason, created_at')
         .order('created_at', { ascending: false }),
       db
         .from('cpf_responsibilities')
         .select('cpf, creditor_name, contract_ref, debtor_name'),
       db.from('custom_fields').select('id, field_name'),
       db.from('contact_custom_values').select('contact_id, custom_field_id, value'),
+      db
+        .from('broadcast_recipients')
+        .select('id, contact_id, status, sent_at, delivered_at, read_at, replied_at, error_message, created_at, broadcast:broadcasts(id, name, template_name)')
+        .order('created_at', { ascending: false })
+        .limit(1000),
     ])
 
     const convs = (convsRes.data ?? []) as any[]
@@ -495,8 +553,10 @@ export async function generateAnalyticalReport(
       else msgsByConv.set(m.conversation_id, [m])
     }
 
-    // Map CPF & Creditor by conversation/contact
+    // Map CPF & Creditor by conversation/contact & latest distribution audit
     const cpfInfoByConv = new Map<string, { cpf: string; creditor?: string; contract?: string }>()
+    const auditByConv = new Map<string, any>()
+    const auditByContact = new Map<string, any>()
     const cpfRespByCpf = new Map<string, { creditor?: string; contract?: string }>()
     for (const r of (cpfRespRes.data ?? []) as any[]) {
       if (r.cpf) {
@@ -507,6 +567,12 @@ export async function generateAnalyticalReport(
       }
     }
     for (const a of (auditsRes.data ?? []) as any[]) {
+      if (a.conversation_id && !auditByConv.has(a.conversation_id)) {
+        auditByConv.set(a.conversation_id, a)
+      }
+      if (a.contact_id && !auditByContact.has(a.contact_id)) {
+        auditByContact.set(a.contact_id, a)
+      }
       if (a.conversation_id && a.cpf && !cpfInfoByConv.has(a.conversation_id)) {
         const cleanCpf = String(a.cpf).replace(/\D/g, '')
         const resp = cpfRespByCpf.get(cleanCpf)
@@ -518,20 +584,32 @@ export async function generateAnalyticalReport(
       }
     }
 
-    // Also map custom field values (CPF, Credor, Contrato) per contact_id
+    // Latest broadcast recipient per contact
+    const broadcastByContact = new Map<string, any>()
+    for (const br of (broadcastRecipsRes.data ?? []) as any[]) {
+      if (br.contact_id && !broadcastByContact.has(br.contact_id)) {
+        broadcastByContact.set(br.contact_id, br)
+      }
+    }
+
+    // Also map custom field values (CPF, Credor, Contrato + all custom fields) per contact_id
     const fieldNameById = new Map<string, string>()
+    const rawFieldNameById = new Map<string, string>()
     for (const cf of (customFieldsRes.data ?? []) as any[]) {
       fieldNameById.set(cf.id, String(cf.field_name || '').toLowerCase())
+      rawFieldNameById.set(cf.id, String(cf.field_name || ''))
     }
-    const customByContact = new Map<string, { cpf?: string; credor?: string; contrato?: string }>()
+    const customByContact = new Map<string, { cpf?: string; credor?: string; contrato?: string; allPairs: string[] }>()
     for (const cv of (customValuesRes.data ?? []) as any[]) {
       if (!cv.contact_id || !cv.value) continue
       const fName = fieldNameById.get(cv.custom_field_id)
+      const rawName = rawFieldNameById.get(cv.custom_field_id)
       if (!fName) continue
-      const entry = customByContact.get(cv.contact_id) ?? {}
+      const entry = customByContact.get(cv.contact_id) ?? { allPairs: [] }
       if (fName === 'cpf') entry.cpf = cv.value
       else if (fName === 'credor') entry.credor = cv.value
       else if (fName === 'contrato') entry.contrato = cv.value
+      if (rawName) entry.allPairs.push(`${rawName}: ${cv.value}`)
       customByContact.set(cv.contact_id, entry)
     }
 
@@ -583,6 +661,7 @@ export async function generateAnalyticalReport(
       let firstHumanReplyAfterCustomerTs: number | null = null
       let lastInboundIso: string | null = null
       let lastHumanSenderId: string | null = null
+      let wrongPartyMsg: string | null = null
 
       const operatorReplyDiffsSec: number[] = []
       const customerReplyDiffsSec: number[] = []
@@ -594,6 +673,9 @@ export async function generateAnalyticalReport(
           customerMsgs++
           lastInboundIso = m.created_at
           if (firstCustomerTs === null) firstCustomerTs = ts
+          if (!wrongPartyMsg && m.content_text && UNRECOGNIZED_REGEX.test(String(m.content_text))) {
+            wrongPartyMsg = String(m.content_text).trim()
+          }
           if (lastTurn && lastTurn.role !== 'customer') {
             const diff = (ts - lastTurn.ts) / 1000
             if (diff >= 0 && diff < 86400) customerReplyDiffsSec.push(diff)
@@ -771,6 +853,9 @@ export async function generateAnalyticalReport(
       const customInfo = customByContact.get(c.contact_id)
       const cpfStr = auditCpf?.cpf || customInfo?.cpf || '—'
       const creditorStr = auditCpf?.creditor || customInfo?.credor || customInfo?.contrato || ''
+      const customFieldsSummary = customInfo?.allPairs?.length ? customInfo.allPairs.join(' · ') : '—'
+      const auditLog = auditByConv.get(c.id) || auditByContact.get(c.contact_id)
+      const broadcastRecip = broadcastByContact.get(c.contact_id)
 
       return {
         conv: c,
@@ -804,6 +889,10 @@ export async function generateAnalyticalReport(
         lastInboundIso,
         cpfStr,
         creditorStr,
+        customFieldsSummary,
+        auditLog,
+        broadcastRecip,
+        wrongPartyMsg,
       }
     }
 
@@ -817,6 +906,323 @@ export async function generateAnalyticalReport(
         if (channelFilter === 'ai') return item.usedAi
         return true
       })
+
+    // -----------------------------------------------------------------------
+    // 1.0 RELATÓRIO COMPLETO DETALHADO 360° (MASTER - TODAS AS OPÇÕES)
+    // -----------------------------------------------------------------------
+    if (reportId === 'relatorio_completo_detalhado') {
+      const nowMs = Date.now()
+      const waitArr = analyzed.filter((a) => a.waitSec > 0).map((a) => a.waitSec)
+      const tmrArr = analyzed.filter((a) => a.opTmrSec > 0).map((a) => a.opTmrSec)
+      const closedCount = analyzed.filter((a) => a.conv.status === 'closed').length
+      let positiveCount = 0
+
+      const rows: AnalyticalReportRow[] = analyzed.map((a) => {
+        if (a.deal?.status === 'won' || (a.reminder && !a.reminder.done_at)) {
+          positiveCount++
+        }
+
+        // Conversation status badge
+        const convStatusLabel =
+          a.conv.status === 'closed'
+            ? 'Finalizada'
+            : a.conv.status === 'pending'
+              ? 'Pendente'
+              : 'Em Aberto'
+        const convStatusTone: 'neutral' | 'warning' | 'success' =
+          a.conv.status === 'closed'
+            ? 'neutral'
+            : a.conv.status === 'pending'
+              ? 'warning'
+              : 'success'
+
+        // Handoff / Retention
+        const hadAuto = a.usedBot || a.usedAi
+        const handoffText =
+          hadAuto && a.usedHuman
+            ? 'Transbordou p/ Humano'
+            : hadAuto && !a.usedHuman
+              ? 'Retido 100% Automático'
+              : 'Direto no Humano'
+        const handoffTone: 'primary' | 'success' | 'info' =
+          hadAuto && a.usedHuman ? 'primary' : hadAuto ? 'success' : 'info'
+
+        // SLA (<5m)
+        const slaOk = a.opTmrSec === 0 || a.opTmrSec <= 300
+        const slaText =
+          a.opTmrSec === 0
+            ? 'Sem Resp. Humana'
+            : slaOk
+              ? `Dentro SLA (${formatSeconds(a.opTmrSec)})`
+              : `Fora SLA (${formatSeconds(a.opTmrSec)})`
+        const slaTone: 'neutral' | 'success' | 'danger' =
+          a.opTmrSec === 0 ? 'neutral' : slaOk ? 'success' : 'danger'
+
+        // 24h Meta window
+        const expiresMs = a.lastInboundIso ? new Date(a.lastInboundIso).getTime() + 24 * 3600 * 1000 : 0
+        const remSec = a.lastInboundIso ? Math.floor((expiresMs - nowMs) / 1000) : -1
+        const isOpen = remSec > 0
+        const isExpiring = isOpen && remSec <= 3 * 3600
+        const h = isOpen ? Math.floor(remSec / 3600) : 0
+        const m = isOpen ? Math.floor((remSec % 3600) / 60) : 0
+        const waitingOp = a.conv.status !== 'closed' && a.conv.last_message_from === 'customer'
+
+        // Funnel & Deal Value
+        const stageLabel = a.deal
+          ? `${stageMap.get(a.deal.stage_id) || 'Funil'} (${a.deal.status === 'won' ? 'Ganho' : a.deal.status === 'lost' ? 'Perdido' : 'Em Aberto'})`
+          : 'Sem negócio no funil'
+        const dealValueNum = Number(a.deal?.value || 0)
+        const dealValueFormatted =
+          dealValueNum > 0
+            ? dealValueNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            : '—'
+
+        // Reminder / Agendamento
+        const isRemDone = Boolean(a.reminder?.done_at)
+        const isRemOverdue =
+          Boolean(a.reminder) && !isRemDone && new Date(a.reminder.remind_at).getTime() < nowMs
+        const reminderStatusLabel = !a.reminder
+          ? 'Sem Agendamento'
+          : isRemDone
+            ? 'Concluído'
+            : isRemOverdue
+              ? 'Atrasado / Vencido'
+              : 'Programado no Prazo'
+        const reminderStatusTone: 'neutral' | 'success' | 'danger' | 'info' = !a.reminder
+          ? 'neutral'
+          : isRemDone
+            ? 'success'
+            : isRemOverdue
+              ? 'danger'
+              : 'info'
+        const reminderDetailText = a.reminder
+          ? `${formatDateTimeBR(a.reminder.remind_at)}${a.reminder.comment ? ` · ${a.reminder.comment}` : ''}${a.reminder.done_at ? ` (Concluído em ${formatDateTimeBR(a.reminder.done_at)})` : ''}`
+          : '—'
+
+        // Flow & AI Info
+        const fName = a.flowRun?.flow_id
+          ? flowNameMap.get(a.flowRun.flow_id) || 'Fluxo Ativo'
+          : a.usedBot
+            ? 'Automação / Menu'
+            : '—'
+        const fNode = a.flowRun?.current_node_key
+          ? `Nó: ${a.flowRun.current_node_key}`
+          : a.flowRun?.status || ''
+        const flowInfoText = fNode && fName !== '—' ? `${fName} (${fNode})` : fName
+        const aiInfoText = a.conv.ai_handoff_summary
+          ? `${a.aiMsgs} resp · "${a.conv.ai_handoff_summary}"`
+          : a.aiMsgs > 0
+            ? `${a.aiMsgs} respostas geradas pela IA`
+            : 'Sem acionamento IA'
+
+        // Distribution Audit
+        const distRuleText = a.auditLog
+          ? `${a.auditLog.distribution_mode === 'cpf_responsibility' ? 'Resp. CPF' : a.auditLog.distribution_mode === 'manual' ? 'Manual' : 'Inteligente'} (${a.auditLog.strategy_used || 'padrão'})`
+          : 'Entrada Direta / Sem Fila'
+        const distDetailText = a.auditLog
+          ? `${a.auditLog.status === 'success' ? 'Atribuído' : a.auditLog.status === 'queued' ? 'Em Fila' : a.auditLog.status === 'triage' ? 'Triagem CPF' : a.auditLog.status} · ${a.auditLog.reason || 'Roteado pelo motor'}`
+          : '—'
+
+        // Broadcast Info
+        const br = a.broadcastRecip
+        const brBatch = br?.broadcast?.name || 'Orgânico / Sem Disparo'
+        const brTemplate = br?.broadcast?.template_name || '—'
+        const brSt = br?.status || ''
+        const brBadgeMap: Record<
+          string,
+          { label: string; tone: 'success' | 'primary' | 'info' | 'warning' | 'danger' | 'neutral' }
+        > = {
+          replied: { label: 'Respondido no Disparo', tone: 'success' },
+          read: { label: 'Visualizado (Lido)', tone: 'primary' },
+          delivered: { label: 'Entregue no Aparelho', tone: 'info' },
+          sent: { label: 'Enviado à Meta', tone: 'neutral' },
+          pending: { label: 'Na Fila de Disparo', tone: 'warning' },
+          failed: { label: 'Falha na Entrega', tone: 'danger' },
+        }
+        const brBadge = brSt
+          ? brBadgeMap[brSt] ?? { label: brSt, tone: 'neutral' as const }
+          : { label: 'Sem Disparo', tone: 'neutral' as const }
+
+        // Hygiene / Opt-out / Falha Meta / Terceiro
+        const isOptOut = Boolean(a.conv.contact?.opted_out_at)
+        const hasBrError = brSt === 'failed' || Boolean(br?.error_message)
+        let hygieneLabel = 'Base Regular (Ativo)'
+        let hygieneTone: 'success' | 'danger' | 'warning' | 'primary' = 'success'
+        const hygieneReasons: string[] = []
+
+        if (isOptOut) {
+          hygieneLabel = 'Opt-out / Bloqueado'
+          hygieneTone = 'danger'
+          hygieneReasons.push(
+            a.conv.contact?.opted_out_reason ||
+              `Bloqueado em ${formatDateTimeBR(a.conv.contact?.opted_out_at)}`
+          )
+        }
+        if (hasBrError) {
+          if (!isOptOut) {
+            hygieneLabel = 'Falha Entrega Meta'
+            hygieneTone = 'warning'
+          }
+          if (br?.error_message) hygieneReasons.push(`Erro Meta: ${br.error_message}`)
+        }
+        if (a.wrongPartyMsg) {
+          if (!isOptOut && !hasBrError) {
+            hygieneLabel = 'Relato de Terceiro / Engano'
+            hygieneTone = 'primary'
+          }
+          hygieneReasons.push(`Msg Terceiro: "${a.wrongPartyMsg}"`)
+        }
+
+        const totalMsgs = a.botMsgs + a.aiMsgs + a.humanMsgs + a.customerMsgs
+
+        return {
+          id: a.conv.id,
+          conversationId: a.conv.id,
+          cells: {
+            startedAt: {
+              text: formatDateTimeBR(a.conv.created_at),
+              raw: a.conv.created_at,
+            },
+            lastInteractionAt: {
+              text: formatDateTimeBR(a.conv.last_message_at || a.conv.updated_at),
+              raw: a.conv.last_message_at || a.conv.updated_at,
+            },
+            contactName: { text: a.conv.contact?.name || 'Devedor sem nome' },
+            phone: { text: a.conv.contact?.phone || '—' },
+            cpf: { text: a.cpfStr },
+            creditorContract: { text: a.creditorStr || '—' },
+            customFieldsSummary: { text: a.customFieldsSummary },
+            campaignName: { text: a.campaignName },
+            operatorName: { text: a.operatorName },
+            convStatus: { text: convStatusLabel, badgeTone: convStatusTone },
+            closedBy: { text: a.closedByText, badgeTone: a.closedByTone },
+            channelJourney: {
+              text: `${a.channelLabel} (${a.botMsgs}R/${a.aiMsgs}IA/${a.humanMsgs}H)`,
+              badgeTone: a.channelTone,
+            },
+            handoffState: { text: handoffText, badgeTone: handoffTone },
+            msgBreakdown: {
+              text: `${totalMsgs} total (${a.botMsgs}R · ${a.aiMsgs}IA · ${a.humanMsgs}H · ${a.customerMsgs}C)`,
+              raw: totalMsgs,
+            },
+            waitTimeFirstReply: {
+              text: a.waitSec > 0 ? formatSeconds(a.waitSec) : '—',
+              raw: a.waitSec,
+            },
+            operatorTmr: {
+              text: a.opTmrSec > 0 ? formatSeconds(a.opTmrSec) : '—',
+              raw: a.opTmrSec,
+            },
+            customerTmr: {
+              text: a.custTmrSec > 0 ? formatSeconds(a.custTmrSec) : '—',
+              raw: a.custTmrSec,
+            },
+            totalTma: {
+              text: a.totalTmaSec > 0 ? formatSeconds(a.totalTmaSec) : '—',
+              raw: a.totalTmaSec,
+            },
+            slaStatus: { text: slaText, badgeTone: slaTone },
+            windowStatus: {
+              text: isExpiring
+                ? 'Expira em Breve (<3h)'
+                : isOpen
+                  ? 'Janela 24h Aberta'
+                  : 'Expirada (Requer Template)',
+              badgeTone: isExpiring ? 'warning' : isOpen ? 'success' : 'neutral',
+            },
+            remainingTime: {
+              text: isOpen ? `${h}h ${String(m).padStart(2, '0')}m livres` : 'Encerrada',
+              raw: remSec,
+            },
+            waitingWho: {
+              text:
+                a.conv.status === 'closed'
+                  ? 'Conversa Finalizada'
+                  : waitingOp
+                    ? 'Aguardando Operador'
+                    : 'Aguardando Devedor',
+              badgeTone: a.conv.status === 'closed' ? 'neutral' : waitingOp ? 'danger' : 'info',
+            },
+            idleTime: {
+              text: formatElapsedSince(a.conv.last_message_at || a.conv.updated_at),
+            },
+            primaryTabulation: { text: a.tabulationLabel, badgeTone: a.tabulationTone },
+            tagsList: { text: a.tags.length > 0 ? a.tags.join(', ') : 'Sem etiqueta' },
+            funnelStage: {
+              text: stageLabel,
+              badgeTone:
+                a.deal?.status === 'won'
+                  ? 'success'
+                  : a.deal?.status === 'lost'
+                    ? 'danger'
+                    : 'neutral',
+            },
+            dealValue: {
+              text: dealValueFormatted,
+              raw: dealValueNum,
+            },
+            reminderStatus: {
+              text: reminderStatusLabel,
+              badgeTone: reminderStatusTone,
+            },
+            reminderDetail: { text: reminderDetailText },
+            closingNote: {
+              text: a.note?.body || a.deal?.notes || a.tabulationDetail || '—',
+            },
+            flowInfo: { text: flowInfoText },
+            aiInfo: { text: aiInfoText },
+            distributionRule: {
+              text: distRuleText,
+              badgeTone: a.auditLog ? 'primary' : 'neutral',
+            },
+            distributionDetail: { text: distDetailText },
+            broadcastBatch: { text: brBatch },
+            broadcastTemplate: { text: brTemplate },
+            broadcastStatus: { text: brBadge.label, badgeTone: brBadge.tone },
+            hygieneStatus: { text: hygieneLabel, badgeTone: hygieneTone },
+            hygieneDetail: { text: hygieneReasons.join(' | ') || 'OK · Sem restrições' },
+            lastMessagePreview: {
+              text: a.conv.last_message_text ? String(a.conv.last_message_text).slice(0, 120) : '—',
+            },
+          },
+        }
+      })
+
+      return {
+        reportId,
+        generatedAt: new Date().toISOString(),
+        startDate,
+        endDate,
+        totalRows: rows.length,
+        summary: [
+          {
+            label: 'Total de Registros 360°',
+            value: rows.length,
+            sublabel: `${closedCount} finalizados · ${rows.length - closedCount} ativos`,
+            tone: 'primary',
+          },
+          {
+            label: 'TME (1ª Resp) / TMR Operador',
+            value: `${formatSeconds(avgSec(waitArr))} / ${formatSeconds(avgSec(tmrArr))}`,
+            sublabel: 'Espera na fila vs. tempo de resposta',
+            tone: 'warning',
+          },
+          {
+            label: 'Atuação Híbrida (Robô/IA/Humano)',
+            value: `${analyzed.filter((a) => a.usedHuman).length} Hum · ${analyzed.filter((a) => a.usedBot || a.usedAi).length} Auto`,
+            sublabel: 'Participação nos canais no período',
+            tone: 'default',
+          },
+          {
+            label: 'Desfechos Positivos (Acordos + Retornos)',
+            value: positiveCount,
+            sublabel: 'Negócios ganhos ou promessas ativas',
+            tone: 'success',
+          },
+        ],
+        rows,
+      }
+    }
 
     // -----------------------------------------------------------------------
     // 1A. ATENDIMENTOS DETALHADO
