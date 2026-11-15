@@ -39,18 +39,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+export type InboxFilter = ConversationStatus | "all";
+
 interface ConversationListProps {
   activeConversationId: string | null;
   onSelect: (conversation: Conversation) => void;
   conversations: Conversation[];
   onConversationsLoaded: (conversations: Conversation[]) => void;
-  /**
-   * Increment to force the fetch effect below to refire. The parent
-   * bumps this on realtime reconnect / tab visibility → visible so the
-   * list catches up on any events sent while the WS was disconnected
-   * or the tab was throttled. Optional so existing callers keep working.
-   */
   resyncToken?: number;
+  statusFilter?: InboxFilter;
+  onStatusFilterChange?: (filter: InboxFilter) => void;
 }
 
 const STATUS_COLORS: Record<ConversationStatus, string> = {
@@ -58,10 +56,6 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
   pending: "bg-amber-500",
   closed: "bg-muted-foreground",
 };
-
-
-
-type InboxFilter = ConversationStatus | "all";
 
 const VIEW_LABEL_KEYS: Record<InboxView, string> = {
   all: "viewAll",
@@ -108,6 +102,8 @@ export function ConversationList({
   conversations,
   onConversationsLoaded,
   resyncToken = 0,
+  statusFilter,
+  onStatusFilterChange,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
   
@@ -119,7 +115,15 @@ export function ConversationList({
   ], [t]);
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [internalFilter, setInternalFilter] = useState<InboxFilter>("all");
+  const filter = statusFilter ?? internalFilter;
+  const setFilter = useCallback(
+    (next: InboxFilter) => {
+      setInternalFilter(next);
+      onStatusFilterChange?.(next);
+    },
+    [onStatusFilterChange]
+  );
   const [view, setView] = useState<InboxView>("all");
   const { user } = useAuth();
   const currentUserId = user?.id ?? null;

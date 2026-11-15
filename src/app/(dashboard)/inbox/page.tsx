@@ -10,7 +10,10 @@ import {
 } from "@/lib/inbox/conversations";
 import type { Conversation, Message, Contact, ConversationStatus } from "@/types";
 import { useRealtime } from "@/hooks/use-realtime";
-import { ConversationList } from "@/components/inbox/conversation-list";
+import {
+  ConversationList,
+  type InboxFilter,
+} from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { toast } from "sonner";
@@ -48,6 +51,7 @@ function InboxPageInner() {
     useState<Conversation | null>(null);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [statusFilter, setStatusFilter] = useState<InboxFilter>("all");
   const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(
     null
   );
@@ -408,9 +412,49 @@ function InboxPageInner() {
     setResyncToken((n) => n + 1);
   }, []);
 
+  const handleStatusFilterChange = useCallback(
+    (nextFilter: InboxFilter) => {
+      setStatusFilter(nextFilter);
+      if (nextFilter !== "closed" && activeConversation?.status === "closed") {
+        setActiveConversation(null);
+        setActiveContact(null);
+        setMessages([]);
+        autoSelectedForDeepLinkRef.current = null;
+        router.replace("/inbox", { scroll: false });
+      }
+    },
+    [activeConversation?.status, router]
+  );
+
+  // Safeguard: whenever viewing active filters ("all", "open", "pending"),
+  // never keep a finalized ("closed") conversation open on the right panel.
+  useEffect(() => {
+    if (statusFilter !== "closed" && activeConversation?.status === "closed") {
+      setActiveConversation(null);
+      setActiveContact(null);
+      setMessages([]);
+      autoSelectedForDeepLinkRef.current = null;
+      router.replace("/inbox", { scroll: false });
+    }
+  }, [statusFilter, activeConversation?.status, router]);
+
   const handleConversationsLoaded = useCallback(
     (loaded: Conversation[]) => {
       setConversations(loaded);
+
+      // If the currently active conversation was closed, clear it from the right pane
+      if (activeConversation) {
+        const currentInLoaded = loaded.find((c) => c.id === activeConversation.id);
+        if (currentInLoaded?.status === "closed" && statusFilter !== "closed") {
+          setActiveConversation(null);
+          setActiveContact(null);
+          setMessages([]);
+          autoSelectedForDeepLinkRef.current = null;
+          router.replace("/inbox", { scroll: false });
+          return;
+        }
+      }
+
       // Resolve a pending deep-link here rather than in an effect — this
       // is an event handler, so the setState calls below are allowed by
       // react-hooks/set-state-in-effect. Runs once per ?c=<id> URL value
@@ -422,25 +466,18 @@ function InboxPageInner() {
         loaded.length > 0
       ) {
         autoSelectedForDeepLinkRef.current = deepLinkConvId;
-        // If the deep-linked conversation is already the active one
-        // (e.g. because the user clicked it in the list and we
-        // router.replace()'d the URL, which made the ConversationList
-        // refetch and land us back here), do NOT re-apply it. Doing so
-        // would setMessages([]) on a thread whose messages have
-        // already been loaded by MessageThread — and because
-        // conversationId didn't change, MessageThread wouldn't
-        // refetch. The thread would read "No messages yet" until a
-        // full page reload rehydrated state from scratch.
         if (activeConversation?.id === deepLinkConvId) return;
         const match = loaded.find((c) => c.id === deepLinkConvId);
         if (match) {
+          // Do not open a closed conversation on the right panel unless the user
+          // explicitly switched the filter to "Finalizadas" ("closed").
+          if (match.status === "closed" && statusFilter !== "closed") {
+            router.replace("/inbox", { scroll: false });
+            return;
+          }
           setActiveConversation(match);
           setActiveContact(match.contact ?? null);
           setMessages([]);
-          // Mirror the optimistic unread reset that handleSelectConversation
-          // does — the user just deep-linked into this conv, treat that the
-          // same as a click. Leaves activeConversation.unread_count alone so
-          // the MessageThread reset effect still fires the server UPDATE.
           if (match.unread_count > 0) {
             setConversations((prev) =>
               prev.map((c) =>
@@ -451,7 +488,7 @@ function InboxPageInner() {
         }
       }
     },
-    [deepLinkConvId, activeConversation?.id]
+    [deepLinkConvId, activeConversation, statusFilter, router]
   );
 
   const handleSelectConversation = useCallback(
@@ -614,6 +651,8 @@ function InboxPageInner() {
             conversations={conversations}
             onConversationsLoaded={handleConversationsLoaded}
             resyncToken={resyncToken}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
           />
         </div>
 
