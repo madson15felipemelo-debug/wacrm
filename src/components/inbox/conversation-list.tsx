@@ -207,7 +207,30 @@ export function ConversationList({
         return;
       }
 
-      onConversationsLoadedRef.current(normalizeConversations(data ?? []));
+      const normalized = normalizeConversations(data ?? []);
+      const staleClosedIds = normalized
+        .filter(
+          (c) =>
+            c.status !== "closed" &&
+            typeof c.last_message_text === "string" &&
+            c.last_message_text.startsWith("Seu atendimento foi finalizado"),
+        )
+        .map((c) => c.id);
+
+      if (staleClosedIds.length > 0) {
+        void supabase
+          .from("conversations")
+          .update({ status: "closed", unread_count: 0 })
+          .in("id", staleClosedIds);
+      }
+
+      const reconciled = normalized.map((c) =>
+        staleClosedIds.includes(c.id)
+          ? { ...c, status: "closed" as const, unread_count: 0 }
+          : c,
+      );
+
+      onConversationsLoadedRef.current(reconciled);
       setLoading(false);
     })();
 
@@ -257,10 +280,17 @@ export function ConversationList({
   );
 
   const filtered = useMemo(() => {
-    let result = conversations.filter((c) => matchesView(c, view, currentUserId));
+    const showClosed = filter === "closed";
+    let result = conversations.filter((c) =>
+      matchesView(c, view, currentUserId, showClosed)
+    );
 
-    if (filter !== "all") {
+    if (filter === "closed") {
+      result = result.filter((c) => c.status === "closed");
+    } else if (filter !== "all") {
       result = result.filter((c) => c.status === filter);
+    } else {
+      result = result.filter((c) => c.status !== "closed");
     }
 
     // Contact-based filters (tags via OR logic, exact company match).

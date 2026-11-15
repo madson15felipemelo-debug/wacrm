@@ -711,13 +711,22 @@ async function processMessage(
     return
   }
 
-  // Update conversation
+  const inboundText = contentText ?? message.text?.body ?? ''
+  const closeConfig = await loadCloseAttendanceConfig(supabaseAdmin(), accountId)
+  const isClosingNow = isCloseAttendanceMessage(inboundText, closeConfig.words)
+
+  // Update conversation (reopen if previously closed and not a closing word)
   const { error: convError } = await supabaseAdmin()
     .from('conversations')
     .update({
       last_message_text: contentText || `[${message.type}]`,
       last_message_at: new Date().toISOString(),
-      unread_count: (conversation.unread_count || 0) + 1,
+      unread_count: isClosingNow ? 0 : (conversation.unread_count || 0) + 1,
+      status: isClosingNow
+        ? 'closed'
+        : conversation.status === 'closed'
+        ? 'open'
+        : conversation.status,
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversation.id)
@@ -752,13 +761,10 @@ async function processMessage(
     if (optOutErr) console.error('[webhook] opt-out update failed:', optOutErr.message)
   }
 
-  const inboundText = contentText ?? message.text?.body ?? ''
-
   // Finalização de Atendimento pelo Cliente/Devedor (ex: "Sair", "Finalizar atendimento"):
   // Encerra qualquer execução ativa de fluxo do robô, envia a mensagem automática de
-  // encerramento configurada (se houver) e finaliza a conversa (`status = 'resolved'`).
-  const closeConfig = await loadCloseAttendanceConfig(supabaseAdmin(), accountId)
-  if (isCloseAttendanceMessage(inboundText, closeConfig.words)) {
+  // encerramento configurada (se houver) e finaliza a conversa (`status = 'closed'`).
+  if (isClosingNow) {
     const nowIso = new Date().toISOString()
     await supabaseAdmin()
       .from('flow_runs')
@@ -788,7 +794,7 @@ async function processMessage(
     await supabaseAdmin()
       .from('conversations')
       .update({
-        status: 'resolved',
+        status: 'closed',
         unread_count: 0,
         updated_at: new Date().toISOString(),
       })

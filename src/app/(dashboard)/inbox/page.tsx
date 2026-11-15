@@ -328,13 +328,21 @@ function InboxPageInner() {
 
         // Update active conversation if it changed
         if (activeConversation && conv.id === activeConversation.id) {
-          setActiveConversation((prev) =>
-            prev ? { ...prev, ...conv } : prev
-          );
+          if (conv.status === "closed" && activeConversation.status !== "closed") {
+            setActiveConversation(null);
+            setActiveContact(null);
+            setMessages([]);
+            autoSelectedForDeepLinkRef.current = null;
+            router.replace("/inbox", { scroll: false });
+          } else {
+            setActiveConversation((prev) =>
+              prev ? { ...prev, ...conv } : prev
+            );
+          }
         }
       }
     },
-    [activeConversation, hydrateConversation]
+    [activeConversation, hydrateConversation, router]
   );
 
   // Subscribe to realtime. The `isConnected` flag below feeds the
@@ -525,13 +533,29 @@ function InboxPageInner() {
   const handleStatusChange = useCallback(
     (conversationId: string, status: ConversationStatus) => {
       setConversations((prev) =>
-        prev.map((c) => (c.id === conversationId ? { ...c, status } : c))
+        prev.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                status,
+                unread_count: status === "closed" ? 0 : c.unread_count,
+              }
+            : c
+        )
       );
       if (activeConversation?.id === conversationId) {
-        setActiveConversation((prev) => (prev ? { ...prev, status } : prev));
+        if (status === "closed") {
+          setActiveConversation(null);
+          setActiveContact(null);
+          setMessages([]);
+          autoSelectedForDeepLinkRef.current = null;
+          router.replace("/inbox", { scroll: false });
+        } else {
+          setActiveConversation((prev) => (prev ? { ...prev, status } : prev));
+        }
       }
     },
-    [activeConversation]
+    [activeConversation, router]
   );
 
   const handleAssignChange = useCallback(

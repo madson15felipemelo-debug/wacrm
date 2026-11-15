@@ -16,9 +16,10 @@ export function matchesView(
   conv: Conversation,
   view: InboxView,
   currentUserId: string | null,
+  includeClosed: boolean = false,
 ): boolean {
+  if (!includeClosed && conv.status === "closed") return false;
   if (view === "all") return true;
-  if (conv.status === "closed") return false;
   switch (view) {
     case "mine":
       return !!currentUserId && conv.assigned_agent_id === currentUserId;

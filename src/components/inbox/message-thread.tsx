@@ -23,6 +23,8 @@ import {
   ChevronDown,
   UserPlus,
   Check,
+  CheckCircle2,
+  RotateCcw,
   Clock,
   ArrowLeft,
   RefreshCw,
@@ -662,10 +664,38 @@ export function MessageThread({
       if (!conversation) return;
 
       const supabase = createClient();
-      await supabase
+      const updates: Record<string, unknown> = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+      if (status === "closed") {
+        updates.unread_count = 0;
+      }
+
+      const { error } = await supabase
         .from("conversations")
-        .update({ status })
+        .update(updates)
         .eq("id", conversation.id);
+
+      if (error) {
+        toast.error("Não foi possível atualizar o status da conversa.");
+        return;
+      }
+
+      if (status === "closed" && conversation.contact_id) {
+        void supabase
+          .from("flow_runs")
+          .update({
+            status: "completed",
+            ended_at: new Date().toISOString(),
+            end_reason: "agent_closed_conversation",
+          })
+          .eq("contact_id", conversation.contact_id)
+          .eq("status", "active");
+        toast.success("Conversa finalizada!");
+      } else if (status === "open") {
+        toast.success("Conversa reaberta!");
+      }
 
       onStatusChange(conversation.id, status);
     },
@@ -1019,6 +1049,29 @@ export function MessageThread({
               </span>
             )}
           </button>
+
+          {/* Finalizar / Reabrir conversa button */}
+          {conversation.status !== "closed" ? (
+            <button
+              type="button"
+              onClick={() => void handleStatusChange("closed")}
+              title="Finalizar conversa e ocultar da fila ativa"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white cursor-pointer"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>Finalizar conversa</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleStatusChange("open")}
+              title="Reabrir conversa"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground cursor-pointer"
+            >
+              <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+              <span>Reabrir conversa</span>
+            </button>
+          )}
 
           {/* Status dropdown */}
           <DropdownMenu>
