@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
   Clock,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   Save,
   Sparkles,
+  XCircle,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -187,6 +189,7 @@ export function WhatsAppBusinessProfileCard() {
         body: JSON.stringify({
           action: 'request_display_name',
           newDisplayName: trimmed,
+          description,
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -200,7 +203,7 @@ export function WhatsAppBusinessProfileCard() {
       }
 
       toast.success(
-        'Solicitação de novo nome enviada para análise da Meta!',
+        'Descrição sincronizada e solicitação de novo nome enviada para análise da Meta!',
       );
       setNewDisplayName('');
       await loadProfile();
@@ -421,7 +424,7 @@ export function WhatsAppBusinessProfileCard() {
             })()}
 
             {/* Nome de Apresentação */}
-            <div className="space-y-2.5 rounded-xl border border-border bg-muted/20 p-4">
+            <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label className="text-sm font-medium text-foreground">
@@ -434,16 +437,38 @@ export function WhatsAppBusinessProfileCard() {
                     </strong>
                   </p>
                 </div>
-                {phoneMeta?.new_display_name && (
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs"
-                  >
-                    <Clock className="mr-1 size-3" />
-                    Novo nome em análise: {phoneMeta.new_display_name} (
-                    {phoneMeta.new_name_status || 'PENDING'})
-                  </Badge>
-                )}
+                {phoneMeta?.new_display_name && (() => {
+                  const statusUpper = (phoneMeta.new_name_status || 'PENDING').toUpperCase();
+                  const isDeclined = statusUpper === 'DECLINED' || statusUpper === 'REJECTED';
+                  const isApproved = statusUpper === 'APPROVED';
+
+                  return (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-xs',
+                        isDeclined
+                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-500'
+                          : isApproved
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500'
+                            : 'border-amber-500/40 bg-amber-500/10 text-amber-500',
+                      )}
+                    >
+                      {isDeclined ? (
+                        <XCircle className="mr-1 size-3" />
+                      ) : isApproved ? (
+                        <CheckCircle2 className="mr-1 size-3" />
+                      ) : (
+                        <Clock className="mr-1 size-3" />
+                      )}
+                      {isDeclined
+                        ? `Recusado pela Meta: ${phoneMeta.new_display_name} (${statusUpper})`
+                        : isApproved
+                          ? `Aprovado: ${phoneMeta.new_display_name} (Salve o PIN abaixo)`
+                          : `Em análise: ${phoneMeta.new_display_name} (${statusUpper})`}
+                    </Badge>
+                  );
+                })()}
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -473,11 +498,79 @@ export function WhatsAppBusinessProfileCard() {
                   )}
                 </Button>
               </div>
+
+              {/* Validador em tempo real de palavras restritas da Meta */}
+              {/\b(financeir[ao]s?|cr[eé]ditos?|empr[eé]stimos?|bancos?|cobran[cç]as?|d[ií]vidas?|serasa|spc|recuperadora)\b/i.test(
+                newDisplayName,
+              ) && (
+                <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-600 dark:text-rose-300">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                  <div>
+                    <strong>Atenção (Filtro Automático da Meta):</strong> Palavras como{' '}
+                    <code>Financeira</code>, <code>Crédito</code>, <code>Cobrança</code> ou{' '}
+                    <code>Banco</code> são recusadas automaticamente pela Meta se o CNPJ da BM não
+                    for instituição regulada pelo BACEN. Substitua por{' '}
+                    <strong>Assessoria Empresarial</strong>, <strong>Soluções Empresariais</strong>{' '}
+                    ou <strong>Gestão e Atendimento</strong>.
+                  </div>
+                </div>
+              )}
+
+              {/* Sugestões prontas que passam na validação da Meta */}
+              <div className="rounded-lg border border-border/70 bg-background/60 p-3 space-y-2">
+                <p className="text-[11px] font-medium text-foreground">
+                  Sugestões de nomes aceitos pelas diretrizes da Meta (clique para preencher):
+                </p>
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mr-1">
+                      Aprovação Rápida (Vínculo c/ BM):
+                    </span>
+                    {[
+                      'JM Fácil Resultado',
+                      'JM Grupo Fácil Resultado',
+                      'Fácil Resultado Assessoria',
+                      'Central Fácil Resultado',
+                    ].map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setNewDisplayName(sug)}
+                        className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                      >
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-primary mr-1">
+                      Sem termos financeiros restritos:
+                    </span>
+                    {[
+                      'JM Soluções Empresariais',
+                      'JM Assessoria Empresarial',
+                      'JM Gestão e Relacionamento',
+                      'LM Core Soluções Digitais',
+                      'LM Core Tecnologia',
+                    ].map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setNewDisplayName(sug)}
+                        className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                      >
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <p className="text-[11px] text-muted-foreground">
-                A troca do nome passa pela análise da Meta. Assim que for
-                aprovada, basta clicar em <strong>Salvar configuração</strong>{' '}
-                abaixo (com seu PIN de 6 dígitos) para aplicar o novo nome ao
-                número.
+                Ao clicar em <strong>Solicitar troca de nome</strong>, o sistema agora sincroniza
+                automaticamente o Recado e a Descrição do perfil com o nome solicitado para facilitar
+                a aprovação na Meta. Quando aprovar, clique em <strong>Salvar configuração</strong>{' '}
+                abaixo (com seu PIN de 6 dígitos) para aplicar.
               </p>
             </div>
 

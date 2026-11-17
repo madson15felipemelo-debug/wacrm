@@ -8,18 +8,20 @@ const META_API_VERSION = 'v21.0';
 function sanitizeVerifiedName(
   verifiedName: unknown,
   newDisplayName?: unknown,
+  newNameStatus?: unknown,
 ): string {
+  const statusStr = typeof newNameStatus === 'string' ? newNameStatus.toUpperCase() : '';
+  const isDeclined = statusStr === 'DECLINED' || statusStr === 'REJECTED';
+  const validNewName =
+    !isDeclined && typeof newDisplayName === 'string' && newDisplayName.trim()
+      ? newDisplayName.trim()
+      : '';
   const candidate =
-    typeof newDisplayName === 'string' && newDisplayName.trim()
-      ? newDisplayName.trim()
-      : typeof verifiedName === 'string'
-        ? verifiedName.trim()
-        : '';
+    validNewName ||
+    (typeof verifiedName === 'string' ? verifiedName.trim() : '');
   if (/f[aá]cil\s*resultado/i.test(candidate)) {
-    return typeof newDisplayName === 'string' &&
-      newDisplayName.trim() &&
-      !/f[aá]cil\s*resultado/i.test(newDisplayName)
-      ? newDisplayName.trim()
+    return validNewName && !/f[aá]cil\s*resultado/i.test(validNewName)
+      ? validNewName
       : 'WhatsApp Oficial';
   }
   return candidate || 'WhatsApp Oficial';
@@ -166,7 +168,12 @@ export async function GET() {
       verified_name: sanitizeVerifiedName(
         phoneJson?.verified_name,
         phoneJson?.new_display_name,
+        phoneJson?.new_name_status,
       ),
+      raw_verified_name:
+        typeof phoneJson?.verified_name === 'string'
+          ? phoneJson.verified_name
+          : '',
       display_phone_number: phoneJson?.display_phone_number ?? '',
       quality_rating: phoneJson?.quality_rating ?? '',
       status: phoneJson?.status ?? 'CONNECTED',
@@ -219,7 +226,12 @@ export async function GET() {
             verified_name: sanitizeVerifiedName(
               item.verified_name,
               item.new_display_name,
+              item.new_name_status,
             ),
+            raw_verified_name:
+              typeof item.verified_name === 'string'
+                ? item.verified_name
+                : '',
             display_phone_number: String(item.display_phone_number ?? ''),
             quality_rating: String(item.quality_rating ?? ''),
             status: String(item.status ?? 'CONNECTED'),
@@ -375,6 +387,31 @@ export async function POST(request: Request) {
           { error: 'Informe um nome de apresentação válido (mínimo 3 caracteres).' },
           { status: 400 },
         );
+      }
+
+      // First align the WhatsApp Business Profile about/description with the requested
+      // display name so Meta's automated review verifies the brand relationship.
+      try {
+        await fetch(
+          `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              about: `Canal oficial ${nextName}`.slice(0, 139),
+              description:
+                body.description && body.description.toLowerCase().includes(nextName.toLowerCase())
+                  ? body.description.slice(0, 512)
+                  : `Canal oficial de atendimento e relacionamento ${nextName} — Unidade operacional vinculada a Fácil Resultado.`.slice(0, 512),
+            }),
+          },
+        );
+      } catch {
+        // Non-blocking pre-sync
       }
 
       const params = new URLSearchParams({
