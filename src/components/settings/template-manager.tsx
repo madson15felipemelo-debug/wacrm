@@ -50,6 +50,7 @@ import type {
 import { templateStatusConfig } from '@/lib/template-status';
 import {
   extractVariableIndices,
+  normalizeTemplatePayload,
   TEMPLATE_LIMITS,
 } from '@/lib/whatsapp/template-validators';
 
@@ -222,7 +223,7 @@ export function TemplateManager() {
       sample_values.header = [form.header_sample.trim()];
     }
 
-    return {
+    return normalizeTemplatePayload({
       name: form.name.trim(),
       category: form.category,
       language: form.language.trim() || 'en_US',
@@ -238,7 +239,7 @@ export function TemplateManager() {
       buttons: form.buttons.length > 0 ? form.buttons : undefined,
       sample_values:
         Object.keys(sample_values).length > 0 ? sample_values : undefined,
-    };
+    });
   }
 
   function openEdit(template: MessageTemplate) {

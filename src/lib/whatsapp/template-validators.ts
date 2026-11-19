@@ -313,6 +313,113 @@ export function validateSampleValues(
   }
 }
 
+function inferSampleForPlaceholder(rawToken: string, index1Based: number): string {
+  const clean = rawToken.trim().toLowerCase();
+  if (/nome|name|cliente|devedor|lead/.test(clean)) return 'João Silva';
+  if (/cpf|cnpj|doc/.test(clean)) return '123.456.789-00';
+  if (/valor|saldo|parcela|divida|dívida/.test(clean)) return 'R$ 450,00';
+  if (/credor|empresa|loja/.test(clean)) return 'Z-ON';
+  if (/contrato|acordo|protocolo/.test(clean)) return 'CTR-90812';
+  if (/data|vencimento|prazo/.test(clean)) return '25/11/2026';
+  return index1Based === 1 ? 'João Silva' : `Exemplo ${index1Based}`;
+}
+
+/**
+ * Normalizes common user conveniences in-place before strict Meta validation:
+ * 1. Converts named variables like `{{NOME}}`, `{{CPF}}` to sequential `{{1}}`, `{{2}}`
+ *    and populates default `sample_values` if omitted.
+ * 2. Auto-prepends `https://` to URL buttons when scheme is missing (e.g. `wa.me/...`).
+ * 3. Automatically groups `QUICK_REPLY` buttons ahead of `URL` / `PHONE_NUMBER` / `COPY_CODE`
+ *    buttons so Meta never rejects mixed button order.
+ */
+export function normalizeTemplatePayload(payload: TemplatePayload): TemplatePayload {
+  // 1. Convert named variables in body_text (e.g. {{NOME}} -> {{1}})
+  if (typeof payload.body_text === 'string' && payload.body_text.includes('{{')) {
+    const existingNumeric = extractVariableIndices(payload.body_text);
+    let nextIdx = existingNumeric.length > 0 ? Math.max(...existingNumeric) + 1 : 1;
+    const namedMap = new Map<string, number>();
+    const inferredByIndex = new Map<number, string>();
+
+    payload.body_text = payload.body_text.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_full, inner: string) => {
+      const token = String(inner || '').trim();
+      if (/^\d+$/.test(token)) {
+        const n = Number(token);
+        if (!inferredByIndex.has(n)) {
+          inferredByIndex.set(n, inferSampleForPlaceholder(token, n));
+        }
+        return `{{${n}}}`;
+      }
+      const key = token.toLowerCase();
+      let assigned = namedMap.get(key);
+      if (!assigned) {
+        assigned = nextIdx++;
+        namedMap.set(key, assigned);
+        inferredByIndex.set(assigned, inferSampleForPlaceholder(token, assigned));
+      }
+      return `{{${assigned}}}`;
+    });
+
+    const finalIndices = extractVariableIndices(payload.body_text);
+    if (finalIndices.length > 0) {
+      const existingSamples = payload.sample_values?.body ?? [];
+      const filledSamples = finalIndices.map((idx, i) => {
+        const current = existingSamples[i]?.trim();
+        return current || inferredByIndex.get(idx) || inferSampleForPlaceholder('', idx);
+      });
+      payload.sample_values = {
+        ...(payload.sample_values ?? {}),
+        body: filledSamples,
+      };
+    }
+  }
+
+  // 2. Convert named variable in text header if present
+  if (
+    payload.header_type === 'text' &&
+    typeof payload.header_content === 'string' &&
+    payload.header_content.includes('{{')
+  ) {
+    let headerToken = '';
+    payload.header_content = payload.header_content.replace(
+      /\{\{\s*([^}]+?)\s*\}\}/g,
+      (_full, inner: string) => {
+        const token = String(inner || '').trim();
+        if (!headerToken) headerToken = token;
+        return '{{1}}';
+      },
+    );
+    const hIndices = extractVariableIndices(payload.header_content);
+    if (hIndices.length > 0) {
+      const existingHeaderSamples = payload.sample_values?.header ?? [];
+      const current = existingHeaderSamples[0]?.trim();
+      payload.sample_values = {
+        ...(payload.sample_values ?? {}),
+        header: [current || inferSampleForPlaceholder(headerToken, 1)],
+      };
+    }
+  }
+
+  // 3. Normalize buttons: auto-prepend https:// on URLs & group QUICK_REPLY first
+  if (Array.isArray(payload.buttons) && payload.buttons.length > 0) {
+    const normalizedButtons = payload.buttons.map((b) => {
+      if (b.type === 'URL' && typeof b.url === 'string') {
+        const trimmedUrl = b.url.trim();
+        if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+          return { ...b, url: `https://${trimmedUrl}` };
+        }
+        return { ...b, url: trimmedUrl };
+      }
+      return b;
+    });
+
+    const quickReplies = normalizedButtons.filter((b) => b.type === 'QUICK_REPLY');
+    const ctaButtons = normalizedButtons.filter((b) => b.type !== 'QUICK_REPLY');
+    payload.buttons = [...quickReplies, ...ctaButtons];
+  }
+
+  return payload;
+}
+
 /**
  * Run every validator. Throws on the first failure with a specific,
  * field-level message. Returns the variable counts so callers can
@@ -322,6 +429,7 @@ export function validateTemplatePayload(payload: TemplatePayload): {
   bodyVarCount: number;
   headerVarCount: number;
 } {
+  normalizeTemplatePayload(payload);
   validateTemplateName(payload.name);
   if (!payload.language?.trim()) {
     throw new Error('Language is required.');
