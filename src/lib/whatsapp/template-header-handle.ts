@@ -19,6 +19,29 @@ import { isDeliverableUrl } from '@/lib/webhooks/ssrf'
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png']
 
+const META_API_BASE = 'https://graph.facebook.com/v21.0'
+
+async function resolveMetaAppId(accessToken: string): Promise<string> {
+  if (process.env.META_APP_ID?.trim()) {
+    return process.env.META_APP_ID.trim()
+  }
+  const res = await fetch(`${META_API_BASE}/app`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    throw new Error(
+      'Não foi possível identificar automaticamente o ID do App da Meta a partir do Access Token. Verifique as permissões do token.',
+    )
+  }
+  const data = (await res.json().catch(() => ({}))) as { id?: string }
+  if (!data?.id) {
+    throw new Error(
+      'O endpoint /app da Meta não retornou o ID do aplicativo.',
+    )
+  }
+  return data.id
+}
+
 export async function ensureImageHeaderHandle(
   payload: TemplatePayload,
   accessToken: string,
@@ -27,12 +50,7 @@ export async function ensureImageHeaderHandle(
   if (payload.header_handle) return // already have one
   if (!payload.header_media_url) return // validator already requires url-or-handle
 
-  const appId = process.env.META_APP_ID
-  if (!appId) {
-    throw new Error(
-      'Image-header templates need META_APP_ID set (used for Meta’s Resumable Upload). Add it to your environment, or remove the image header.',
-    )
-  }
+  const appId = await resolveMetaAppId(accessToken)
 
   // SSRF guard: `header_media_url` is caller-supplied (any authenticated
   // member can submit a template) and the fetch below happens server-side,
