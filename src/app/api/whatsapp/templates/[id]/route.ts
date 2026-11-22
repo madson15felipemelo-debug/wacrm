@@ -6,6 +6,7 @@ import {
   editMessageTemplate,
 } from '@/lib/whatsapp/meta-api'
 import {
+  normalizeTemplatePayload,
   validateTemplatePayload,
   type TemplatePayload,
 } from '@/lib/whatsapp/template-validators'
@@ -129,6 +130,7 @@ export async function PATCH(
     }
 
     try {
+      normalizeTemplatePayload(payload, new URL(request.url).origin)
       validateTemplatePayload(payload)
     } catch (e) {
       return NextResponse.json(

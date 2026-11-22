@@ -332,7 +332,10 @@ function inferSampleForPlaceholder(rawToken: string, index1Based: number): strin
  * 3. Automatically groups `QUICK_REPLY` buttons ahead of `URL` / `PHONE_NUMBER` / `COPY_CODE`
  *    buttons so Meta never rejects mixed button order.
  */
-export function normalizeTemplatePayload(payload: TemplatePayload): TemplatePayload {
+export function normalizeTemplatePayload(
+  payload: TemplatePayload,
+  publicOrigin?: string,
+): TemplatePayload {
   // 1. Convert named variables in body_text (e.g. {{NOME}} -> {{1}})
   if (typeof payload.body_text === 'string' && payload.body_text.includes('{{')) {
     const existingNumeric = extractVariableIndices(payload.body_text);
@@ -399,15 +402,63 @@ export function normalizeTemplatePayload(payload: TemplatePayload): TemplatePayl
     }
   }
 
-  // 3. Normalize buttons: auto-prepend https:// on URLs & group QUICK_REPLY first
+  // 3. Normalize buttons: auto-prepend https:// on URLs, rewrite direct wa.me/whatsapp.com
+  // links to our domain redirect (/r/wa/<phone>) so Meta doesn't reject with 2388081,
+  // and group QUICK_REPLY first.
   if (Array.isArray(payload.buttons) && payload.buttons.length > 0) {
+    const rawOrigin =
+      publicOrigin ||
+      (typeof window !== 'undefined' ? window.location.origin : '') ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.NEXT_PUBLIC_SITE_URL || 'https://wacrm-phi.vercel.app');
+    const safeOrigin = /^https:\/\/(?!localhost|127\.0\.0\.1|crm\.example\.com)/i.test(rawOrigin)
+      ? rawOrigin.replace(/\/$/, '')
+      : 'https://wacrm-phi.vercel.app';
+
     const normalizedButtons = payload.buttons.map((b) => {
       if (b.type === 'URL' && typeof b.url === 'string') {
         const trimmedUrl = b.url.trim();
-        if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
-          return { ...b, url: `https://${trimmedUrl}` };
+        const withScheme =
+          trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)
+            ? `https://${trimmedUrl}`
+            : trimmedUrl;
+
+        // Meta blocks direct wa.me / whatsapp.com links in URL buttons (subcode 2388081).
+        // Rewrite them to our public redirect endpoint (/r/wa/<phone>).
+        try {
+          const parsedUrl = new URL(withScheme);
+          const host = parsedUrl.hostname.toLowerCase();
+          if (host === 'wa.me' || host === 'www.wa.me') {
+            const digits = parsedUrl.pathname.replace(/\D/g, '');
+            if (digits) {
+              const textParam = parsedUrl.searchParams.get('text');
+              const redirectUrl = `${safeOrigin}/r/wa/${digits}${
+                textParam ? `?text=${encodeURIComponent(textParam)}` : ''
+              }`;
+              return { ...b, url: redirectUrl };
+            }
+          } else if (
+            host === 'api.whatsapp.com' ||
+            host === 'whatsapp.com' ||
+            host === 'www.whatsapp.com'
+          ) {
+            const digits = (
+              parsedUrl.searchParams.get('phone') || parsedUrl.pathname
+            ).replace(/\D/g, '');
+            if (digits) {
+              const textParam = parsedUrl.searchParams.get('text');
+              const redirectUrl = `${safeOrigin}/r/wa/${digits}${
+                textParam ? `?text=${encodeURIComponent(textParam)}` : ''
+              }`;
+              return { ...b, url: redirectUrl };
+            }
+          }
+        } catch {
+          // Keep withScheme so validateButtons reports invalid URL if malformed
         }
-        return { ...b, url: trimmedUrl };
+
+        return { ...b, url: withScheme };
       }
       return b;
     });

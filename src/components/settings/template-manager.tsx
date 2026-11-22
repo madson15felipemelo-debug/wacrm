@@ -272,7 +272,10 @@ export function TemplateManager() {
     if (form.category === 'Authentication') return;
     try {
       setSubmitting(true);
-      const isEdit = editingId !== null;
+      const editingTpl = editingId
+        ? templates.find((item) => item.id === editingId)
+        : null;
+      const isEdit = editingId !== null && Boolean(editingTpl?.meta_template_id);
       const url = isEdit
         ? `/api/whatsapp/templates/${editingId}`
         : '/api/whatsapp/templates/submit';
@@ -593,7 +596,9 @@ export function TemplateManager() {
                         {t('edit')}
                       </Button>
                     )}
-                    {(statusKey === 'REJECTED' || statusKey === 'PAUSED') && (
+                    {(statusKey === 'REJECTED' ||
+                      statusKey === 'PAUSED' ||
+                      statusKey === 'DRAFT') && (
                       <Button
                         variant="ghost"
                         size="sm"

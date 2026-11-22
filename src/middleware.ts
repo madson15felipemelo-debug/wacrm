@@ -6,7 +6,10 @@ export async function middleware(request: NextRequest) {
   // `requireRole()`). Skipping them in middleware avoids running duplicate
   // parallel `getUser()` calls that race to rotate the refresh token when
   // multiple API requests fire simultaneously after an idle period.
-  if (request.nextUrl.pathname.startsWith('/api/')) {
+  if (
+    request.nextUrl.pathname.startsWith('/api/') ||
+    request.nextUrl.pathname.startsWith('/r/')
+  ) {
     return NextResponse.next({ request })
   }
 

@@ -47,7 +47,6 @@ export async function ensureImageHeaderHandle(
   accessToken: string,
 ): Promise<void> {
   if (payload.header_type !== 'image') return
-  if (payload.header_handle) return // already have one
   if (!payload.header_media_url) return // validator already requires url-or-handle
 
   const appId = await resolveMetaAppId(accessToken)
