@@ -234,25 +234,25 @@ export function Step2SelectAudience({
 
   const expectedCsvHeaders = useMemo(() => {
     const count = templateVarIndices.length > 0 ? Math.max(...templateVarIndices) : 1;
-    const cols = ['phone', 'nome'];
-    for (let i = 2; i <= count; i++) {
-      cols.push(`variavel_${i}`);
+    const cols = ['telefone'];
+    for (let i = 1; i <= count; i++) {
+      cols.push(`variavel${i}`);
     }
     return cols;
   }, [templateVarIndices]);
 
   function handleDownloadSampleCsv() {
-    const headerLine = expectedCsvHeaders.join(',');
+    const headerLine = expectedCsvHeaders.join(';');
     const row1 = [
       '5547999999999',
       'Maria Silva',
       ...expectedCsvHeaders.slice(2).map((_, idx) => `Exemplo ${idx + 2}`),
-    ].join(',');
+    ].join(';');
     const row2 = [
       '5511988887777',
       'João Souza',
       ...expectedCsvHeaders.slice(2).map((_, idx) => `Valor ${idx + 2}`),
-    ].join(',');
+    ].join(';');
     const csvContent = '\uFEFF' + [headerLine, row1, row2].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -402,7 +402,7 @@ export function Step2SelectAudience({
                 {t('selectAudience.uploadCsv')}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                A 1ª coluna deve ser <code>phone</code> (com DDI 55 + DDD + número) e as colunas seguintes preenchem as variáveis do modelo (<code>{'{{1}}'}</code>, <code>{'{{2}}'}</code>...).
+                A 1ª coluna deve ser <code>telefone</code> (com DDI 55 + DDD + número) e as colunas seguintes (<code>variavel1</code>, <code>variavel2</code>...) preenchem as variáveis do modelo separadas por <code>;</code>.
               </p>
             </div>
             <Button
@@ -488,7 +488,7 @@ export function Step2SelectAudience({
                   <table className="w-full text-left text-xs">
                     <thead className="border-b border-border/60 bg-muted/40 text-[11px] font-medium text-muted-foreground">
                       <tr>
-                        <th className="px-3 py-1.5 font-mono">phone</th>
+                        <th className="px-3 py-1.5 font-mono">telefone</th>
                         {parsedCsvInfo.paramHeaders.map((h, i) => (
                           <th key={i} className="px-3 py-1.5 font-mono">
                             {h} <span className="text-primary">({`{{${i + 1}}}`})</span>

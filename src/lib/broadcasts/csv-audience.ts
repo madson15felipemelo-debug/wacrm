@@ -10,7 +10,7 @@ export interface AudienceRow {
 }
 
 /** Headers recognised as the contact's name (still also a template variable). */
-const NAME_HEADERS = ['nome', 'name'];
+const NAME_HEADERS = ['nome', 'name', 'variavel1', 'variavel_1'];
 const PHONE_HEADERS = ['phone', 'telefone', 'celular', 'numero', 'número', 'whatsapp'];
 
 export interface ParsedAudienceCsv {
