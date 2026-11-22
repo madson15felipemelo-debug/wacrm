@@ -48,6 +48,7 @@ import type {
   TemplateSampleValues,
 } from '@/types';
 import { templateStatusConfig } from '@/lib/template-status';
+import { IphoneWhatsappPreview } from '@/components/broadcasts/iphone-whatsapp-preview';
 import {
   extractVariableIndices,
   normalizeTemplatePayload,
@@ -652,7 +653,7 @@ export function TemplateManager() {
           }
         }}
       >
-        <DialogContent className="bg-popover border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-popover border-border sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-popover-foreground">
               {editingId ? t('dialogEditTitle') : t('dialogNewTitle')}
@@ -671,7 +672,8 @@ export function TemplateManager() {
             </div>
           )}
 
-          <div className="space-y-4 py-2">
+          <div className="grid grid-cols-1 gap-6 py-2 lg:grid-cols-[1fr_310px] lg:items-start">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-muted-foreground">{t('templateName')}</Label>
               <Input
@@ -1083,6 +1085,22 @@ export function TemplateManager() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="lg:sticky lg:top-2">
+            <IphoneWhatsappPreview
+              template={{
+                name: form.name || 'novo_modelo',
+                header_type: form.header_format === 'none' ? undefined : form.header_format,
+                header_content: form.header_content,
+                header_media_url: form.header_media_url,
+                body_text: form.body_text,
+                footer_text: form.footer_text,
+                buttons: form.buttons,
+              }}
+              recipientLabel={form.name || 'Prévia ao vivo'}
+            />
+          </div>
           </div>
 
           <DialogFooter className="bg-popover border-border">

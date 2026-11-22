@@ -132,7 +132,7 @@ export default function NewBroadcastPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
@@ -227,6 +227,11 @@ export default function NewBroadcastPage() {
               onUpdate={setVariables}
               headerMediaUrl={headerMediaUrl}
               onHeaderMediaUrlChange={setHeaderMediaUrl}
+              csvPreviewContact={
+                audience.type === 'csv' && audience.csvContacts?.[0]
+                  ? audience.csvContacts[0]
+                  : null
+              }
               onNext={() => setCurrentStep(3)}
               onBack={() => setCurrentStep(1)}
             />

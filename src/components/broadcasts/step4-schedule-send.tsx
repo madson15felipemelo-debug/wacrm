@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { ArrowLeft, Send, Loader2, Users, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { IphoneWhatsappPreview } from '@/components/broadcasts/iphone-whatsapp-preview';
 
 interface AudienceConfig {
   type: string;
@@ -101,67 +102,79 @@ export function Step4ScheduleSend({
         </p>
       </div>
 
-      {/* Broadcast Name */}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-foreground">{t('scheduleSend.broadcastName')}</label>
-        <Input
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder={t('scheduleSend.broadcastNamePlaceholder')}
-          className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
-        />
-      </div>
-
-      {/* Summary Card */}
-      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-        <p className="text-sm font-medium text-foreground">{t('scheduleSend.summary')}</p>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+        <div className="space-y-5">
+          {/* Broadcast Name */}
           <div>
-            <p className="text-xs text-muted-foreground">{t('scheduleSend.template')}</p>
-            <p className="text-foreground">{template.name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{t('scheduleSend.audience')}</p>
-            <p className="text-foreground">{audienceLabel}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Alcance estimado</p>
-            <div className="flex items-center gap-1.5">
-              {loadingReach ? (
-                <Loader2 className="h-3 w-3 animate-spin text-primary" />
-              ) : (
-                <>
-                  <Users className="h-3.5 w-3.5 text-primary" />
-                  <p className="font-medium text-foreground">{estimatedReach.toLocaleString()}</p>
-                </>
-              )}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Idioma</p>
-            <p className="text-foreground">{template.language ?? 'pt_BR'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Processing overlay */}
-      {isProcessing && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <p className="text-sm font-medium text-foreground">{t('scheduleSend.sending')}</p>
-            </div>
-            <span className="text-xs font-medium text-primary">{progress}%</span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-muted">
-            <div
-              className="h-1.5 rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
+            <label className="mb-1.5 block text-sm font-medium text-foreground">{t('scheduleSend.broadcastName')}</label>
+            <Input
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              placeholder={t('scheduleSend.broadcastNamePlaceholder')}
+              className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
             />
           </div>
+
+          {/* Summary Card */}
+          <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+            <p className="text-sm font-medium text-foreground">{t('scheduleSend.summary')}</p>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">{t('scheduleSend.template')}</p>
+                <p className="text-foreground">{template.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('scheduleSend.audience')}</p>
+                <p className="text-foreground">{audienceLabel}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Alcance estimado</p>
+                <div className="flex items-center gap-1.5">
+                  {loadingReach ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                  ) : (
+                    <>
+                      <Users className="h-3.5 w-3.5 text-primary" />
+                      <p className="font-medium text-foreground">{estimatedReach.toLocaleString()}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Idioma</p>
+                <p className="text-foreground">{template.language ?? 'pt_BR'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Processing overlay */}
+          {isProcessing && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-foreground">{t('scheduleSend.sending')}</p>
+                </div>
+                <span className="text-xs font-medium text-primary">{progress}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted">
+                <div
+                  className="h-1.5 rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Live iPhone Mockup */}
+        <div className="lg:sticky lg:top-6">
+          <IphoneWhatsappPreview
+            template={template}
+            recipientLabel={audience.csvContacts?.[0]?.name || template.name}
+          />
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
         <Button

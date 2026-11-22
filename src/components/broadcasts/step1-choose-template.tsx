@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, ArrowRight } from 'lucide-react';
+import { IphoneWhatsappPreview } from '@/components/broadcasts/iphone-whatsapp-preview';
+import { Loader2, FileText, ArrowRight, ImageIcon, MousePointerClick } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 const categoryColors: Record<string, string> = {
@@ -83,39 +84,65 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
           <p className="mt-1 text-xs text-muted-foreground">{t('chooseTemplate.createFirst')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => {
-            const isSelected = selectedTemplate?.id === template.id;
-            const catColor = categoryColors[template.category] ?? categoryColors.Utility;
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {templates.map((template) => {
+              const isSelected = selectedTemplate?.id === template.id;
+              const catColor = categoryColors[template.category] ?? categoryColors.Utility;
+              const btnCount = template.buttons?.length ?? 0;
 
-            return (
-              <button
-                key={template.id}
-                onClick={() => onSelect(template)}
-                className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                    : 'border-border bg-card/50 hover:border-border hover:bg-card'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${catColor}`}
-                  >
-                    {template.category}
-                  </span>
-                </div>
-                <p className="line-clamp-3 text-xs text-muted-foreground">{template.body_text}</p>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span>{template.language ?? 'en_US'}</span>
-                  {/* Status is omitted on purpose — every template
-                      shown here is already filtered to APPROVED,
-                      so the chip carried no information. */}
-                </div>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => onSelect(template)}
+                  className={`flex flex-col justify-between gap-3 rounded-xl border p-4 text-left transition-all ${
+                    isSelected
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/30 shadow-xs'
+                      : 'border-border bg-card/50 hover:border-border hover:bg-card'
+                  }`}
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
+                      <span
+                        className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${catColor}`}
+                      >
+                        {template.category}
+                      </span>
+                    </div>
+                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      {template.body_text}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px] text-muted-foreground">
+                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                      {template.language ?? 'pt_BR'}
+                    </span>
+                    {template.header_type && (
+                      <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 uppercase">
+                        <ImageIcon className="h-2.5 w-2.5 text-primary" />
+                        {template.header_type}
+                      </span>
+                    )}
+                    {btnCount > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                        <MousePointerClick className="h-2.5 w-2.5" />
+                        {btnCount} {btnCount === 1 ? 'botão' : 'botões'}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Live iPhone Mockup for Selected Template */}
+          <div className="lg:sticky lg:top-6">
+            <IphoneWhatsappPreview
+              template={selectedTemplate}
+              recipientLabel={selectedTemplate ? selectedTemplate.name : 'Selecione um modelo'}
+            />
+          </div>
         </div>
       )}
 
