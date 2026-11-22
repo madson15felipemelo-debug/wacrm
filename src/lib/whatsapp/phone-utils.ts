@@ -9,6 +9,24 @@ export function sanitizePhoneForMeta(phone: string): string {
 }
 
 /**
+ * Normalizes a Brazilian phone number to full Meta E.164 digits (`55` + DDD + number).
+ * If the user supplies 10 or 11 digits without DDI (e.g. `47999999999` or `(11) 98888-7777`),
+ * or with a trunk leading zero (`047999999999`), `55` is prepended automatically.
+ */
+export function normalizeBrazilPhone(phone: string): string {
+  if (!phone) return ''
+  let digits = phone.replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
+    digits = digits.slice(1)
+  }
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`
+  }
+  return digits
+}
+
+/**
  * Normalize phone number by removing all non-digit characters.
  * Used for comparing phone numbers in different formats.
  */

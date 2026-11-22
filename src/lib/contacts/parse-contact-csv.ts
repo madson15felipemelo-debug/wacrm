@@ -66,8 +66,14 @@ export function parseContactCsv(text: string): ParseContactCsvResult {
     if (!line) continue;
 
     const values = parseCsvLine(line);
-    const phone = values[phoneIdx]?.replace(/["']/g, '').trim();
-    if (!phone) continue;
+    const rawPhone = values[phoneIdx]?.replace(/["']/g, '').trim();
+    if (!rawPhone) continue;
+    let digits = rawPhone.replace(/\D/g, '');
+    if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
+      digits = digits.slice(1);
+    }
+    const phone =
+      digits.length === 10 || digits.length === 11 ? `55${digits}` : digits || rawPhone;
 
     rows.push({
       phone,

@@ -244,12 +244,12 @@ export function Step2SelectAudience({
   function handleDownloadSampleCsv() {
     const headerLine = expectedCsvHeaders.join(';');
     const row1 = [
-      '5547999999999',
+      '47999999999',
       'Maria Silva',
       ...expectedCsvHeaders.slice(2).map((_, idx) => `Exemplo ${idx + 2}`),
     ].join(';');
     const row2 = [
-      '5511988887777',
+      '11988887777',
       'João Souza',
       ...expectedCsvHeaders.slice(2).map((_, idx) => `Valor ${idx + 2}`),
     ].join(';');
@@ -402,7 +402,7 @@ export function Step2SelectAudience({
                 {t('selectAudience.uploadCsv')}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                A 1ª coluna deve ser <code>telefone</code> (com DDI 55 + DDD + número) e as colunas seguintes (<code>variavel1</code>, <code>variavel2</code>...) preenchem as variáveis do modelo separadas por <code>;</code>.
+                A 1ª coluna deve ser <code>telefone</code> (pode ser só DDD + número, ex: <code>47999999999</code>, ou com <code>55</code> na frente — o sistema adiciona o DDI 55 automaticamente) e as colunas seguintes (<code>variavel1</code>, <code>variavel2</code>...) separadas por <code>;</code>.
               </p>
             </div>
             <Button

@@ -1,4 +1,4 @@
-import { isValidE164, sanitizePhoneForMeta } from '@/lib/whatsapp/phone-utils';
+import { isValidE164, normalizeBrazilPhone } from '@/lib/whatsapp/phone-utils';
 
 export interface AudienceRow {
   /** Digits-only phone, the form Meta and the contacts index use. */
@@ -93,7 +93,7 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
 
   for (const line of lines.slice(1)) {
     const cells = splitCsvLine(line, delimiter);
-    const phone = sanitizePhoneForMeta(cells[phoneIdx] ?? '');
+    const phone = normalizeBrazilPhone(cells[phoneIdx] ?? '');
     if (!isValidE164(phone)) {
       invalidCount++;
       continue;
