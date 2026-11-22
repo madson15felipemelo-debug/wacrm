@@ -9,20 +9,51 @@ export function sanitizePhoneForMeta(phone: string): string {
 }
 
 /**
- * Normalizes a Brazilian phone number to full Meta E.164 digits (`55` + DDD + number).
- * If the user supplies 10 or 11 digits without DDI (e.g. `47999999999` or `(11) 98888-7777`),
- * or with a trunk leading zero (`047999999999`), `55` is prepended automatically.
+ * Normalizes and validates a Brazilian phone number from a CSV cell to full Meta E.164 digits (`55` + DDD + number).
+ *
+ * - Rejects masked or corrupted strings containing `#`, `*`, `?`, letters, etc. (e.g. `47655##545`, `47999***99`, `N/A`)
+ *   by returning `''` so they are safely skipped as invalid without breaking the import.
+ * - Accepts only digits and standard phone formatting (`+`, `-`, `(`, `)`, `.`, spaces).
+ * - Strips trunk leading zero (`047...` or `55047...`).
+ * - Prepends `55` automatically when 10 or 11 digits (DDD + 8 or 9 digits).
+ * - Requires the final normalized number to be a valid 12- or 13-digit Brazil number (`55` + DDD `[1-9][1-9]` + 8/9 digits).
  */
 export function normalizeBrazilPhone(phone: string): string {
-  if (!phone) return ''
-  let digits = phone.replace(/\D/g, '')
+  if (!phone || typeof phone !== 'string') return ''
+  const trimmed = phone.trim()
+  if (!trimmed) return ''
+
+  // Reject any cell containing masking characters (#, *, ?), letters, or unexpected symbols
+  if (!/^[0-9+\-().\s]+$/.test(trimmed)) {
+    return ''
+  }
+
+  let digits = trimmed.replace(/\D/g, '')
   if (!digits) return ''
+
+  // Handle trunk 0 after 55 (e.g. 5504799999999 -> 554799999999)
+  if (digits.startsWith('550') && (digits.length === 13 || digits.length === 14)) {
+    digits = '55' + digits.slice(3)
+  }
+
+  // Handle domestic trunk 0 (e.g. 04799999999 -> 47999999999)
   if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
     digits = digits.slice(1)
   }
+
+  // Auto-prepend Brazil DDI 55 for 10 or 11 digits (DDD + number)
   if (digits.length === 10 || digits.length === 11) {
-    return `55${digits}`
+    digits = `55${digits}`
   }
+
+  // Final strict validation for Brazil E.164:
+  // 55 + 2-digit DDD (11-99, neither digit 0) + 8 or 9 digits (first local digit 2-9)
+  if (!/^55[1-9][1-9][2-9]\d{7,8}$/.test(digits)) {
+    return ''
+  }
+
+  // Reject obvious dummy repeated digits like 5547999999999 where all local digits are identical?
+  // Wait: 999999999 can be used in tests, only reject all-zero local part (already blocked by [2-9]).
   return digits
 }
 

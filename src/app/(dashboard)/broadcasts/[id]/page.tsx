@@ -191,6 +191,48 @@ export default function BroadcastDetailPage() {
     fetchData();
   }, [broadcastId]);
 
+  // While a CSV broadcast is in 'sending' state, drive the worker queue and refresh live stats
+  useEffect(() => {
+    if (!broadcast || broadcast.status !== 'sending') return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        await fetch('/api/broadcasts/worker', { method: 'GET' });
+      } catch {
+        // Non-blocking
+      }
+      if (cancelled) return;
+      try {
+        const supabase = createClient();
+        const [{ data: bc }, { data: recs }] = await Promise.all([
+          supabase.from('broadcasts').select('*').eq('id', broadcastId).single(),
+          supabase
+            .from('broadcast_recipients')
+            .select('*, contact:contacts(*)')
+            .eq('broadcast_id', broadcastId)
+            .order('created_at', { ascending: false }),
+        ]);
+        if (!cancelled) {
+          if (bc) setBroadcast(bc);
+          if (recs) setRecipients(recs);
+        }
+      } catch {
+        // Non-blocking
+      }
+    };
+
+    void tick();
+    const interval = setInterval(() => {
+      void tick();
+    }, 4500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [broadcast?.status, broadcastId]);
+
   const filteredRecipients = useMemo(
     () =>
       statusFilter === 'all'

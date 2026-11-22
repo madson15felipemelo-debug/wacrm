@@ -219,7 +219,7 @@ export async function POST(request: Request) {
       }))
       const { data: inserted, error } = await admin
         .from('contacts')
-        .insert(chunk)
+        .upsert(chunk, { onConflict: 'account_id,phone_normalized' })
         .select('id, phone')
       if (error) throw error
       for (const c of inserted ?? []) {

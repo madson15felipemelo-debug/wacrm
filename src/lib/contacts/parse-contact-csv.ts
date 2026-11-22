@@ -67,13 +67,19 @@ export function parseContactCsv(text: string): ParseContactCsvResult {
 
     const values = parseCsvLine(line);
     const rawPhone = values[phoneIdx]?.replace(/["']/g, '').trim();
-    if (!rawPhone) continue;
+    if (!rawPhone || !/^[0-9+\-().\s]+$/.test(rawPhone)) continue;
     let digits = rawPhone.replace(/\D/g, '');
+    if (digits.startsWith('550') && (digits.length === 13 || digits.length === 14)) {
+      digits = '55' + digits.slice(3);
+    }
     if (digits.startsWith('0') && (digits.length === 11 || digits.length === 12)) {
       digits = digits.slice(1);
     }
-    const phone =
-      digits.length === 10 || digits.length === 11 ? `55${digits}` : digits || rawPhone;
+    if (digits.length === 10 || digits.length === 11) {
+      digits = `55${digits}`;
+    }
+    if (!/^55[1-9][1-9][2-9]\d{7,8}$/.test(digits)) continue;
+    const phone = digits;
 
     rows.push({
       phone,

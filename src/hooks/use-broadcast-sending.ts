@@ -407,6 +407,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
         if (!res.ok) {
           throw new Error(data.error ?? 'Não foi possível criar o disparo.');
         }
+        // Trigger the first worker drain immediately so sending starts right away
+        void fetch('/api/broadcasts/worker', { method: 'GET' }).catch(() => {});
         setProgress(100);
         return data.broadcastId as string;
       }

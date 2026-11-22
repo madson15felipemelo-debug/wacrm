@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isAuthorizedCron } from '@/lib/cron/auth'
+import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
 import { decrypt } from '@/lib/whatsapp/encryption'
@@ -44,7 +45,19 @@ interface QueueRow {
  * unclaimed or its claim has expired.
  */
 export async function GET(request: Request) {
-  if (!isAuthorizedCron(request)) {
+  let authorized = isAuthorizedCron(request)
+  if (!authorized) {
+    try {
+      const supabase = await createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) authorized = true
+    } catch {
+      authorized = false
+    }
+  }
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

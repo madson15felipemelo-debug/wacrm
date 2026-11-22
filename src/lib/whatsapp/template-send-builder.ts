@@ -137,10 +137,15 @@ function buildBodyComponent(
   }
   // Trim to the variable count — extra values are dropped silently so
   // a legacy caller that passes too many doesn't error out.
+  // Also fallback empty strings to 'Cliente' so Meta never rejects a row
+  // with "(#100) Param text cannot be empty".
   const values = body.slice(0, varCount);
   return {
     type: 'body',
-    parameters: values.map((text) => ({ type: 'text', text: String(text) })),
+    parameters: values.map((text) => ({
+      type: 'text',
+      text: String(text ?? '').trim() || 'Cliente',
+    })),
   };
 }
 
