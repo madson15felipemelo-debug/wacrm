@@ -11,6 +11,7 @@ export interface AudienceRow {
 
 /** Headers recognised as the contact's name (still also a template variable). */
 const NAME_HEADERS = ['nome', 'name'];
+const PHONE_HEADERS = ['phone', 'telefone', 'celular', 'numero', 'número', 'whatsapp'];
 
 export interface ParsedAudienceCsv {
   rows: AudienceRow[];
@@ -24,8 +25,14 @@ export interface ParsedAudienceCsv {
   duplicateCount: number;
 }
 
-/** Split one CSV line, honouring double-quoted fields with commas. */
-export function splitCsvLine(line: string): string[] {
+function detectDelimiter(headerLine: string): ',' | ';' {
+  const commas = (headerLine.match(/,/g) || []).length;
+  const semis = (headerLine.match(/;/g) || []).length;
+  return semis > commas ? ';' : ',';
+}
+
+/** Split one CSV line, honouring double-quoted fields with commas/semicolons. */
+export function splitCsvLine(line: string, delimiter: ',' | ';' = ','): string[] {
   const cells: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -42,7 +49,7 @@ export function splitCsvLine(line: string): string[] {
       }
     } else if (ch === '"') {
       inQuotes = true;
-    } else if (ch === ',') {
+    } else if (ch === delimiter) {
       cells.push(current.trim());
       current = '';
     } else {
@@ -61,17 +68,18 @@ export function splitCsvLine(line: string): string[] {
 export function parseAudienceCsv(text: string): ParsedAudienceCsv {
   const lines = text
     .split(/\r?\n/)
-    .map((l) => l.replace(/^﻿/, ''))
+    .map((l) => l.replace(/^\uFEFF/, ''))
     .filter((l) => l.trim().length > 0);
   if (lines.length === 0) {
     throw new Error('O arquivo está vazio.');
   }
 
-  const rawHeaders = splitCsvLine(lines[0]);
+  const delimiter = detectDelimiter(lines[0]);
+  const rawHeaders = splitCsvLine(lines[0], delimiter);
   const headers = rawHeaders.map((h) => h.toLowerCase());
-  const phoneIdx = headers.indexOf('phone');
+  const phoneIdx = headers.findIndex((h) => PHONE_HEADERS.includes(h));
   if (phoneIdx === -1) {
-    throw new Error("O CSV precisa ter a coluna 'phone'.");
+    throw new Error("O CSV precisa ter a coluna 'phone' (ou 'telefone').");
   }
   const paramIdxs = headers
     .map((_, idx) => idx)
@@ -84,7 +92,7 @@ export function parseAudienceCsv(text: string): ParsedAudienceCsv {
   let duplicateCount = 0;
 
   for (const line of lines.slice(1)) {
-    const cells = splitCsvLine(line);
+    const cells = splitCsvLine(line, delimiter);
     const phone = sanitizePhoneForMeta(cells[phoneIdx] ?? '');
     if (!isValidE164(phone)) {
       invalidCount++;

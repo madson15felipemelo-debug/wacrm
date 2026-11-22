@@ -201,8 +201,25 @@ export default function NewBroadcastPage() {
           {currentStep === 1 && (
             <Step2SelectAudience
               audience={audience}
+              selectedTemplate={template}
               onUpdate={setAudience}
-              onNext={() => setCurrentStep(2)}
+              onNext={() => {
+                if (audience.type === 'csv' && template?.body_text) {
+                  const matches = template.body_text.match(/\{\{(\d+)\}\}/g) ?? [];
+                  const nextVars = { ...variables };
+                  for (const m of matches) {
+                    const key = m.replace(/^\{\{|\}\}$/g, '');
+                    if (!nextVars[key]?.value) {
+                      nextVars[key] =
+                        key === '1'
+                          ? { type: 'field', value: 'name' }
+                          : { type: 'static', value: `Coluna CSV {{${key}}}` };
+                    }
+                  }
+                  setVariables(nextVars);
+                }
+                setCurrentStep(2);
+              }}
               onBack={() => setCurrentStep(0)}
             />
           )}

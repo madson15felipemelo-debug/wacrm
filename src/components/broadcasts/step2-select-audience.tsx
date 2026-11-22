@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import { parseContactCsv } from '@/lib/contacts/parse-contact-csv';
-import { CustomField, Tag } from '@/types';
+import { parseAudienceCsv, type ParsedAudienceCsv } from '@/lib/broadcasts/csv-audience';
+import { extractVariableIndices } from '@/lib/whatsapp/template-validators';
+import { CustomField, MessageTemplate, Tag } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Users,
   Tags,
   Filter,
   Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
   Loader2,
   ArrowRight,
   ArrowLeft,
@@ -37,6 +42,7 @@ interface AudienceConfig {
 
 interface Step2Props {
   audience: AudienceConfig;
+  selectedTemplate?: MessageTemplate | null;
   onUpdate: (audience: AudienceConfig) => void;
   onNext: () => void;
   onBack: () => void;
@@ -44,11 +50,14 @@ interface Step2Props {
 
 export function Step2SelectAudience({
   audience,
+  selectedTemplate,
   onUpdate,
   onNext,
   onBack,
 }: Step2Props) {
   const t = useTranslations('Broadcasts.wizard');
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [parsedCsvInfo, setParsedCsvInfo] = useState<ParsedAudienceCsv | null>(null);
 
   const OPERATOR_OPTIONS = useMemo<{ value: CustomFieldOperator; label: string }[]>(() => [
     { value: 'is', label: t('selectAudience.operatorIs') },
@@ -215,19 +224,82 @@ export function Step2SelectAudience({
     fetchEstimatedCount();
   }, [fetchEstimatedCount]);
 
+  const templateVarIndices = useMemo(
+    () =>
+      selectedTemplate?.body_text
+        ? extractVariableIndices(selectedTemplate.body_text)
+        : [1],
+    [selectedTemplate?.body_text],
+  );
+
+  const expectedCsvHeaders = useMemo(() => {
+    const count = templateVarIndices.length > 0 ? Math.max(...templateVarIndices) : 1;
+    const cols = ['phone', 'nome'];
+    for (let i = 2; i <= count; i++) {
+      cols.push(`variavel_${i}`);
+    }
+    return cols;
+  }, [templateVarIndices]);
+
+  function handleDownloadSampleCsv() {
+    const headerLine = expectedCsvHeaders.join(',');
+    const row1 = [
+      '5547999999999',
+      'Maria Silva',
+      ...expectedCsvHeaders.slice(2).map((_, idx) => `Exemplo ${idx + 2}`),
+    ].join(',');
+    const row2 = [
+      '5511988887777',
+      'João Souza',
+      ...expectedCsvHeaders.slice(2).map((_, idx) => `Valor ${idx + 2}`),
+    ].join(',');
+    const csvContent = '\uFEFF' + [headerLine, row1, row2].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute(
+      'download',
+      selectedTemplate?.name
+        ? `layout_csv_${selectedTemplate.name}.csv`
+        : 'layout_csv_disparo_exemplo.csv',
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   async function handleCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const { rows } = parseContactCsv(await file.text());
-    onUpdate({
-      ...audience,
-      csvFile: file,
-      csvContacts: rows.map((row) => ({
-        phone: row.phone,
-        name: row.name || undefined,
-      })),
-    });
+    try {
+      const text = await file.text();
+      const parsed = parseAudienceCsv(text);
+      if (parsed.rows.length === 0) {
+        toast.error(
+          'Nenhum número válido encontrado no CSV (use DDI + DDD + Número, ex: 5547999999999).',
+        );
+        return;
+      }
+      setParsedCsvInfo(parsed);
+      onUpdate({
+        ...audience,
+        csvFile: file,
+        csvContacts: parsed.rows.map((row) => ({
+          phone: row.phone,
+          name: row.name || row.params[0] || undefined,
+        })),
+      });
+      toast.success(
+        `${parsed.rows.length} destinatário(s) carregado(s) com sucesso do CSV!`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Erro ao ler o arquivo CSV.',
+      );
+    }
   }
 
   function toggleTag(tagId: string) {
@@ -323,25 +395,123 @@ export function Step2SelectAudience({
       </div>
 
       {audience.type === 'csv' && (
-        <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4">
-          <p className="text-sm font-medium text-foreground">
-            {t('selectAudience.uploadCsv')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t('selectAudience.csvFormatDesc')}
-          </p>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleCsvFile}
-            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-primary hover:file:bg-primary/20"
-          />
-          {audience.csvContacts && (
-            <p className="text-xs font-medium text-primary">
-              {t('selectAudience.csvContactsFound', {
-                count: audience.csvContacts.length,
-              })}
-            </p>
+        <div className="space-y-4 rounded-xl border border-border bg-card/50 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {t('selectAudience.uploadCsv')}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                A 1ª coluna deve ser <code>phone</code> (com DDI 55 + DDD + número) e as colunas seguintes preenchem as variáveis do modelo (<code>{'{{1}}'}</code>, <code>{'{{2}}'}</code>...).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadSampleCsv}
+              className="shrink-0 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Baixar CSV exemplo de layout
+            </Button>
+          </div>
+
+          {/* Layout visual das colunas esperadas */}
+          <div className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
+              <span>Estrutura de colunas do arquivo CSV:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {expectedCsvHeaders.map((col, idx) => (
+                <span
+                  key={col}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-mono"
+                >
+                  <strong className="text-foreground">{col}</strong>
+                  <span className="text-[11px] text-muted-foreground">
+                    {idx === 0 ? '(Telefone WhatsApp)' : `→ {{${idx}}}`}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Seletor de arquivo */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleCsvFile}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              onClick={() => csvInputRef.current?.click()}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Upload className="mr-1.5 h-4 w-4" />
+              {audience.csvFile ? 'Trocar arquivo CSV' : 'Selecionar arquivo CSV'}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {audience.csvFile ? (
+                <strong className="text-foreground">{audience.csvFile.name}</strong>
+              ) : (
+                'Nenhum arquivo selecionado'
+              )}
+            </span>
+          </div>
+
+          {/* Resumo + Prévia do CSV carregado */}
+          {audience.csvContacts && audience.csvContacts.length > 0 && (
+            <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>
+                    {audience.csvContacts.length.toLocaleString('pt-BR')} destinatário(s) válido(s) pronto(s) para o disparo
+                  </span>
+                </div>
+                {parsedCsvInfo && (parsedCsvInfo.invalidCount > 0 || parsedCsvInfo.duplicateCount > 0) && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {parsedCsvInfo.duplicateCount > 0 && `${parsedCsvInfo.duplicateCount} duplicado(s) ignorado(s)`}
+                    {parsedCsvInfo.duplicateCount > 0 && parsedCsvInfo.invalidCount > 0 && ' · '}
+                    {parsedCsvInfo.invalidCount > 0 && `${parsedCsvInfo.invalidCount} número(s) inválido(s) ignorado(s)`}
+                  </span>
+                )}
+              </div>
+
+              {parsedCsvInfo && parsedCsvInfo.rows.length > 0 && (
+                <div className="overflow-x-auto rounded-md border border-border/60 bg-background">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-border/60 bg-muted/40 text-[11px] font-medium text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-1.5 font-mono">phone</th>
+                        {parsedCsvInfo.paramHeaders.map((h, i) => (
+                          <th key={i} className="px-3 py-1.5 font-mono">
+                            {h} <span className="text-primary">({`{{${i + 1}}}`})</span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {parsedCsvInfo.rows.slice(0, 3).map((r, rIdx) => (
+                        <tr key={rIdx}>
+                          <td className="px-3 py-1.5 font-mono text-foreground">{r.phone}</td>
+                          {r.params.map((p, pIdx) => (
+                            <td key={pIdx} className="px-3 py-1.5 text-muted-foreground">
+                              {p || '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -432,64 +602,67 @@ export function Step2SelectAudience({
         </div>
       )}
 
-      {/* Exclude list — applies regardless of audience type */}
-      <div className="rounded-xl border border-border bg-card/50 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <X className="h-4 w-4 text-red-400" />
-          <p className="text-sm font-medium text-foreground">
-            {t('selectAudience.excludeTags')}
-          </p>
-        </div>
-        {tags.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{t('selectAudience.noTagsFound')}</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => {
-              const isExcluded = audience.excludeTagIds?.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleExcludeTag(tag.id)}
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                    isExcluded
-                      ? 'border-red-500/30 bg-red-500/10 text-red-300'
-                      : 'border-border bg-muted text-muted-foreground hover:border-border'
-                  }`}
-                >
-                  <span
-                    className="mr-1.5 h-2 w-2 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
-                  {tag.name}
-                </button>
-              );
-            })}
+      {/* Exclude list & Audience Summary — only for CRM-based audiences (not CSV) */}
+      {audience.type !== 'csv' && (
+        <>
+          <div className="rounded-xl border border-border bg-card/50 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <X className="h-4 w-4 text-red-400" />
+              <p className="text-sm font-medium text-foreground">
+                {t('selectAudience.excludeTags')}
+              </p>
+            </div>
+            {tags.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t('selectAudience.noTagsFound')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const isExcluded = audience.excludeTagIds?.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleExcludeTag(tag.id)}
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                        isExcluded
+                          ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                          : 'border-border bg-muted text-muted-foreground hover:border-border'
+                      }`}
+                    >
+                      <span
+                        className="mr-1.5 h-2 w-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Audience Summary */}
-      <div className="rounded-xl border border-border bg-card/50 p-4">
-        <p className="mb-2 text-sm font-medium text-foreground">Resumo do público</p>
-        {loadingCount ? (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="text-xs text-muted-foreground">Calculando…</span>
+          <div className="rounded-xl border border-border bg-card/50 p-4">
+            <p className="mb-2 text-sm font-medium text-foreground">Resumo do público</p>
+            {loadingCount ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">Calculando…</span>
+              </div>
+            ) : estimatedCount !== null ? (
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <span className="text-sm text-foreground">
+                  {estimatedCount.toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground">destinatários estimados</span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Escolha um tipo de público para ver a estimativa.
+              </p>
+            )}
           </div>
-        ) : estimatedCount !== null ? (
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <span className="text-sm text-foreground">
-              {estimatedCount.toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">destinatários estimados</span>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Escolha um tipo de público para ver a estimativa.
-          </p>
-        )}
-      </div>
+        </>
+      )}
 
       <div className="flex items-center justify-between border-t border-border pt-4">
         <Button
