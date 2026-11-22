@@ -472,6 +472,57 @@ export function normalizeTemplatePayload(
 }
 
 /**
+ * Resolves any direct `wa.me/<phone>` / `whatsapp.com` / `/r/wa/<phone>` URL buttons
+ * into a 100% public 301 short-redirect (`https://tinyurl.com/...` -> `https://wa.me/<phone>`)
+ * so Meta accepts the URL button (avoiding subcode 2388081) AND clicking the button on
+ * any mobile device opens the target WhatsApp chat directly without hitting Vercel SSO.
+ */
+export async function resolveWhatsAppUrlButtonsForMeta(
+  payload: TemplatePayload,
+): Promise<void> {
+  if (!Array.isArray(payload.buttons) || payload.buttons.length === 0) return;
+
+  payload.buttons = await Promise.all(
+    payload.buttons.map(async (b) => {
+      if (b.type !== 'URL' || typeof b.url !== 'string') return b;
+      const raw = b.url.trim();
+      let targetWaUrl: string | null = null;
+
+      // Match /r/wa/<digits> or wa.me/<digits> or api.whatsapp.com/send?phone=<digits>
+      const rWaMatch = raw.match(/\/r\/wa\/(\d+)(?:\?text=([^&]+))?/i);
+      const waMeMatch = raw.match(/wa\.me\/(\d+)(?:\?text=([^&]+))?/i);
+      const apiWaMatch = raw.match(/whatsapp\.com\/send\?[^#]*phone=(\d+)/i);
+
+      if (rWaMatch?.[1]) {
+        targetWaUrl = `https://wa.me/${rWaMatch[1]}${rWaMatch[2] ? `?text=${rWaMatch[2]}` : ''}`;
+      } else if (waMeMatch?.[1]) {
+        targetWaUrl = `https://wa.me/${waMeMatch[1]}${waMeMatch[2] ? `?text=${waMeMatch[2]}` : ''}`;
+      } else if (apiWaMatch?.[1]) {
+        targetWaUrl = `https://wa.me/${apiWaMatch[1]}`;
+      }
+
+      if (!targetWaUrl) return b;
+
+      try {
+        const res = await fetch(
+          `https://tinyurl.com/api-create.php?url=${encodeURIComponent(targetWaUrl)}`,
+          { signal: AbortSignal.timeout(5000) },
+        );
+        if (res.ok) {
+          const shortUrl = (await res.text()).trim();
+          if (/^https:\/\/tinyurl\.com\//i.test(shortUrl)) {
+            return { ...b, url: shortUrl };
+          }
+        }
+      } catch {
+        // Fallback to existing normalized URL if TinyURL is unreachable
+      }
+      return b;
+    }),
+  );
+}
+
+/**
  * Run every validator. Throws on the first failure with a specific,
  * field-level message. Returns the variable counts so callers can
  * reuse them when building the Meta components payload.
