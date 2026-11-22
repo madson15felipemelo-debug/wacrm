@@ -211,7 +211,8 @@ export async function POST(request: Request) {
 
     const missing = phones.filter((p) => !contactIdByPhone.has(p))
     for (let i = 0; i < missing.length; i += INSERT_CHUNK) {
-      const chunk = missing.slice(i, i + INSERT_CHUNK).map((phone) => ({
+      const slice = missing.slice(i, i + INSERT_CHUNK)
+      const chunk = slice.map((phone) => ({
         account_id: accountId,
         user_id: user.id,
         phone,
@@ -219,11 +220,34 @@ export async function POST(request: Request) {
       }))
       const { data: inserted, error } = await admin
         .from('contacts')
-        .upsert(chunk, { onConflict: 'account_id,phone_normalized' })
+        .insert(chunk)
         .select('id, phone')
-      if (error) throw error
-      for (const c of inserted ?? []) {
-        contactIdByPhone.set(c.phone.replace(/\D/g, ''), c.id)
+      if (!error) {
+        for (const c of inserted ?? []) {
+          contactIdByPhone.set(c.phone.replace(/\D/g, ''), c.id)
+        }
+        continue
+      }
+      // Fallback row-by-row if a concurrent or variant duplicate occurred
+      for (const row of chunk) {
+        const { data: one } = await admin
+          .from('contacts')
+          .insert(row)
+          .select('id, phone')
+          .maybeSingle()
+        if (one) {
+          contactIdByPhone.set(one.phone.replace(/\D/g, ''), one.id)
+        } else {
+          const { data: existingOne } = await admin
+            .from('contacts')
+            .select('id, phone')
+            .eq('account_id', accountId)
+            .eq('phone_normalized', row.phone)
+            .maybeSingle()
+          if (existingOne) {
+            contactIdByPhone.set(row.phone, existingOne.id)
+          }
+        }
       }
     }
 
