@@ -432,18 +432,6 @@ export function WhatsAppBusinessProfileCard() {
                             {phoneMeta.quota.dailyLimit.toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        {phoneMeta.quota.upgradeTarget7d > 0 && phoneMeta.quota.nextTierLimit > 0 && (
-                          <div className="flex items-center justify-between text-muted-foreground pt-0.5 border-t border-border/50">
-                            <span>Meta p/ {phoneMeta.quota.nextTierLabel}:</span>
-                            <span className="font-mono font-semibold text-primary">
-                              {Math.min(
-                                phoneMeta.quota.usedLast7d,
-                                phoneMeta.quota.upgradeTarget7d,
-                              ).toLocaleString('pt-BR')}
-                              /{phoneMeta.quota.upgradeTarget7d.toLocaleString('pt-BR')} (7d)
-                            </span>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <p className="mt-2 text-[11px] text-muted-foreground">

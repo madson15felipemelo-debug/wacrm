@@ -371,22 +371,6 @@ export function WhatsAppNumberHealthBar() {
                             ({item.quota.usedLast24h.toLocaleString('pt-BR')} usados em 24h)
                           </span>
                         </span>
-                        {item.quota.upgradeTarget7d > 0 && item.quota.nextTierLimit > 0 && (
-                          <>
-                            <span className="text-border hidden xl:inline">|</span>
-                            <span className="text-[11px] text-muted-foreground hidden xl:inline">
-                              Próx. nível ({item.quota.nextTierLabel}):{' '}
-                              <strong className="text-primary">
-                                {Math.min(
-                                  item.quota.usedLast7d,
-                                  item.quota.upgradeTarget7d,
-                                ).toLocaleString('pt-BR')}
-                                /{item.quota.upgradeTarget7d.toLocaleString('pt-BR')}
-                              </strong>{' '}
-                              em 7d
-                            </span>
-                          </>
-                        )}
                       </>
                     )}
                   </div>
