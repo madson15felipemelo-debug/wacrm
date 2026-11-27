@@ -10,6 +10,7 @@ import { Step1ChooseTemplate } from '@/components/broadcasts/step1-choose-templa
 import { Step2SelectAudience } from '@/components/broadcasts/step2-select-audience';
 import { Step3Personalize } from '@/components/broadcasts/step3-personalize';
 import { Step4ScheduleSend } from '@/components/broadcasts/step4-schedule-send';
+import { WhatsAppNumberHealthBar } from '@/components/dashboard/whatsapp-number-health-bar';
 import { useBroadcastSending } from '@/hooks/use-broadcast-sending';
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -140,6 +141,9 @@ export default function NewBroadcastPage() {
           {t('subtitle')}
         </p>
       </div>
+
+      {/* Live Meta Dispatch Limit, 24h Remaining Quota & Number Health */}
+      <WhatsAppNumberHealthBar />
 
       {/* Step Indicator */}
       <div className="flex items-center justify-between">

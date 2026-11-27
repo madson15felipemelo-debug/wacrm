@@ -32,6 +32,7 @@ import {
   formatMessagingTier,
   formatPhoneStatus,
   getQualityMeta,
+  type WhatsAppQuotaInfo,
 } from '@/components/dashboard/whatsapp-number-health-bar';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +45,7 @@ interface PhoneMeta {
   name_status: string;
   new_display_name: string | null;
   new_name_status: string | null;
+  quota?: WhatsAppQuotaInfo;
 }
 
 export function WhatsAppBusinessProfileCard() {
@@ -406,18 +408,48 @@ export function WhatsAppBusinessProfileCard() {
                   </div>
 
                   {/* Limite de Disparos */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 flex flex-col justify-between">
+                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 flex flex-col justify-between space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">
                         Capacidade de Envio
                       </span>
-                      <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                      <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                         {tierLabel}
                       </span>
                     </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Limite diário de conversas iniciadas pela empresa em 24h.
-                    </p>
+                    {phoneMeta.quota && phoneMeta.quota.dailyLimit > 0 ? (
+                      <div className="space-y-1 text-[11px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Disponível hoje (24h):</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">
+                            {phoneMeta.quota.remainingToday.toLocaleString('pt-BR')} envios
+                          </strong>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Usados nas últ. 24h:</span>
+                          <span className="font-mono font-semibold text-foreground">
+                            {phoneMeta.quota.usedLast24h.toLocaleString('pt-BR')} /{' '}
+                            {phoneMeta.quota.dailyLimit.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        {phoneMeta.quota.upgradeTarget7d > 0 && phoneMeta.quota.nextTierLimit > 0 && (
+                          <div className="flex items-center justify-between text-muted-foreground pt-0.5 border-t border-border/50">
+                            <span>Meta p/ {phoneMeta.quota.nextTierLabel}:</span>
+                            <span className="font-mono font-semibold text-primary">
+                              {Math.min(
+                                phoneMeta.quota.usedLast7d,
+                                phoneMeta.quota.upgradeTarget7d,
+                              ).toLocaleString('pt-BR')}
+                              /{phoneMeta.quota.upgradeTarget7d.toLocaleString('pt-BR')} (7d)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Limite diário de conversas iniciadas pela empresa em 24h.
+                      </p>
+                    )}
                   </div>
                 </div>
               );

@@ -16,6 +16,7 @@ import {
 import { Radio, Plus, Loader2 } from 'lucide-react';
 import { useCan } from '@/hooks/use-can';
 import { GatedButton } from '@/components/ui/gated-button';
+import { WhatsAppNumberHealthBar } from '@/components/dashboard/whatsapp-number-health-bar';
 import { getBroadcastStatus } from '@/lib/broadcast-status';
 import { useTranslations } from 'next-intl';
 
@@ -197,6 +198,9 @@ export default function BroadcastsPage() {
           {t('newBroadcast')}
         </GatedButton>
       </div>
+
+      {/* Live Meta Dispatch Limit, 24h Remaining Quota & Number Health */}
+      <WhatsAppNumberHealthBar />
 
       {broadcasts.length === 0 ? (
         <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-border bg-card">

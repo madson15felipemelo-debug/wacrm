@@ -15,6 +15,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
+export interface WhatsAppQuotaInfo {
+  tierCode: string;
+  dailyLimit: number;
+  usedLast24h: number;
+  remainingToday: number;
+  usedLast7d: number;
+  upgradeTarget7d: number;
+  nextTierLimit: number;
+  nextTierLabel: string;
+  businessVerificationStatus?: string | null;
+}
+
 export interface WhatsAppPhoneHealth {
   id?: string;
   verified_name: string;
@@ -25,6 +37,7 @@ export interface WhatsAppPhoneHealth {
   name_status?: string;
   profile_picture_url?: string | null;
   is_primary?: boolean;
+  quota?: WhatsAppQuotaInfo;
 }
 
 export function getQualityMeta(ratingRaw: string | undefined) {
@@ -134,6 +147,8 @@ export function formatMessagingTier(tierRaw: string | undefined): string {
       return '250 envios / 24h';
     case 'TIER_1K':
       return '1.000 envios / 24h';
+    case 'TIER_2K':
+      return '2.000 envios / 24h';
     case 'TIER_10K':
       return '10.000 envios / 24h';
     case 'TIER_100K':
@@ -141,7 +156,7 @@ export function formatMessagingTier(tierRaw: string | undefined): string {
     case 'TIER_UNLIMITED':
       return 'Ilimitado';
     default:
-      return 'Padrão Meta';
+      return '250 envios / 24h';
   }
 }
 
@@ -337,16 +352,44 @@ export function WhatsAppNumberHealthBar() {
                     </span>
                   </div>
 
-                  {/* Limite de Disparos */}
-                  {item.messaging_limit_tier && (
-                    <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs">
-                      <Zap className="size-3.5 text-muted-foreground" />
-                      <span className="text-muted-foreground">Limite:</span>
-                      <span className="font-semibold text-foreground">
-                        {tierLabel}
-                      </span>
-                    </div>
-                  )}
+                  {/* Limite Diário + Cota Disponível (24h) */}
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-1.5 text-xs">
+                    <Zap className="size-3.5 text-primary shrink-0" />
+                    <span className="text-muted-foreground">Limite diário:</span>
+                    <span className="font-bold text-foreground">
+                      {tierLabel}
+                    </span>
+                    {item.quota && item.quota.dailyLimit > 0 && (
+                      <>
+                        <span className="text-border">|</span>
+                        <span className="text-muted-foreground">
+                          Disponível hoje:{' '}
+                          <strong className="text-emerald-600 dark:text-emerald-400">
+                            {item.quota.remainingToday.toLocaleString('pt-BR')}
+                          </strong>{' '}
+                          <span className="text-[11px]">
+                            ({item.quota.usedLast24h.toLocaleString('pt-BR')} usados em 24h)
+                          </span>
+                        </span>
+                        {item.quota.upgradeTarget7d > 0 && item.quota.nextTierLimit > 0 && (
+                          <>
+                            <span className="text-border hidden xl:inline">|</span>
+                            <span className="text-[11px] text-muted-foreground hidden xl:inline">
+                              Próx. nível ({item.quota.nextTierLabel}):{' '}
+                              <strong className="text-primary">
+                                {Math.min(
+                                  item.quota.usedLast7d,
+                                  item.quota.upgradeTarget7d,
+                                ).toLocaleString('pt-BR')}
+                                /{item.quota.upgradeTarget7d.toLocaleString('pt-BR')}
+                              </strong>{' '}
+                              em 7d
+                            </span>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                   {phones.length === 1 && (
                     <button

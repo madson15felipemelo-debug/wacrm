@@ -85,10 +85,38 @@ async function getAccountWhatsAppCredentials(requireWrite = false) {
   }
 
   return {
+    supabase,
+    accountId: profile.account_id as string,
     phoneNumberId: config.phone_number_id as string,
     wabaId: (config.waba_id as string | null) ?? null,
     accessToken,
   };
+}
+
+function parseTierNumericLimit(tierRaw: string | undefined): {
+  dailyLimit: number;
+  nextTierLimit: number;
+  nextTierLabel: string;
+} {
+  const tier = (tierRaw || '').toUpperCase();
+  switch (tier) {
+    case 'TIER_50':
+      return { dailyLimit: 50, nextTierLimit: 250, nextTierLabel: '250 envios / 24h' };
+    case 'TIER_250':
+      return { dailyLimit: 250, nextTierLimit: 1000, nextTierLabel: '1.000 envios / 24h' };
+    case 'TIER_1K':
+      return { dailyLimit: 1000, nextTierLimit: 10000, nextTierLabel: '10.000 envios / 24h' };
+    case 'TIER_2K':
+      return { dailyLimit: 2000, nextTierLimit: 10000, nextTierLabel: '10.000 envios / 24h' };
+    case 'TIER_10K':
+      return { dailyLimit: 10000, nextTierLimit: 100000, nextTierLabel: '100.000 envios / 24h' };
+    case 'TIER_100K':
+      return { dailyLimit: 100000, nextTierLimit: -1, nextTierLabel: 'Ilimitado' };
+    case 'TIER_UNLIMITED':
+      return { dailyLimit: -1, nextTierLimit: -1, nextTierLabel: 'Nível Máximo (Ilimitado)' };
+    default:
+      return { dailyLimit: 250, nextTierLimit: 1000, nextTierLabel: '1.000 envios / 24h' };
+  }
 }
 
 async function resolveMetaAppId(accessToken: string): Promise<string> {
@@ -117,38 +145,67 @@ export async function GET() {
       return NextResponse.json({ error: creds.error }, { status: creds.status });
     }
 
-    const { phoneNumberId, wabaId, accessToken } = creds;
+    const { supabase, accountId, phoneNumberId, wabaId, accessToken } = creds;
 
-    const [profileRes, phoneRes, wabaPhonesRes] = await Promise.all([
-      fetch(
-        `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        },
-      ),
-      fetch(
-        `${META_API_BASE}/${phoneNumberId}?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: 'no-store',
-        },
-      ),
-      wabaId
-        ? fetch(
-            `${META_API_BASE}/${wabaId}/phone_numbers?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,name_status,new_display_name,new_name_status`,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-              cache: 'no-store',
-            },
-          )
-        : Promise.resolve(null),
-    ]);
+    const nowMs = Date.now();
+    const iso24hAgo = new Date(nowMs - 24 * 3600 * 1000).toISOString();
+    const iso7dAgo = new Date(nowMs - 7 * 24 * 3600 * 1000).toISOString();
+
+    const [profileRes, phoneRes, wabaPhonesRes, wabaMetaRes, sent24hRes, sent7dRes] =
+      await Promise.all([
+        fetch(
+          `${META_API_BASE}/${phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: 'no-store',
+          },
+        ),
+        fetch(
+          `${META_API_BASE}/${phoneNumberId}?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,whatsapp_business_manager_messaging_limit,name_status,new_display_name,new_name_status`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: 'no-store',
+          },
+        ),
+        wabaId
+          ? fetch(
+              `${META_API_BASE}/${wabaId}/phone_numbers?fields=id,verified_name,display_phone_number,quality_rating,status,messaging_limit_tier,whatsapp_business_manager_messaging_limit,name_status,new_display_name,new_name_status`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                cache: 'no-store',
+              },
+            )
+          : Promise.resolve(null),
+        wabaId
+          ? fetch(
+              `${META_API_BASE}/${wabaId}?fields=id,name,account_review_status,business_verification_status`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                cache: 'no-store',
+              },
+            )
+          : Promise.resolve(null),
+        supabase
+          .from('broadcast_recipients')
+          .select('id, status, broadcasts!inner(account_id)', { count: 'exact', head: true })
+          .eq('broadcasts.account_id', accountId)
+          .in('status', ['sent', 'delivered', 'read', 'replied'])
+          .gte('sent_at', iso24hAgo),
+        supabase
+          .from('broadcast_recipients')
+          .select('id, status, broadcasts!inner(account_id)', { count: 'exact', head: true })
+          .eq('broadcasts.account_id', accountId)
+          .in('status', ['sent', 'delivered', 'read', 'replied'])
+          .gte('sent_at', iso7dAgo),
+      ]);
 
     const profileJson = await profileRes.json().catch(() => ({}));
     const phoneJson = await phoneRes.json().catch(() => ({}));
     const wabaPhonesJson = wabaPhonesRes
       ? await wabaPhonesRes.json().catch(() => ({}))
+      : null;
+    const wabaMetaJson = wabaMetaRes
+      ? await wabaMetaRes.json().catch(() => ({}))
       : null;
 
     if (!profileRes.ok) {
@@ -162,6 +219,35 @@ export async function GET() {
     const businessProfile = Array.isArray(profileJson?.data)
       ? profileJson.data[0] ?? {}
       : {};
+
+    const resolvedPrimaryTier =
+      phoneJson?.whatsapp_business_manager_messaging_limit ||
+      phoneJson?.messaging_limit_tier ||
+      'TIER_250';
+    const tierInfo = parseTierNumericLimit(resolvedPrimaryTier);
+    const usedLast24h = sent24hRes.count ?? 0;
+    const usedLast7d = sent7dRes.count ?? 0;
+    const remainingToday =
+      tierInfo.dailyLimit > 0
+        ? Math.max(0, tierInfo.dailyLimit - usedLast24h)
+        : -1;
+    const upgradeTarget7d =
+      tierInfo.dailyLimit > 0 ? Math.ceil(tierInfo.dailyLimit * 0.5) : 0;
+
+    const quota = {
+      tierCode: String(resolvedPrimaryTier),
+      dailyLimit: tierInfo.dailyLimit,
+      usedLast24h,
+      remainingToday,
+      usedLast7d,
+      upgradeTarget7d,
+      nextTierLimit: tierInfo.nextTierLimit,
+      nextTierLabel: tierInfo.nextTierLabel,
+      businessVerificationStatus:
+        typeof wabaMetaJson?.business_verification_status === 'string'
+          ? wabaMetaJson.business_verification_status
+          : null,
+    };
 
     const primaryPhone = {
       id: phoneJson?.id ?? phoneNumberId,
@@ -177,12 +263,13 @@ export async function GET() {
       display_phone_number: phoneJson?.display_phone_number ?? '',
       quality_rating: phoneJson?.quality_rating ?? '',
       status: phoneJson?.status ?? 'CONNECTED',
-      messaging_limit_tier: phoneJson?.messaging_limit_tier ?? '',
+      messaging_limit_tier: String(resolvedPrimaryTier),
       name_status: phoneJson?.name_status ?? '',
       new_display_name: phoneJson?.new_display_name ?? null,
       new_name_status: phoneJson?.new_name_status ?? null,
       profile_picture_url: businessProfile.profile_picture_url ?? null,
       is_primary: true,
+      quota,
     };
 
     // Build full list of numbers in the WABA (if multiple exist)
@@ -235,12 +322,17 @@ export async function GET() {
             display_phone_number: String(item.display_phone_number ?? ''),
             quality_rating: String(item.quality_rating ?? ''),
             status: String(item.status ?? 'CONNECTED'),
-            messaging_limit_tier: String(item.messaging_limit_tier ?? ''),
+            messaging_limit_tier: String(
+              item.whatsapp_business_manager_messaging_limit ||
+                item.messaging_limit_tier ||
+                resolvedPrimaryTier,
+            ),
             name_status: String(item.name_status ?? ''),
             new_display_name: (item.new_display_name as string | null) ?? null,
             new_name_status: (item.new_name_status as string | null) ?? null,
             profile_picture_url: picUrl,
             is_primary: isPrimary,
+            quota,
           };
         }),
       );
